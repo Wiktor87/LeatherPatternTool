@@ -135,3 +135,32 @@ body.publish-mode #publish-bar{display:flex}
 #file-menu.open{display:flex}
 #file-menu button{background:transparent;border:none;color:var(--text);padding:8px 16px;text-align:left;cursor:pointer;border-radius:4px;font-size:12px;white-space:nowrap}
 #file-menu button:hover{background:#333}
+
+/* Help Panel */
+#help-panel{position:fixed;top:44px;right:0;bottom:0;width:260px;background:var(--panel);border-left:1px solid var(--border);padding:8px;padding-top:36px;overflow-y:auto;z-index:100;transform:translateX(100%);transition:transform .2s}
+#help-panel.open{transform:translateX(0)}
+#help-panel .close-btn{position:absolute;top:8px;right:8px;width:24px;height:24px;background:#444;border:none;border-radius:4px;color:var(--text);cursor:pointer;font-size:14px;z-index:1}
+#help-panel .panel-title{position:absolute;top:10px;left:8px;font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:.5px}
+#help-panel h3{font-size:11px;color:var(--dim);margin:12px 0 6px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+#help-panel h3:first-child{margin-top:4px}
+.help-item{display:flex;align-items:center;padding:6px 8px;margin:2px 0;border-radius:4px;font-size:11px;gap:10px}
+.help-item kbd{background:#333;border:1px solid #444;color:var(--accent);padding:2px 6px;border-radius:3px;font-size:10px;font-family:monospace;min-width:50px;text-align:center;box-shadow:0 1px 2px rgba(0,0,0,0.2)}
+.help-item span{flex:1;color:var(--text)}
+
+/* Settings Tabs */
+.settings-tabs{display:flex;gap:4px;padding:0 0 12px;border-bottom:1px solid var(--border);margin-bottom:12px}
+.tab-btn{background:transparent;border:none;color:var(--dim);padding:6px 10px;border-radius:4px;cursor:pointer;font-size:11px;font-weight:500;transition:all .15s}
+.tab-btn:hover{background:#333;color:var(--text)}
+.tab-btn.active{background:var(--accent);color:#fff}
+.settings-content{position:relative}
+.settings-tab-content{display:none}
+.settings-tab-content.active{display:block}
+
+/* Toast Notification */
+#toast{animation:slideUp 0.3s ease}
+@keyframes slideUp{from{transform:translate(-50%,20px);opacity:0}to{transform:translate(-50%,0);opacity:1}}
+#toast.show{display:block!important}
+
+/* Mode Change Animation */
+#mode-indicator.flash{animation:flashPulse 0.4s ease}
+@keyframes flashPulse{0%{transform:translateX(-50%) scale(1)}30%{transform:translateX(-50%) scale(1.1);box-shadow:0 0 20px rgba(10,132,255,0.6)}100%{transform:translateX(-50%) scale(1)}}
