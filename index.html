@@ -765,9 +765,9 @@ const toolId='tool-'+m;const btn=document.getElementById(toolId);
 if(btn){btn.classList.add('active');if(m==='shape'||m==='hole'||m==='customhole')btn.classList.add('orange');if(m==='stitch')btn.classList.add('purple')}
 else document.getElementById('tool-select').classList.add('active');
 const ind=document.getElementById('mode-indicator');
-if(m==='hole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'○ Asym Hole':'○ Sym Hole';ind.className='active orange';this.canvas.style.cursor='copy'}
-else if(m==='customhole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'✎ Asym Custom':'✎ Sym Custom';ind.className='active orange';this.canvas.style.cursor='crosshair'}
-else if(m==='stitch'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'┅ Asym Stitch':'┅ Sym Stitch';ind.className='active purple';this.canvas.style.cursor='copy'}
+if(m==='hole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'○ Single Hole':'○ Mirrored Hole';ind.className='active orange';this.canvas.style.cursor='copy'}
+else if(m==='customhole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'✎ Single Custom':'✎ Mirrored Custom';ind.className='active orange';this.canvas.style.cursor='crosshair'}
+else if(m==='stitch'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'┅ Single Stitch':'┅ Mirrored Stitch';ind.className='active purple';this.canvas.style.cursor='copy'}
 else if(m==='text'){ind.querySelector('.mode-text').textContent='T Add Text';ind.className='active';this.canvas.style.cursor='text'}
 else if(m==='shape'){ind.querySelector('.mode-text').textContent='◇ Asym Shape';ind.className='active orange';this.canvas.style.cursor='crosshair';LAYER='asymmetric';this.setLayer('asymmetric')}
 else{ind.className='';this.canvas.style.cursor='default'}
