@@ -1804,9 +1804,11 @@ for(let ri=0;ri<EDGE_RANGES.length;ri++){
 const range=EDGE_RANGES[ri];
 const rightHalf=this.getRightHalfPath();
 const rightWorld=rightHalf.map(p=>M.holsterToWorld(p));
-const arc=M.arcLength(rightWorld);
-const sd=range.start*arc,ed=range.end*arc;
-const sp=M.ptAtDist(rightWorld,sd),ep=M.ptAtDist(rightWorld,ed);
+const arc=M.buildArc(rightWorld);
+if(!arc||!arc.length)continue;
+const arcLen=arc[arc.length-1].d;
+const sd=range.start*arcLen,ed=range.end*arcLen;
+const sp=M.ptAtDist(arc,sd),ep=M.ptAtDist(arc,ed);
 const mr=8/VIEW.zoom;
 if(sp&&M.dist(w,sp)<mr){HOVER={type:'rangeStart',idx:ri};break}
 if(ep&&M.dist(w,ep)<mr){HOVER={type:'rangeEnd',idx:ri};break}
