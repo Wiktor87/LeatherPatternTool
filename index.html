@@ -19,7 +19,7 @@
 <button class="tool-btn" id="tool-text" onclick="app.setMode('text')" title="Text Tool (T)"><span class="icon">T</span><span>Text</span></button>
 <div class="tool-sep"></div>
 <button class="tool-btn" onclick="app.generateMatchingCircle()" title="Generate Circle from Edge"><span class="icon">◎</span><span>Circle</span></button>
-<button class="tool-btn" onclick="app.addEdgeRange()" title="Add Edge Range (Symmetric)"><span class="icon">⊢</span><span>Edge</span></button>
+<button class="tool-btn" onclick="app.addEdgeRange()" title="Add Edge Range (Mirrored)"><span class="icon">⊢</span><span>Edge</span></button>
 <button class="tool-btn" onclick="app.addMergedEdgeRange()" title="Add Full Perimeter Range"><span class="icon">⊡</span><span>Perim</span></button>
 <div style="flex:1"></div>
 <button class="tool-btn" onclick="app.resetView()" title="Reset View"><span class="icon">⊙</span><span>Reset</span></button>
@@ -29,8 +29,8 @@
 <div id="header">
 <span class="title" id="project-title" onclick="app.renameProject()" title="Click to rename">Leather Pattern</span>
 <div id="layer-toggle">
-<button class="layer-btn sym active" onclick="app.setLayer('symmetric')">Symmetric</button>
-<button class="layer-btn asym" onclick="app.setLayer('asymmetric')">Asymmetric</button>
+<button class="layer-btn sym active" onclick="app.setLayer('symmetric')">Mirrored</button>
+<button class="layer-btn asym" onclick="app.setLayer('asymmetric')">Single</button>
 </div>
 <span class="spacer"></span>
 <button class="hdr-btn secondary" onclick="app.toggleHelpPanel()" title="Keyboard Shortcuts">?</button>
@@ -133,8 +133,8 @@
 <div class="settings-section"><h3>Visibility</h3>
 <div class="setting-row"><label>Outline</label><input type="checkbox" id="cfg-showOutline" checked onchange="app.updateCfg('showOutline',this.checked)"></div>
 <div class="setting-row"><label>Edge Stitches</label><input type="checkbox" id="cfg-showEdgeStitches" checked onchange="app.updateCfg('showEdgeStitches',this.checked)"></div>
-<div class="setting-row"><label>Symmetric Holes</label><input type="checkbox" id="cfg-showSymHoles" checked onchange="app.updateCfg('showSymmetric',this.checked)"></div>
-<div class="setting-row"><label>Asymmetric Holes</label><input type="checkbox" id="cfg-showAsymHoles" checked onchange="app.updateCfg('showAsymmetric',this.checked)"></div>
+<div class="setting-row"><label>Mirrored Holes</label><input type="checkbox" id="cfg-showSymHoles" checked onchange="app.updateCfg('showSymmetric',this.checked)"></div>
+<parameter name="new_str"><div class="setting-row"><label>Single Holes</label><input type="checkbox" id="cfg-showAsymHoles" checked onchange="app.updateCfg('showAsymmetric',this.checked)"></div>
 <div class="setting-row"><label>Stitches</label><input type="checkbox" id="cfg-showStitchLines" checked onchange="app.updateCfg('showStitchLines',this.checked)"></div>
 <div class="setting-row"><label>Text</label><input type="checkbox" id="cfg-showText" checked onchange="app.updateCfg('showText',this.checked)"></div>
 </div>
@@ -239,7 +239,7 @@
 <div style="text-align:left;background:#1a1a1a;padding:15px;border-radius:8px;margin-bottom:20px">
 <div style="color:#aaa;font-size:13px;line-height:1.8">
 <div style="margin-bottom:8px"><strong style="color:#0A84FF">✓</strong> Use tools on the left to add elements</div>
-<div style="margin-bottom:8px"><strong style="color:#34C759">✓</strong> Switch between Symmetric/Asymmetric layers</div>
+<div style="margin-bottom:8px"><strong style="color:#34C759">✓</strong> Switch between Mirrored/Single layers</div>
 <div style="margin-bottom:8px"><strong style="color:#FF9500">✓</strong> Press <strong style="color:#fff">?</strong> for keyboard shortcuts</div>
 <div><strong style="color:#AF52DE">✓</strong> Click ⚙ to configure settings</div>
 </div>
@@ -583,16 +583,16 @@ if(!SELECTED)return;
 let name='this item';
 if(SELECTED.type==='symHole'){
 const h=SYM_HOLES[SELECTED.idx];
-name=h.name||`Symmetric Hole ${SELECTED.idx+1}`;
+name=h.name||`Mirrored Hole ${SELECTED.idx+1}`;
 }else if(SELECTED.type==='asymHole'){
 const h=ASYM_HOLES[SELECTED.idx];
-name=h.name||`Asymmetric Hole ${SELECTED.idx+1}`;
+name=h.name||`Single Hole ${SELECTED.idx+1}`;
 }else if(SELECTED.type==='symStitch'){
 const s=SYM_STITCHES[SELECTED.idx];
-name=s.name||`Symmetric Stitch ${SELECTED.idx+1}`;
+name=s.name||`Mirrored Stitch ${SELECTED.idx+1}`;
 }else if(SELECTED.type==='asymStitch'){
 const s=ASYM_STITCHES[SELECTED.idx];
-name=s.name||`Asymmetric Stitch ${SELECTED.idx+1}`;
+name=s.name||`Single Stitch ${SELECTED.idx+1}`;
 }else if(SELECTED.type==='textAnnotation'){
 const t=TEXT_ANNOTATIONS[SELECTED.idx];
 name=t.name||`Text: "${t.text}"`;
@@ -607,10 +607,10 @@ const r=MERGED_EDGE_RANGES[SELECTED.idx];
 name=r.name||`Perimeter Range ${SELECTED.idx+1}`;
 }else if(SELECTED.type==='symCustomHole'){
 const h=SYM_CUSTOM_HOLES[SELECTED.idx];
-name=h.name||`Symmetric Custom Hole ${SELECTED.idx+1}`;
+name=h.name||`Mirrored Custom Hole ${SELECTED.idx+1}`;
 }else if(SELECTED.type==='asymCustomHole'){
 const h=ASYM_CUSTOM_HOLES[SELECTED.idx];
-name=h.name||`Asymmetric Custom Hole ${SELECTED.idx+1}`;
+name=h.name||`Single Custom Hole ${SELECTED.idx+1}`;
 }else if(SELECTED.type==='edgeStitch'){
 const s=EDGE_STITCHES[SELECTED.idx];
 name=s.name||`Edge Stitch ${SELECTED.idx+1}`;
@@ -761,13 +761,13 @@ MERGED_EDGE_RANGES.forEach((r,i)=>{html+=makeItem('mergedEdgeRange',i,'⊡',r.na
 }
 if(SYM_HOLES.length||ASYM_HOLES.length){
 html+='<h3>Holes</h3>';
-SYM_HOLES.forEach((h,i)=>{html+=makeItem('symHole',i,'○',h.name||'Symmetric Hole '+(i+1),h)});
-ASYM_HOLES.forEach((h,i)=>{html+=makeItem('asymHole',i,'○',h.name||'Asymmetric Hole '+(i+1),h)});
+SYM_HOLES.forEach((h,i)=>{html+=makeItem('symHole',i,'○',h.name||'Mirrored Hole '+(i+1),h)});
+ASYM_HOLES.forEach((h,i)=>{html+=makeItem('asymHole',i,'○',h.name||'Single Hole '+(i+1),h)});
 }
 if(SYM_CUSTOM_HOLES.length||ASYM_CUSTOM_HOLES.length){
 html+='<h3>Custom Holes</h3>';
-SYM_CUSTOM_HOLES.forEach((h,i)=>{html+=makeItem('symCustomHole',i,'✏',h.name||'Symmetric Custom '+(i+1),h)});
-ASYM_CUSTOM_HOLES.forEach((h,i)=>{html+=makeItem('asymCustomHole',i,'✏',h.name||'Asymmetric Custom '+(i+1),h)});
+SYM_CUSTOM_HOLES.forEach((h,i)=>{html+=makeItem('symCustomHole',i,'✏',h.name||'Mirrored Custom '+(i+1),h)});
+ASYM_CUSTOM_HOLES.forEach((h,i)=>{html+=makeItem('asymCustomHole',i,'✏',h.name||'Single Custom '+(i+1),h)});
 }
 if(SYM_STITCHES.length||ASYM_STITCHES.length||EDGE_STITCHES.length){
 html+='<h3>Stitch Lines</h3>';
@@ -776,8 +776,8 @@ const icon=s.isMerged?'⊡':'⊢';
 const name=s.name||(s.isMerged?'Perim Stitch':'Edge Stitch')+' '+(i+1);
 html+=makeItem('edgeStitch',i,icon,name,s);
 });
-SYM_STITCHES.forEach((s,i)=>{html+=makeItem('symStitch',i,'┅',s.name||'Symmetric Stitch '+(i+1),s)});
-ASYM_STITCHES.forEach((s,i)=>{html+=makeItem('asymStitch',i,'┅',s.name||'Asymmetric Stitch '+(i+1),s)});
+SYM_STITCHES.forEach((s,i)=>{html+=makeItem('symStitch',i,'┅',s.name||'Mirrored Stitch '+(i+1),s)});
+ASYM_STITCHES.forEach((s,i)=>{html+=makeItem('asymStitch',i,'┅',s.name||'Single Stitch '+(i+1),s)});
 }
 if(ASYM_SHAPES.length){
 html+='<h3>Shapes</h3>';
@@ -954,11 +954,11 @@ const toolId='tool-'+m;const btn=document.getElementById(toolId);
 if(btn){btn.classList.add('active');if(m==='shape'||m==='hole'||m==='customhole')btn.classList.add('orange');if(m==='stitch')btn.classList.add('purple')}
 else document.getElementById('tool-select').classList.add('active');
 const ind=document.getElementById('mode-indicator');
-if(m==='hole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'○ Asymmetric Hole':'○ Symmetric Hole';ind.className='active orange';this.canvas.style.cursor='copy'}
-else if(m==='customhole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'✎ Asymmetric Custom':'✎ Symmetric Custom';ind.className='active orange';this.canvas.style.cursor='crosshair'}
-else if(m==='stitch'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'┅ Asymmetric Stitch':'┅ Symmetric Stitch';ind.className='active purple';this.canvas.style.cursor='copy'}
+if(m==='hole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'○ Single Hole':'○ Mirrored Hole';ind.className='active orange';this.canvas.style.cursor='copy'}
+else if(m==='customhole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'✎ Single Custom':'✎ Mirrored Custom';ind.className='active orange';this.canvas.style.cursor='crosshair'}
+else if(m==='stitch'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'┅ Single Stitch':'┅ Mirrored Stitch';ind.className='active purple';this.canvas.style.cursor='copy'}
 else if(m==='text'){ind.querySelector('.mode-text').textContent='T Add Text';ind.className='active';this.canvas.style.cursor='text'}
-else if(m==='shape'){ind.querySelector('.mode-text').textContent='◇ Asymmetric Shape';ind.className='active orange';this.canvas.style.cursor='crosshair';LAYER='asymmetric';this.setLayer('asymmetric')}
+else if(m==='shape'){ind.querySelector('.mode-text').textContent='◇ Single Shape';ind.className='active orange';this.canvas.style.cursor='crosshair';LAYER='asymmetric';this.setLayer('asymmetric')}
 else{ind.className='';this.canvas.style.cursor='default'}
 // Add visual feedback
 if(m!=='select'){
@@ -1176,10 +1176,10 @@ bar.classList.add('active');stats.classList.add('hidden');
 const propShape=document.getElementById('prop-shape'),propWidth=document.getElementById('prop-width'),propHeight=document.getElementById('prop-height'),propSize=document.getElementById('prop-size'),propText=document.getElementById('prop-text'),propFontsize=document.getElementById('prop-fontsize'),propFontstyle=document.getElementById('prop-fontstyle'),propStitch=document.getElementById('prop-stitch'),propMargin=document.getElementById('prop-margin'),propSpacing=document.getElementById('prop-spacing'),propCreateStitch=document.getElementById('prop-create-stitch'),propEsLine=document.getElementById('prop-es-line'),propEsHoles=document.getElementById('prop-es-holes'),propEsMirror=document.getElementById('prop-es-mirror'),propExtension=document.getElementById('prop-extension');
 [propShape,propWidth,propHeight,propSize,propText,propFontsize,propFontstyle,propStitch,propMargin,propSpacing,propCreateStitch,propEsLine,propEsHoles,propEsMirror,propExtension].forEach(p=>p.style.display='none');
 if(SELECTED.type==='holster'){document.getElementById('sel-type').textContent='Main Pattern';propSize.style.display='flex';document.getElementById('sel-size').textContent=HOLSTER.scaleX.toFixed(2)+' × '+HOLSTER.scaleY.toFixed(2)}
-else if(SELECTED.type==='symHole'||SELECTED.type==='asymHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symHole'?'Symmetric Hole':'Asymmetric Hole';propShape.style.display='flex';propWidth.style.display='flex';propHeight.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-shape').value=h.shape||'ellipse';document.getElementById('sel-width').value=h.width;document.getElementById('sel-width-slider').value=h.width;document.getElementById('sel-height').value=h.height;document.getElementById('sel-height-slider').value=h.height;document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
-else if(SELECTED.type==='asymShape'){const s=this.getSelectedObj();document.getElementById('sel-type').textContent=s.isExtension?'Extension Shape':s.isLinkedCircle?'Linked Circle':'Asymmetric Shape';propSize.style.display='flex';propStitch.style.display='flex';propExtension.style.display='flex';document.getElementById('sel-size').textContent=(s.scaleX||1).toFixed(2)+' × '+(s.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=s.stitchBorder||false;document.getElementById('sel-extension').checked=s.isExtension||false;if(s.stitchBorder&&!s.isExtension){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=s.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=s.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=s.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=s.stitchSpacing||3}}
-else if(SELECTED.type==='symStitch'||SELECTED.type==='asymStitch'){const st=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symStitch'?'Symmetric Stitch':'Asymmetric Stitch';propSpacing.style.display='flex';document.getElementById('sel-stitch-spacing').value=st.spacing||4;document.getElementById('sel-stitch-spacing-slider').value=st.spacing||4}
-else if(SELECTED.type==='symCustomHole'||SELECTED.type==='asymCustomHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symCustomHole'?'Symmetric Custom':'Asymmetric Custom';propSize.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-size').textContent=(h.scaleX||1).toFixed(2)+' × '+(h.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
+else if(SELECTED.type==='symHole'||SELECTED.type==='asymHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symHole'?'Mirrored Hole':'Single Hole';propShape.style.display='flex';propWidth.style.display='flex';propHeight.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-shape').value=h.shape||'ellipse';document.getElementById('sel-width').value=h.width;document.getElementById('sel-width-slider').value=h.width;document.getElementById('sel-height').value=h.height;document.getElementById('sel-height-slider').value=h.height;document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
+else if(SELECTED.type==='asymShape'){const s=this.getSelectedObj();document.getElementById('sel-type').textContent=s.isExtension?'Extension Shape':s.isLinkedCircle?'Linked Circle':'Single Shape';propSize.style.display='flex';propStitch.style.display='flex';propExtension.style.display='flex';document.getElementById('sel-size').textContent=(s.scaleX||1).toFixed(2)+' × '+(s.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=s.stitchBorder||false;document.getElementById('sel-extension').checked=s.isExtension||false;if(s.stitchBorder&&!s.isExtension){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=s.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=s.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=s.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=s.stitchSpacing||3}}
+else if(SELECTED.type==='symStitch'||SELECTED.type==='asymStitch'){const st=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symStitch'?'Mirrored Stitch':'Single Stitch';propSpacing.style.display='flex';document.getElementById('sel-stitch-spacing').value=st.spacing||4;document.getElementById('sel-stitch-spacing-slider').value=st.spacing||4}
+else if(SELECTED.type==='symCustomHole'||SELECTED.type==='asymCustomHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symCustomHole'?'Mirrored Custom':'Single Custom';propSize.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-size').textContent=(h.scaleX||1).toFixed(2)+' × '+(h.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
 else if(SELECTED.type==='textAnnotation'){const t=TEXT_ANNOTATIONS[SELECTED.idx];document.getElementById('sel-type').textContent='Text';propText.style.display='flex';propFontsize.style.display='flex';propFontstyle.style.display='flex';document.getElementById('sel-text').value=t.text;document.getElementById('sel-fontsize').value=t.fontSize||12;document.getElementById('btn-bold').style.background=t.bold?'var(--accent)':'#333';document.getElementById('btn-italic').style.background=t.italic?'var(--accent)':'#333'}
 else if(SELECTED.type==='edgeRange'){document.getElementById('sel-type').textContent='Edge Range #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
 else if(SELECTED.type==='mergedEdgeRange'){document.getElementById('sel-type').textContent='Perimeter #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=MERGED_EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
