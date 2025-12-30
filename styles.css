@@ -186,11 +186,6 @@ select:focus-visible {
   outline-offset: 2px;
 }
 
-.tool-btn:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
 /* Modern toggle switch styling */
 input[type="checkbox"] {
   -webkit-appearance: none;
