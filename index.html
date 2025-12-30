@@ -10,16 +10,16 @@
 <body>
 <!-- Left Toolbar -->
 <div id="toolbar">
-<button class="tool-btn active" id="tool-select" onclick="app.setMode('select')" title="Select Tool (V)"><span class="icon">↖</span><span>Select</span></button>
+<button class="tool-btn active" id="tool-select" onclick="app.setMode('select')" title="Select (V)"><span class="icon">↖</span><span>Select</span></button>
 <div class="tool-sep"></div>
-<button class="tool-btn" id="tool-hole" onclick="app.setMode('hole')" title="Hole Tool (H)"><span class="icon">○</span><span>Hole</span></button>
-<button class="tool-btn" id="tool-customhole" onclick="app.setMode('customhole')" title="Custom Hole Tool"><span class="icon">✎</span><span>Custom</span></button>
-<button class="tool-btn" id="tool-stitch" onclick="app.setMode('stitch')" title="Stitch Line Tool (S)"><span class="icon">┅</span><span>Stitch</span></button>
-<button class="tool-btn" id="tool-shape" onclick="app.setMode('shape')" title="Shape Tool"><span class="icon">◇</span><span>Shape</span></button>
-<button class="tool-btn" id="tool-text" onclick="app.setMode('text')" title="Text Tool (T)"><span class="icon">T</span><span>Text</span></button>
+<button class="tool-btn" id="tool-hole" onclick="app.setMode('hole')" title="Hole (H)"><span class="icon">○</span><span>Hole</span></button>
+<button class="tool-btn" id="tool-customhole" onclick="app.setMode('customhole')" title="Custom Hole"><span class="icon">✎</span><span>Custom</span></button>
+<button class="tool-btn" id="tool-stitch" onclick="app.setMode('stitch')" title="Stitch Line (S)"><span class="icon">┅</span><span>Stitch</span></button>
+<button class="tool-btn" id="tool-shape" onclick="app.setMode('shape')" title="Shape"><span class="icon">◇</span><span>Shape</span></button>
+<button class="tool-btn" id="tool-text" onclick="app.setMode('text')" title="Text (T)"><span class="icon">T</span><span>Text</span></button>
 <div class="tool-sep"></div>
-<button class="tool-btn" onclick="app.generateMatchingCircle()" title="Generate Circle from Edge"><span class="icon">◎</span><span>Circle</span></button>
-<button class="tool-btn" onclick="app.addEdgeRange()" title="Add Edge Range (Symmetric)"><span class="icon">⊢</span><span>Edge</span></button>
+<button class="tool-btn" onclick="app.generateMatchingCircle()" title="Circle from Edge"><span class="icon">◎</span><span>Circle</span></button>
+<button class="tool-btn" onclick="app.addEdgeRange()" title="Add Edge Range (symmetric)"><span class="icon">⊢</span><span>Edge</span></button>
 <button class="tool-btn" onclick="app.addMergedEdgeRange()" title="Add Full Perimeter Range"><span class="icon">⊡</span><span>Perim</span></button>
 <div style="flex:1"></div>
 <button class="tool-btn" onclick="app.resetView()" title="Reset View"><span class="icon">⊙</span><span>Reset</span></button>
@@ -33,7 +33,6 @@
 <button class="layer-btn asym" onclick="app.setLayer('asymmetric')">Asymmetric</button>
 </div>
 <span class="spacer"></span>
-<button class="hdr-btn secondary" onclick="app.toggleHelpPanel()" title="Keyboard Shortcuts">?</button>
 <button class="hdr-btn secondary" onclick="app.selectHolster()">Select Pattern</button>
 <button class="hdr-btn secondary" onclick="app.toggleFileMenu()">💾 File</button>
 <button class="hdr-btn primary" onclick="app.togglePublish()">📐 Publish</button>
@@ -62,81 +61,51 @@
 <div id="outliner-content"></div>
 </div>
 
-<!-- Help Panel -->
-<div id="help-panel">
-<span class="panel-title">Keyboard Shortcuts</span>
-<button class="close-btn" onclick="app.toggleHelpPanel()">✕</button>
-<div id="help-content">
-<h3>Tools</h3>
-<div class="help-item"><kbd>V</kbd><span>Select Tool</span></div>
-<div class="help-item"><kbd>H</kbd><span>Hole Tool</span></div>
-<div class="help-item"><kbd>S</kbd><span>Stitch Line Tool</span></div>
-<div class="help-item"><kbd>T</kbd><span>Text Tool</span></div>
-<h3>Navigation</h3>
-<div class="help-item"><kbd>Mouse Wheel</kbd><span>Zoom In/Out</span></div>
-<div class="help-item"><kbd>Middle Click</kbd><span>Pan View</span></div>
-<h3>Editing</h3>
-<div class="help-item"><kbd>Ctrl+Z</kbd><span>Undo</span></div>
-<div class="help-item"><kbd>Ctrl+Y</kbd><span>Redo</span></div>
-<div class="help-item"><kbd>Shift</kbd><span>Constrain Scale</span></div>
-<div class="help-item"><kbd>Del</kbd><span>Delete Selected</span></div>
-<h3>Other</h3>
-<div class="help-item"><kbd>Double Click</kbd><span>Add Node/Edit</span></div>
-<div class="help-item"><kbd>Enter</kbd><span>Finish Mode</span></div>
-<div class="help-item"><kbd>Esc</kbd><span>Cancel Mode</span></div>
-</div>
-</div>
-
 <!-- Settings Overlay (click to close) -->
 <div id="settings-overlay" onclick="app.toggleSettings()"></div>
 
 <!-- Settings Panel -->
 <div id="settings-panel">
 <button class="close-btn" onclick="app.toggleSettings()">✕</button>
-<div class="settings-tabs">
-<button class="tab-btn active" data-tab="material" onclick="app.switchSettingsTab('material')">Material</button>
-<button class="tab-btn" data-tab="stitching" onclick="app.switchSettingsTab('stitching')">Stitching</button>
-<button class="tab-btn" data-tab="display" onclick="app.switchSettingsTab('display')">Display</button>
-<button class="tab-btn" data-tab="snap" onclick="app.switchSettingsTab('snap')">Snap</button>
-<button class="tab-btn" data-tab="print" onclick="app.switchSettingsTab('print')">Print</button>
-</div>
-<div class="settings-content">
-<!-- Material Tab -->
-<div class="settings-tab-content active" data-tab="material">
-<div class="settings-section"><h3>Material Properties</h3>
-<div class="setting-row"><label>Thickness (mm)</label><input type="number" id="cfg-thickness" value="3" min="1.5" max="8" step="0.5" onchange="app.updateCfg('thickness',this.value)"></div>
+<div class="settings-section"><h3>Material</h3>
+<div class="setting-row"><label>Thickness</label><input type="number" id="cfg-thickness" value="3" min="1.5" max="8" step="0.5" onchange="app.updateCfg('thickness',this.value)"></div>
 <div class="setting-row"><label>Color</label><input type="color" id="cfg-color" value="#b4783c" onchange="app.updateCfg('leatherColor',this.value)"></div>
+</div>
+<div class="settings-section"><h3>Stitch Defaults</h3>
+<div class="setting-row"><label>Margin</label><input type="number" id="cfg-margin" value="5" min="3" max="15" step="0.5" onchange="app.updateCfg('stitchMargin',this.value)"></div>
+<div class="setting-row"><label>Spacing</label><input type="number" id="cfg-spacing" value="4" min="2" max="8" step="0.5" onchange="app.updateCfg('stitchSpacing',this.value)"></div>
+<div class="setting-row"><label>Hole Size</label><input type="number" id="cfg-holeSize" value="1.5" min="0.8" max="3" step="0.1" onchange="app.updateCfg('holeSize',this.value)"></div>
+<div class="setting-row"><label>Mirror</label><input type="checkbox" id="cfg-mirror" checked onchange="app.updateCfg('mirrorEdgeStitches',this.checked)"></div>
 </div>
 <div class="settings-section"><h3>Hole Defaults</h3>
 <div class="setting-row"><label>Shape</label><select id="cfg-defShape" onchange="app.updateCfg('defaultHoleShape',this.value)"><option value="circle">Circle</option><option value="ellipse">Ellipse</option><option value="pill">Pill</option><option value="rectangle">Rectangle</option></select></div>
-<div class="setting-row"><label>Width (mm)</label><input type="range" id="cfg-defW-slider" value="4" min="2" max="30" step="0.5" oninput="document.getElementById('cfg-defW').value=this.value;app.updateCfg('defaultHoleWidth',this.value)"><input type="number" id="cfg-defW" value="4" min="2" max="30" step="0.5" onchange="document.getElementById('cfg-defW-slider').value=this.value;app.updateCfg('defaultHoleWidth',this.value)"></div>
-<div class="setting-row"><label>Height (mm)</label><input type="range" id="cfg-defH-slider" value="4" min="2" max="30" step="0.5" oninput="document.getElementById('cfg-defH').value=this.value;app.updateCfg('defaultHoleHeight',this.value)"><input type="number" id="cfg-defH" value="4" min="2" max="30" step="0.5" onchange="document.getElementById('cfg-defH-slider').value=this.value;app.updateCfg('defaultHoleHeight',this.value)"></div>
+<div class="setting-row"><label>Width</label><input type="range" id="cfg-defW-slider" value="4" min="2" max="30" step="0.5" oninput="document.getElementById('cfg-defW').value=this.value;app.updateCfg('defaultHoleWidth',this.value)"><input type="number" id="cfg-defW" value="4" min="2" max="30" step="0.5" onchange="document.getElementById('cfg-defW-slider').value=this.value;app.updateCfg('defaultHoleWidth',this.value)"></div>
+<div class="setting-row"><label>Height</label><input type="range" id="cfg-defH-slider" value="4" min="2" max="30" step="0.5" oninput="document.getElementById('cfg-defH').value=this.value;app.updateCfg('defaultHoleHeight',this.value)"><input type="number" id="cfg-defH" value="4" min="2" max="30" step="0.5" onchange="document.getElementById('cfg-defH-slider').value=this.value;app.updateCfg('defaultHoleHeight',this.value)"></div>
 </div>
-</div>
-<!-- Stitching Tab -->
-<div class="settings-tab-content" data-tab="stitching">
-<div class="settings-section"><h3>Stitch Defaults</h3>
-<div class="setting-row"><label>Margin (mm)</label><input type="number" id="cfg-margin" value="5" min="3" max="15" step="0.5" onchange="app.updateCfg('stitchMargin',this.value)"></div>
-<div class="setting-row"><label>Spacing (mm)</label><input type="number" id="cfg-spacing" value="4" min="2" max="8" step="0.5" onchange="app.updateCfg('stitchSpacing',this.value)"></div>
-<div class="setting-row"><label>Hole Size (mm)</label><input type="number" id="cfg-holeSize" value="1.5" min="0.8" max="3" step="0.1" onchange="app.updateCfg('holeSize',this.value)"></div>
-<div class="setting-row"><label>Mirror Edges</label><input type="checkbox" id="cfg-mirror" checked onchange="app.updateCfg('mirrorEdgeStitches',this.checked)"></div>
-</div>
-</div>
-<!-- Display Tab -->
-<div class="settings-tab-content" data-tab="display">
-<div class="settings-section"><h3>View Options</h3>
+<div class="settings-section"><h3>Display</h3>
 <div class="setting-row"><label>Cavity</label><input type="checkbox" id="cfg-cavity" checked onchange="app.updateCfg('showCavity',this.checked)"></div>
 <div class="setting-row"><label>Fold Line</label><input type="checkbox" id="cfg-fold" checked onchange="app.updateCfg('showFoldLine',this.checked)"></div>
 <div class="setting-row"><label>Lock Fold</label><input type="checkbox" id="cfg-lockFold" onchange="app.updateCfg('lockFoldLine',this.checked)"></div>
-<div class="setting-row"><label>Grid Opacity</label><input type="range" id="cfg-grid" value="0.6" min="0" max="1" step="0.1" onchange="app.updateCfg('gridOpacity',this.value)"></div>
+<div class="setting-row"><label>Grid</label><input type="range" id="cfg-grid" value="0.6" min="0" max="1" step="0.1" onchange="app.updateCfg('gridOpacity',this.value)"></div>
+</div>
+<div class="settings-section"><h3>Snap</h3>
+<div class="setting-row"><label>Snap to Grid</label><input type="checkbox" id="cfg-snapGrid" onchange="app.updateCfg('snapGrid',this.checked)"></div>
+<div class="setting-row"><label>Grid Size</label><input type="number" id="cfg-gridSize" value="5" min="1" max="25" step="1" onchange="app.updateCfg('gridSize',this.value)"><span style="color:#888;font-size:10px">mm</span></div>
+<div class="setting-row"><label>Snap to Fold</label><input type="checkbox" id="cfg-snapFold" onchange="app.updateCfg('snapFold',this.checked)"></div>
 </div>
 <div class="settings-section"><h3>Visibility</h3>
 <div class="setting-row"><label>Outline</label><input type="checkbox" id="cfg-showOutline" checked onchange="app.updateCfg('showOutline',this.checked)"></div>
 <div class="setting-row"><label>Edge Stitches</label><input type="checkbox" id="cfg-showEdgeStitches" checked onchange="app.updateCfg('showEdgeStitches',this.checked)"></div>
-<div class="setting-row"><label>Symmetric Holes</label><input type="checkbox" id="cfg-showSymHoles" checked onchange="app.updateCfg('showSymmetric',this.checked)"></div>
-<div class="setting-row"><label>Asymmetric Holes</label><input type="checkbox" id="cfg-showAsymHoles" checked onchange="app.updateCfg('showAsymmetric',this.checked)"></div>
+<div class="setting-row"><label>Sym. Holes</label><input type="checkbox" id="cfg-showSymHoles" checked onchange="app.updateCfg('showSymmetric',this.checked)"></div>
+<div class="setting-row"><label>Asym. Holes</label><input type="checkbox" id="cfg-showAsymHoles" checked onchange="app.updateCfg('showAsymmetric',this.checked)"></div>
 <div class="setting-row"><label>Stitches</label><input type="checkbox" id="cfg-showStitchLines" checked onchange="app.updateCfg('showStitchLines',this.checked)"></div>
 <div class="setting-row"><label>Text</label><input type="checkbox" id="cfg-showText" checked onchange="app.updateCfg('showText',this.checked)"></div>
+</div>
+<div class="settings-section"><h3>Print</h3>
+<div class="setting-row"><label>Page Margin</label><input type="number" id="cfg-pageMargin" value="10" min="5" max="25" step="1" onchange="app.updateCfg('pageMargin',this.value)"><span style="color:#888;font-size:10px">mm</span></div>
+<div class="setting-row"><label>Overlap</label><input type="number" id="cfg-pageOverlap" value="15" min="0" max="30" step="1" onchange="app.updateCfg('pageOverlap',this.value)"><span style="color:#888;font-size:10px">mm</span></div>
+<div class="setting-row"><label>Reg. Marks</label><input type="checkbox" id="cfg-regMarks" checked onchange="app.updateCfg('showRegMarks',this.checked)"></div>
+<div class="setting-row"><label>Center Marks</label><input type="checkbox" id="cfg-centerMarks" checked onchange="app.updateCfg('showCenterMarks',this.checked)"></div>
 </div>
 <div class="settings-section"><h3>Reference Image</h3>
 <div class="setting-row"><button style="flex:1;padding:6px;background:#444;border:1px solid #555;color:#fff;border-radius:4px;cursor:pointer;font-size:11px" onclick="document.getElementById('ref-image-input').click()">📷 Load Image</button></div>
@@ -148,32 +117,13 @@
 <div class="setting-row"><button style="flex:1;padding:4px;background:#333;border:1px solid #444;color:#aaa;border-radius:4px;cursor:pointer;font-size:10px" onclick="app.clearRefImage()">✕ Clear</button></div>
 </div>
 </div>
-<!-- Snap Tab -->
-<div class="settings-tab-content" data-tab="snap">
-<div class="settings-section"><h3>Snap Settings</h3>
-<div class="setting-row"><label>Snap to Grid</label><input type="checkbox" id="cfg-snapGrid" onchange="app.updateCfg('snapGrid',this.checked)"></div>
-<div class="setting-row"><label>Grid Size (mm)</label><input type="number" id="cfg-gridSize" value="5" min="1" max="25" step="1" onchange="app.updateCfg('gridSize',this.value)"></div>
-<div class="setting-row"><label>Snap to Fold</label><input type="checkbox" id="cfg-snapFold" onchange="app.updateCfg('snapFold',this.checked)"></div>
-</div>
-</div>
-<!-- Print Tab -->
-<div class="settings-tab-content" data-tab="print">
-<div class="settings-section"><h3>Print Settings</h3>
-<div class="setting-row"><label>Page Margin (mm)</label><input type="number" id="cfg-pageMargin" value="10" min="5" max="25" step="1" onchange="app.updateCfg('pageMargin',this.value)"></div>
-<div class="setting-row"><label>Overlap (mm)</label><input type="number" id="cfg-pageOverlap" value="15" min="0" max="30" step="1" onchange="app.updateCfg('pageOverlap',this.value)"></div>
-<div class="setting-row"><label>Reg. Marks</label><input type="checkbox" id="cfg-regMarks" checked onchange="app.updateCfg('showRegMarks',this.checked)"></div>
-<div class="setting-row"><label>Center Marks</label><input type="checkbox" id="cfg-centerMarks" checked onchange="app.updateCfg('showCenterMarks',this.checked)"></div>
-</div>
-</div>
-</div>
-</div>
 
 <!-- Properties Bar -->
 <div id="props-bar">
 <span class="sel-title" id="sel-type">Selection</span>
 <div class="prop-group" id="prop-shape"><label>Shape</label><select id="sel-shape" onchange="app.changeHoleShape(this.value)"><option value="circle">Circle</option><option value="ellipse">Ellipse</option><option value="pill">Pill</option><option value="rectangle">Rectangle</option></select></div>
-<div class="prop-group" id="prop-width"><label>W (mm)</label><input type="range" id="sel-width-slider" min="2" max="40" step="0.5" value="4" oninput="app.changeHoleWidth(this.value)" onchange="app.saveState()"><input type="number" id="sel-width" value="4" min="2" max="40" step="0.5" onchange="app.changeHoleWidth(this.value);app.saveState()"></div>
-<div class="prop-group" id="prop-height"><label>H (mm)</label><input type="range" id="sel-height-slider" min="2" max="40" step="0.5" value="4" oninput="app.changeHoleHeight(this.value)" onchange="app.saveState()"><input type="number" id="sel-height" value="4" min="2" max="40" step="0.5" onchange="app.changeHoleHeight(this.value);app.saveState()"></div>
+<div class="prop-group" id="prop-width"><label>W</label><input type="range" id="sel-width-slider" min="2" max="40" step="0.5" value="4" oninput="app.changeHoleWidth(this.value)" onchange="app.saveState()"><input type="number" id="sel-width" value="4" min="2" max="40" step="0.5" onchange="app.changeHoleWidth(this.value);app.saveState()"></div>
+<div class="prop-group" id="prop-height"><label>H</label><input type="range" id="sel-height-slider" min="2" max="40" step="0.5" value="4" oninput="app.changeHoleHeight(this.value)" onchange="app.saveState()"><input type="number" id="sel-height" value="4" min="2" max="40" step="0.5" onchange="app.changeHoleHeight(this.value);app.saveState()"></div>
 <div class="prop-group" id="prop-size"><label>Size</label><span id="sel-size">-</span></div>
 <div class="prop-group" id="prop-text"><label>Text</label><input type="text" id="sel-text" style="width:100px;background:#333;border:1px solid #444;color:#fff;padding:3px 6px;border-radius:4px;font-size:11px" onchange="app.changeText(this.value)"></div>
 <div class="prop-group" id="prop-fontsize"><label>Size</label><input type="number" id="sel-fontsize" value="12" min="6" max="72" step="1" onchange="app.changeFontSize(this.value)"></div>
@@ -182,8 +132,8 @@
 <button id="btn-italic" style="width:28px;height:24px;background:#333;border:1px solid #444;color:#fff;border-radius:3px;font-style:italic;cursor:pointer" onclick="app.toggleItalic()">I</button>
 </div>
 <div class="prop-group" id="prop-stitch"><label>Stitch</label><input type="checkbox" id="sel-stitch-border" onchange="app.toggleStitchBorder(this.checked)"></div>
-<div class="prop-group" id="prop-margin"><label>Margin (mm)</label><input type="range" id="sel-stitch-margin-slider" min="1" max="15" step="0.5" value="3" oninput="app.changeStitchMargin(this.value)" onchange="app.saveState()"><input type="number" id="sel-stitch-margin" value="3" min="1" max="15" step="0.5" onchange="app.changeStitchMargin(this.value);app.saveState()"></div>
-<div class="prop-group" id="prop-spacing"><label>Spacing (mm)</label><input type="range" id="sel-stitch-spacing-slider" min="1" max="10" step="0.5" value="3" oninput="app.changeStitchSpacing(this.value)" onchange="app.saveState()"><input type="number" id="sel-stitch-spacing" value="3" min="1" max="10" step="0.5" onchange="app.changeStitchSpacing(this.value);app.saveState()"></div>
+<div class="prop-group" id="prop-margin"><label>Margin</label><input type="range" id="sel-stitch-margin-slider" min="1" max="15" step="0.5" value="3" oninput="app.changeStitchMargin(this.value)" onchange="app.saveState()"><input type="number" id="sel-stitch-margin" value="3" min="1" max="15" step="0.5" onchange="app.changeStitchMargin(this.value);app.saveState()"></div>
+<div class="prop-group" id="prop-spacing"><label>Spacing</label><input type="range" id="sel-stitch-spacing-slider" min="1" max="10" step="0.5" value="3" oninput="app.changeStitchSpacing(this.value)" onchange="app.saveState()"><input type="number" id="sel-stitch-spacing" value="3" min="1" max="10" step="0.5" onchange="app.changeStitchSpacing(this.value);app.saveState()"></div>
 <div class="prop-group" id="prop-create-stitch" style="display:none"><button onclick="app.createStitchFromRange()" style="background:#007AFF;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:11px">+ Stitch Line</button></div>
 <div class="prop-group" id="prop-es-line"><label>Line</label><input type="checkbox" id="sel-es-line" checked onchange="app.toggleEdgeStitchLine(this.checked)"></div>
 <div class="prop-group" id="prop-es-holes"><label>Holes</label><input type="checkbox" id="sel-es-holes" checked onchange="app.toggleEdgeStitchHoles(this.checked)"></div>
@@ -230,41 +180,6 @@
 </div>
 </div>
 </div>
-
-<!-- Getting Started Modal -->
-<div id="welcome-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.8);z-index:1000;align-items:center;justify-content:center">
-<div style="background:#2a2a2a;padding:30px;border-radius:12px;max-width:450px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.5)">
-<h2 style="margin:0 0 20px;color:#fff;font-size:24px">Welcome to Leather Pattern Tool! 👋</h2>
-<p style="color:#ccc;font-size:14px;line-height:1.6;margin:0 0 20px">Create precise leather patterns for holsters and leathercraft projects. Design with holes, stitches, shapes, and text annotations.</p>
-<div style="text-align:left;background:#1a1a1a;padding:15px;border-radius:8px;margin-bottom:20px">
-<div style="color:#aaa;font-size:13px;line-height:1.8">
-<div style="margin-bottom:8px"><strong style="color:#0A84FF">✓</strong> Use tools on the left to add elements</div>
-<div style="margin-bottom:8px"><strong style="color:#34C759">✓</strong> Switch between Symmetric/Asymmetric layers</div>
-<div style="margin-bottom:8px"><strong style="color:#FF9500">✓</strong> Press <strong style="color:#fff">?</strong> for keyboard shortcuts</div>
-<div><strong style="color:#AF52DE">✓</strong> Click ⚙ to configure settings</div>
-</div>
-</div>
-<div style="display:flex;gap:10px">
-<button onclick="app.dismissWelcome()" style="flex:1;padding:12px;background:#444;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:14px">Skip</button>
-<button onclick="app.dismissWelcome()" style="flex:1;padding:12px;background:#34C759;border:none;border-radius:6px;color:#fff;cursor:pointer;font-size:14px;font-weight:600">Get Started</button>
-</div>
-</div>
-</div>
-
-<!-- Delete Confirmation Modal -->
-<div id="delete-modal" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:1000;align-items:center;justify-content:center">
-<div style="background:#2a2a2a;padding:20px;border-radius:8px;max-width:320px;text-align:center">
-<h3 style="margin:0 0 15px;color:#fff">Delete Item?</h3>
-<p id="delete-message" style="color:#aaa;font-size:13px;margin:0 0 20px"></p>
-<div style="display:flex;gap:10px">
-<button onclick="app.cancelDelete()" style="flex:1;padding:10px;background:#444;border:none;border-radius:4px;color:#fff;cursor:pointer">Cancel</button>
-<button onclick="app.confirmDelete()" style="flex:1;padding:10px;background:#FF3B30;border:none;border-radius:4px;color:#fff;cursor:pointer;font-weight:600">Delete</button>
-</div>
-</div>
-</div>
-
-<!-- Toast Notification -->
-<div id="toast" style="position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(42,42,42,0.95);color:#fff;padding:12px 20px;border-radius:8px;font-size:13px;display:none;z-index:500;box-shadow:0 4px 12px rgba(0,0,0,0.3);animation:slideUp 0.3s ease"></div>
 
 <!-- Publish Bar -->
 <div id="publish-bar">
@@ -347,7 +262,7 @@ return{x,y};
 }
 class App{
 constructor(){this.canvas=document.getElementById('c');this.ctx=this.canvas.getContext('2d');this.dpr=devicePixelRatio||1;this.off=document.createElement('canvas');this.offCtx=this.off.getContext('2d');this.init()}
-init(){this.setupEvents();this.resize();this.settingsOpen=false;this.outlinerOpen=false;this.helpOpen=false;this.saveState();this.checkFirstVisit()}
+init(){this.setupEvents();this.resize();this.settingsOpen=false;this.outlinerOpen=false;this.saveState()}
 // History management for undo/redo
 saveState(){
 const state={
@@ -543,111 +458,7 @@ reader.readAsText(file);
 // Reset input so same file can be loaded again
 e.target.value='';
 }
-toggleSettings(){this.settingsOpen=!this.settingsOpen;document.getElementById('settings-panel').classList.toggle('open',this.settingsOpen);document.getElementById('settings-overlay').classList.toggle('open',this.settingsOpen);document.getElementById('settings-btn').style.display=this.settingsOpen?'none':'flex';if(this.settingsOpen&&this.outlinerOpen)this.toggleOutliner();if(this.settingsOpen&&this.helpOpen)this.toggleHelpPanel()}
-// New UX improvement methods
-checkFirstVisit(){
-if(!localStorage.getItem('leatherPatternTool_visited')){
-document.getElementById('welcome-modal').style.display='flex';
-}
-}
-dismissWelcome(){
-localStorage.setItem('leatherPatternTool_visited','true');
-document.getElementById('welcome-modal').style.display='none';
-}
-toggleHelpPanel(){
-this.helpOpen=!this.helpOpen;
-document.getElementById('help-panel').classList.toggle('open',this.helpOpen);
-if(this.helpOpen){
-if(this.settingsOpen)this.toggleSettings();
-if(this.outlinerOpen)this.toggleOutliner();
-localStorage.setItem('leatherPatternTool_helpClosed',this.helpOpen?'false':'true');
-}
-}
-switchSettingsTab(tab){
-document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
-document.querySelectorAll('.settings-tab-content').forEach(c=>c.classList.remove('active'));
-document.querySelector(`[data-tab="${tab}"].tab-btn`).classList.add('active');
-document.querySelector(`[data-tab="${tab}"].settings-tab-content`).classList.add('active');
-}
-showToast(message,duration=2000){
-const toast=document.getElementById('toast');
-toast.textContent=message;
-toast.classList.add('show');
-setTimeout(()=>{
-toast.classList.remove('show');
-},duration);
-}
-deleteSelected(){
-if(!SELECTED)return;
-// Build friendly name
-let name='this item';
-if(SELECTED.type==='symHole'){
-const h=SYM_HOLES[SELECTED.idx];
-name=h.name||`Symmetric Hole ${SELECTED.idx+1}`;
-}else if(SELECTED.type==='asymHole'){
-const h=ASYM_HOLES[SELECTED.idx];
-name=h.name||`Asymmetric Hole ${SELECTED.idx+1}`;
-}else if(SELECTED.type==='symStitch'){
-const s=SYM_STITCHES[SELECTED.idx];
-name=s.name||`Symmetric Stitch ${SELECTED.idx+1}`;
-}else if(SELECTED.type==='asymStitch'){
-const s=ASYM_STITCHES[SELECTED.idx];
-name=s.name||`Asymmetric Stitch ${SELECTED.idx+1}`;
-}else if(SELECTED.type==='textAnnotation'){
-const t=TEXT_ANNOTATIONS[SELECTED.idx];
-name=t.name||`Text: "${t.text}"`;
-}else if(SELECTED.type==='asymShape'){
-const s=ASYM_SHAPES[SELECTED.idx];
-name=s.name||`Shape ${SELECTED.idx+1}`;
-}else if(SELECTED.type==='edgeRange'){
-const r=EDGE_RANGES[SELECTED.idx];
-name=r.name||`Edge Range ${SELECTED.idx+1}`;
-}else if(SELECTED.type==='mergedEdgeRange'){
-const r=MERGED_EDGE_RANGES[SELECTED.idx];
-name=r.name||`Perimeter Range ${SELECTED.idx+1}`;
-}else if(SELECTED.type==='symCustomHole'){
-const h=SYM_CUSTOM_HOLES[SELECTED.idx];
-name=h.name||`Symmetric Custom Hole ${SELECTED.idx+1}`;
-}else if(SELECTED.type==='asymCustomHole'){
-const h=ASYM_CUSTOM_HOLES[SELECTED.idx];
-name=h.name||`Asymmetric Custom Hole ${SELECTED.idx+1}`;
-}else if(SELECTED.type==='edgeStitch'){
-const s=EDGE_STITCHES[SELECTED.idx];
-name=s.name||`Edge Stitch ${SELECTED.idx+1}`;
-}
-// Show confirmation dialog
-document.getElementById('delete-message').textContent=`Are you sure you want to delete "${name}"?`;
-document.getElementById('delete-modal').style.display='flex';
-this._pendingDelete=SELECTED;
-}
-cancelDelete(){
-document.getElementById('delete-modal').style.display='none';
-this._pendingDelete=null;
-}
-confirmDelete(){
-document.getElementById('delete-modal').style.display='none';
-if(!this._pendingDelete)return;
-const sel=this._pendingDelete;
-this._pendingDelete=null;
-// Perform deletion
-if(sel.type==='symHole')SYM_HOLES.splice(sel.idx,1);
-else if(sel.type==='asymHole')ASYM_HOLES.splice(sel.idx,1);
-else if(sel.type==='symCustomHole')SYM_CUSTOM_HOLES.splice(sel.idx,1);
-else if(sel.type==='asymCustomHole')ASYM_CUSTOM_HOLES.splice(sel.idx,1);
-else if(sel.type==='symStitch')SYM_STITCHES.splice(sel.idx,1);
-else if(sel.type==='asymStitch')ASYM_STITCHES.splice(sel.idx,1);
-else if(sel.type==='edgeStitch')EDGE_STITCHES.splice(sel.idx,1);
-else if(sel.type==='edgeRange')EDGE_RANGES.splice(sel.idx,1);
-else if(sel.type==='mergedEdgeRange')MERGED_EDGE_RANGES.splice(sel.idx,1);
-else if(sel.type==='asymShape')ASYM_SHAPES.splice(sel.idx,1);
-else if(sel.type==='textAnnotation')TEXT_ANNOTATIONS.splice(sel.idx,1);
-SELECTED=null;
-this.updateInfo();
-this.updateOutliner();
-this.draw();
-this.saveState();
-this.showToast('Item deleted');
-}
+toggleSettings(){this.settingsOpen=!this.settingsOpen;document.getElementById('settings-panel').classList.toggle('open',this.settingsOpen);document.getElementById('settings-overlay').classList.toggle('open',this.settingsOpen);document.getElementById('settings-btn').style.display=this.settingsOpen?'none':'flex';if(this.settingsOpen&&this.outlinerOpen)this.toggleOutliner()}
 loadRefImage(e){
 const file=e.target.files[0];
 if(!file)return;
@@ -761,13 +572,13 @@ MERGED_EDGE_RANGES.forEach((r,i)=>{html+=makeItem('mergedEdgeRange',i,'⊡',r.na
 }
 if(SYM_HOLES.length||ASYM_HOLES.length){
 html+='<h3>Holes</h3>';
-SYM_HOLES.forEach((h,i)=>{html+=makeItem('symHole',i,'○',h.name||'Symmetric Hole '+(i+1),h)});
-ASYM_HOLES.forEach((h,i)=>{html+=makeItem('asymHole',i,'○',h.name||'Asymmetric Hole '+(i+1),h)});
+SYM_HOLES.forEach((h,i)=>{html+=makeItem('symHole',i,'○',h.name||'Sym Hole '+(i+1),h)});
+ASYM_HOLES.forEach((h,i)=>{html+=makeItem('asymHole',i,'○',h.name||'Asym Hole '+(i+1),h)});
 }
 if(SYM_CUSTOM_HOLES.length||ASYM_CUSTOM_HOLES.length){
 html+='<h3>Custom Holes</h3>';
-SYM_CUSTOM_HOLES.forEach((h,i)=>{html+=makeItem('symCustomHole',i,'✏',h.name||'Symmetric Custom '+(i+1),h)});
-ASYM_CUSTOM_HOLES.forEach((h,i)=>{html+=makeItem('asymCustomHole',i,'✏',h.name||'Asymmetric Custom '+(i+1),h)});
+SYM_CUSTOM_HOLES.forEach((h,i)=>{html+=makeItem('symCustomHole',i,'✏',h.name||'Sym Custom '+(i+1),h)});
+ASYM_CUSTOM_HOLES.forEach((h,i)=>{html+=makeItem('asymCustomHole',i,'✏',h.name||'Asym Custom '+(i+1),h)});
 }
 if(SYM_STITCHES.length||ASYM_STITCHES.length||EDGE_STITCHES.length){
 html+='<h3>Stitch Lines</h3>';
@@ -776,8 +587,8 @@ const icon=s.isMerged?'⊡':'⊢';
 const name=s.name||(s.isMerged?'Perim Stitch':'Edge Stitch')+' '+(i+1);
 html+=makeItem('edgeStitch',i,icon,name,s);
 });
-SYM_STITCHES.forEach((s,i)=>{html+=makeItem('symStitch',i,'┅',s.name||'Symmetric Stitch '+(i+1),s)});
-ASYM_STITCHES.forEach((s,i)=>{html+=makeItem('asymStitch',i,'┅',s.name||'Asymmetric Stitch '+(i+1),s)});
+SYM_STITCHES.forEach((s,i)=>{html+=makeItem('symStitch',i,'┅',s.name||'Sym Stitch '+(i+1),s)});
+ASYM_STITCHES.forEach((s,i)=>{html+=makeItem('asymStitch',i,'┅',s.name||'Asym Stitch '+(i+1),s)});
 }
 if(ASYM_SHAPES.length){
 html+='<h3>Shapes</h3>';
@@ -954,19 +765,12 @@ const toolId='tool-'+m;const btn=document.getElementById(toolId);
 if(btn){btn.classList.add('active');if(m==='shape'||m==='hole'||m==='customhole')btn.classList.add('orange');if(m==='stitch')btn.classList.add('purple')}
 else document.getElementById('tool-select').classList.add('active');
 const ind=document.getElementById('mode-indicator');
-if(m==='hole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'○ Asymmetric Hole':'○ Symmetric Hole';ind.className='active orange';this.canvas.style.cursor='copy'}
-else if(m==='customhole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'✎ Asymmetric Custom':'✎ Symmetric Custom';ind.className='active orange';this.canvas.style.cursor='crosshair'}
-else if(m==='stitch'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'┅ Asymmetric Stitch':'┅ Symmetric Stitch';ind.className='active purple';this.canvas.style.cursor='copy'}
+if(m==='hole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'○ Asym Hole':'○ Sym Hole';ind.className='active orange';this.canvas.style.cursor='copy'}
+else if(m==='customhole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'✎ Asym Custom':'✎ Sym Custom';ind.className='active orange';this.canvas.style.cursor='crosshair'}
+else if(m==='stitch'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'┅ Asym Stitch':'┅ Sym Stitch';ind.className='active purple';this.canvas.style.cursor='copy'}
 else if(m==='text'){ind.querySelector('.mode-text').textContent='T Add Text';ind.className='active';this.canvas.style.cursor='text'}
-else if(m==='shape'){ind.querySelector('.mode-text').textContent='◇ Asymmetric Shape';ind.className='active orange';this.canvas.style.cursor='crosshair';LAYER='asymmetric';this.setLayer('asymmetric')}
+else if(m==='shape'){ind.querySelector('.mode-text').textContent='◇ Asym Shape';ind.className='active orange';this.canvas.style.cursor='crosshair';LAYER='asymmetric';this.setLayer('asymmetric')}
 else{ind.className='';this.canvas.style.cursor='default'}
-// Add visual feedback
-if(m!=='select'){
-ind.classList.add('flash');
-setTimeout(()=>ind.classList.remove('flash'),400);
-const modeNames={hole:'Hole mode',customhole:'Custom Hole mode',stitch:'Stitch Line mode',text:'Text mode',shape:'Shape mode'};
-if(modeNames[m])this.showToast(`Switched to ${modeNames[m]}`);
-}
 this.draw()}
 finishMode(){if(MODE==='stitch'&&TEMP_STITCH&&TEMP_STITCH.points.length>=2){const ns={points:TEMP_STITCH.points.map(p=>({x:p.x,y:p.y,h1:{x:0,y:0},h2:{x:0,y:0}})),spacing:4};this.smoothHandles(ns.points);if(LAYER==='asymmetric')ASYM_STITCHES.push(ns);else{ns.points=ns.points.map(p=>{const lp=M.worldToHolster(p);return{x:Math.abs(lp.x),y:lp.y,h1:p.h1,h2:p.h2}});SYM_STITCHES.push(ns)}TEMP_STITCH=null;this.saveState()}if(MODE==='shape'&&TEMP_SHAPE&&TEMP_SHAPE.points.length>=3){const b=M.getBounds(TEMP_SHAPE.points);ASYM_SHAPES.push({points:TEMP_SHAPE.points.map(p=>({x:p.x-b.cx,y:p.y-b.cy})),x:b.cx,y:b.cy,rotation:0,scaleX:1,scaleY:1,stitchBorder:false,stitchMargin:3,stitchSpacing:3});TEMP_SHAPE=null;this.saveState()}if(MODE==='customhole'&&TEMP_CUSTOMHOLE&&TEMP_CUSTOMHOLE.points.length>=3){const b=M.getBounds(TEMP_CUSTOMHOLE.points);const pts=TEMP_CUSTOMHOLE.points.map(p=>({x:p.x-b.cx,y:p.y-b.cy,h1:{x:0,y:0},h2:{x:0,y:0}}));this.smoothHandlesClosed(pts);if(LAYER==='asymmetric'){ASYM_CUSTOM_HOLES.push({points:pts,x:b.cx,y:b.cy,rotation:0,scaleX:1,scaleY:1,stitchBorder:false,stitchMargin:3,stitchSpacing:3})}else{const lc=M.worldToHolster({x:b.cx,y:b.cy});const localPts=pts.map(p=>{const wp={x:p.x+b.cx,y:p.y+b.cy};const lp=M.worldToHolster(wp);return{x:lp.x-lc.x,y:lp.y-lc.y,h1:{x:p.h1.x/HOLSTER.scaleX,y:p.h1.y/HOLSTER.scaleY},h2:{x:p.h2.x/HOLSTER.scaleX,y:p.h2.y/HOLSTER.scaleY}}});SYM_CUSTOM_HOLES.push({points:localPts,x:Math.abs(lc.x),y:lc.y,rotation:0,scaleX:1,scaleY:1,stitchBorder:false,stitchMargin:3,stitchSpacing:3})}TEMP_CUSTOMHOLE=null;this.saveState()}this.setMode('select')}
 smoothHandles(pts){if(pts.length<2)return;for(let i=0;i<pts.length;i++){const p=pts[i-1],c=pts[i],n=pts[i+1];if(p&&n){const dx=n.x-p.x,dy=n.y-p.y,len=Math.hypot(dx,dy)*.25,ang=Math.atan2(dy,dx);c.h1={x:-Math.cos(ang)*len,y:-Math.sin(ang)*len};c.h2={x:Math.cos(ang)*len,y:Math.sin(ang)*len}}else if(n){c.h2={x:(n.x-c.x)*.25,y:(n.y-c.y)*.25};c.h1={x:0,y:0}}else if(p){c.h1={x:-(c.x-p.x)*.25,y:-(c.y-p.y)*.25};c.h2={x:0,y:0}}}}
@@ -1025,6 +829,7 @@ circlePoints.push({x:Math.cos(angle)*radius,y:Math.sin(angle)*radius});
 return{points:circlePoints,radius:radius,edgeLength:baseLen,stitchPositions:stitchPositions,stitchCount:stitchPositions.length};
 }catch(e){console.error('getLinkedCircleData error:',e);return null;}
 }
+deleteSelected(){if(!SELECTED)return;if(SELECTED.type==='symHole')SYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='symStitch')SYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='symCustomHole')SYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymShape')ASYM_SHAPES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymHole')ASYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymStitch')ASYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymCustomHole')ASYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='textAnnotation')TEXT_ANNOTATIONS.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeRange'&&EDGE_RANGES.length>1)EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='mergedEdgeRange')MERGED_EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeStitch')EDGE_STITCHES.splice(SELECTED.idx,1);SELECTED=null;this.updateInfo();this.updateOutliner();this.draw();this.saveState()}
 changeHoleShape(s){const h=this.getSelectedObj();if(h&&h.shape!==undefined){h.shape=s;if(s==='circle')h.width=h.height=Math.max(h.width,h.height);this.updateInfo();this.draw();this.saveState()}}
 changeHoleWidth(v){const h=this.getSelectedObj();if(h&&h.width!==undefined){h.width=parseFloat(v);document.getElementById('sel-width').value=v;document.getElementById('sel-width-slider').value=v;this.draw()}}
 changeHoleHeight(v){const h=this.getSelectedObj();if(h&&h.height!==undefined){h.height=parseFloat(v);document.getElementById('sel-height').value=v;document.getElementById('sel-height-slider').value=v;this.draw()}}
@@ -1176,10 +981,10 @@ bar.classList.add('active');stats.classList.add('hidden');
 const propShape=document.getElementById('prop-shape'),propWidth=document.getElementById('prop-width'),propHeight=document.getElementById('prop-height'),propSize=document.getElementById('prop-size'),propText=document.getElementById('prop-text'),propFontsize=document.getElementById('prop-fontsize'),propFontstyle=document.getElementById('prop-fontstyle'),propStitch=document.getElementById('prop-stitch'),propMargin=document.getElementById('prop-margin'),propSpacing=document.getElementById('prop-spacing'),propCreateStitch=document.getElementById('prop-create-stitch'),propEsLine=document.getElementById('prop-es-line'),propEsHoles=document.getElementById('prop-es-holes'),propEsMirror=document.getElementById('prop-es-mirror'),propExtension=document.getElementById('prop-extension');
 [propShape,propWidth,propHeight,propSize,propText,propFontsize,propFontstyle,propStitch,propMargin,propSpacing,propCreateStitch,propEsLine,propEsHoles,propEsMirror,propExtension].forEach(p=>p.style.display='none');
 if(SELECTED.type==='holster'){document.getElementById('sel-type').textContent='Main Pattern';propSize.style.display='flex';document.getElementById('sel-size').textContent=HOLSTER.scaleX.toFixed(2)+' × '+HOLSTER.scaleY.toFixed(2)}
-else if(SELECTED.type==='symHole'||SELECTED.type==='asymHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symHole'?'Symmetric Hole':'Asymmetric Hole';propShape.style.display='flex';propWidth.style.display='flex';propHeight.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-shape').value=h.shape||'ellipse';document.getElementById('sel-width').value=h.width;document.getElementById('sel-width-slider').value=h.width;document.getElementById('sel-height').value=h.height;document.getElementById('sel-height-slider').value=h.height;document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
-else if(SELECTED.type==='asymShape'){const s=this.getSelectedObj();document.getElementById('sel-type').textContent=s.isExtension?'Extension Shape':s.isLinkedCircle?'Linked Circle':'Asymmetric Shape';propSize.style.display='flex';propStitch.style.display='flex';propExtension.style.display='flex';document.getElementById('sel-size').textContent=(s.scaleX||1).toFixed(2)+' × '+(s.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=s.stitchBorder||false;document.getElementById('sel-extension').checked=s.isExtension||false;if(s.stitchBorder&&!s.isExtension){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=s.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=s.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=s.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=s.stitchSpacing||3}}
-else if(SELECTED.type==='symStitch'||SELECTED.type==='asymStitch'){const st=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symStitch'?'Symmetric Stitch':'Asymmetric Stitch';propSpacing.style.display='flex';document.getElementById('sel-stitch-spacing').value=st.spacing||4;document.getElementById('sel-stitch-spacing-slider').value=st.spacing||4}
-else if(SELECTED.type==='symCustomHole'||SELECTED.type==='asymCustomHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symCustomHole'?'Symmetric Custom':'Asymmetric Custom';propSize.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-size').textContent=(h.scaleX||1).toFixed(2)+' × '+(h.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
+else if(SELECTED.type==='symHole'||SELECTED.type==='asymHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symHole'?'Sym Hole':'Asym Hole';propShape.style.display='flex';propWidth.style.display='flex';propHeight.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-shape').value=h.shape||'ellipse';document.getElementById('sel-width').value=h.width;document.getElementById('sel-width-slider').value=h.width;document.getElementById('sel-height').value=h.height;document.getElementById('sel-height-slider').value=h.height;document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
+else if(SELECTED.type==='asymShape'){const s=this.getSelectedObj();document.getElementById('sel-type').textContent=s.isExtension?'Extension Shape':s.isLinkedCircle?'Linked Circle':'Asym Shape';propSize.style.display='flex';propStitch.style.display='flex';propExtension.style.display='flex';document.getElementById('sel-size').textContent=(s.scaleX||1).toFixed(2)+' × '+(s.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=s.stitchBorder||false;document.getElementById('sel-extension').checked=s.isExtension||false;if(s.stitchBorder&&!s.isExtension){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=s.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=s.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=s.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=s.stitchSpacing||3}}
+else if(SELECTED.type==='symStitch'||SELECTED.type==='asymStitch'){const st=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symStitch'?'Sym Stitch':'Asym Stitch';propSpacing.style.display='flex';document.getElementById('sel-stitch-spacing').value=st.spacing||4;document.getElementById('sel-stitch-spacing-slider').value=st.spacing||4}
+else if(SELECTED.type==='symCustomHole'||SELECTED.type==='asymCustomHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symCustomHole'?'Sym Custom':'Asym Custom';propSize.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-size').textContent=(h.scaleX||1).toFixed(2)+' × '+(h.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
 else if(SELECTED.type==='textAnnotation'){const t=TEXT_ANNOTATIONS[SELECTED.idx];document.getElementById('sel-type').textContent='Text';propText.style.display='flex';propFontsize.style.display='flex';propFontstyle.style.display='flex';document.getElementById('sel-text').value=t.text;document.getElementById('sel-fontsize').value=t.fontSize||12;document.getElementById('btn-bold').style.background=t.bold?'var(--accent)':'#333';document.getElementById('btn-italic').style.background=t.italic?'var(--accent)':'#333'}
 else if(SELECTED.type==='edgeRange'){document.getElementById('sel-type').textContent='Edge Range #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
 else if(SELECTED.type==='mergedEdgeRange'){document.getElementById('sel-type').textContent='Perimeter #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=MERGED_EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
