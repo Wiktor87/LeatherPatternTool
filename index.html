@@ -199,7 +199,8 @@
 <script>
 const SCALE=100,CFG={thickness:3,stitchMargin:5,stitchSpacing:4,holeSize:1.5,defaultHoleShape:'circle',defaultHoleWidth:4,defaultHoleHeight:4,defaultHoleStitchBorder:false,defaultHoleStitchMargin:3,defaultHoleStitchSpacing:3,showCavity:true,showFoldLine:true,lockFoldLine:false,mirrorEdgeStitches:true,gridOpacity:.6,leatherColor:'#b4783c',showSymmetric:true,showAsymmetric:true,showRegMarks:true,showCenterMarks:true,pageOverlap:15,pageMargin:10,showOutline:true,showEdgeStitches:true,showStitchLines:true,showText:true,snapGrid:false,gridSize:5,snapFold:false,showRefImage:true,refImageOpacity:0.3};
 const VIEW={x:0,y:0,zoom:1},HOLSTER={x:0,y:0,rotation:0,scaleX:1,scaleY:1,locked:false};
-let MODE='select',LAYER='symmetric',SELECTED=null,TEMP_STITCH=null,TEMP_SHAPE=null,TEMP_CUSTOMHOLE=null,SHIFT_HELD=false,isPanning=false,DRAG={active:false},PUBLISH_MODE=false;
+const HOVER_TOLERANCE={node:12,handle:10,range:10,gizmo:15},HOVER_SCALE=1.4; // Hover detection & visual feedback
+let MODE='select',LAYER='symmetric',SELECTED=null,TEMP_STITCH=null,TEMP_SHAPE=null,TEMP_CUSTOMHOLE=null,SHIFT_HELD=false,isPanning=false,DRAG={active:false},HOVER=null,PUBLISH_MODE=false;
 let HISTORY=[],HISTORY_IDX=-1,MAX_HISTORY=50;
 let PUBLISH_VIEW={x:0,y:0,scale:1}; // Offset and scale for publish mode layout
 let REF_IMAGE={img:null,x:0,y:0,scale:1,width:0,height:0,calibrating:false,calPt1:null,calPt2:null}; // Reference image state
@@ -225,7 +226,8 @@ projectToPath:(path,arc,pt)=>{let bestD=0,minD=Infinity;const total=arc[arc.leng
 sampleBezier:(nodes,steps=20)=>{if(nodes.length<2)return[];const pts=[];for(let i=0;i<nodes.length-1;i++){const c=nodes[i],n=nodes[i+1];for(let k=0;k<=(i===nodes.length-2?steps:steps-1);k++)pts.push(M.bezier({x:c.x,y:c.y},{x:c.x+(c.h2?.x||0),y:c.y+(c.h2?.y||0)},{x:n.x+(n.h1?.x||0),y:n.y+(n.h1?.y||0)},{x:n.x,y:n.y},k/steps))}return pts},
 getHoleOutline:(w,h,cx,cy,rot,shape,n=48)=>{const pts=[],hw=w/2,hh=h/2;if(shape==='rectangle'){[{x:-hw,y:-hh},{x:hw,y:-hh},{x:hw,y:hh},{x:-hw,y:hh}].forEach(c=>{const r=M.rotate(c,rot);pts.push({x:cx+r.x,y:cy+r.y})})}else if(shape==='pill'){const rad=Math.min(hw,hh);for(let i=0;i<n;i++){const a=(i/n)*Math.PI*2;let x,y;if(hw>=hh){const len=hw-rad;x=(Math.cos(a)>=0?len:-len)+rad*Math.cos(a);y=rad*Math.sin(a)}else{const len=hh-rad;x=rad*Math.cos(a);y=(Math.sin(a)>=0?len:-len)+rad*Math.sin(a)}const r=M.rotate({x,y},rot);pts.push({x:cx+r.x,y:cy+r.y})}}else{for(let i=0;i<n;i++){const a=(i/n)*Math.PI*2;const r=M.rotate({x:hw*Math.cos(a),y:hh*Math.sin(a)},rot);pts.push({x:cx+r.x,y:cy+r.y})}}return pts},
 getBounds:pts=>{let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;pts.forEach(p=>{minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y)});return{minX,maxX,minY,maxY,cx:(minX+maxX)/2,cy:(minY+maxY)/2,w:maxX-minX,h:maxY-minY}},
-ptOnBezier:(pts,pt,tol=8)=>{for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],sl=(b.x-a.x)**2+(b.y-a.y)**2;if(sl===0)continue;let t=((pt.x-a.x)*(b.x-a.x)+(pt.y-a.y)*(b.y-a.y))/sl;t=Math.max(0,Math.min(1,t));const pr={x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y)};if(M.dist(pt,pr)<tol)return true}return false}
+ptOnBezier:(pts,pt,tol=8)=>{for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],sl=(b.x-a.x)**2+(b.y-a.y)**2;if(sl===0)continue;let t=((pt.x-a.x)*(b.x-a.x)+(pt.y-a.y)*(b.y-a.y))/sl;t=Math.max(0,Math.min(1,t));const pr={x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y)};if(M.dist(pt,pr)<tol)return true}return false},
+hoverEq:(a,b)=>{if(!a&&!b)return true;if(!a||!b)return false;return a.type===b.type&&a.idx===b.idx&&a.ptIdx===b.ptIdx&&a.gizmoType===b.gizmoType}
 };
 // Snap helper functions
 function snapWorld(pt){
@@ -1425,9 +1427,18 @@ ctx.stroke();
 // Draw range handles
 const sp=M.ptAtDist(offsetArc,sd),ep=M.ptAtDist(offsetArc,ed),mr=6/VIEW.zoom;
 if(sp&&ep){
-ctx.fillStyle='#34C759';ctx.strokeStyle=sel?'#007AFF':'#fff';ctx.lineWidth=(sel?3:2)/VIEW.zoom;
-ctx.beginPath();ctx.arc(sp.x,sp.y,mr,0,Math.PI*2);ctx.fill();ctx.stroke();
-ctx.fillStyle='#FF3B30';ctx.beginPath();ctx.arc(ep.x,ep.y,mr,0,Math.PI*2);ctx.fill();ctx.stroke();
+// Draw range start point (green) with hover effect
+const isStartHovered=HOVER?.type==='rangeStart'&&HOVER.idx===ri;
+const startSize=isStartHovered?mr*HOVER_SCALE:mr;
+ctx.fillStyle=isStartHovered?'#5AE07A':'#34C759';
+ctx.strokeStyle=sel?'#007AFF':'#fff';
+ctx.lineWidth=(isStartHovered||sel?3:2)/VIEW.zoom;
+ctx.beginPath();ctx.arc(sp.x,sp.y,startSize,0,Math.PI*2);ctx.fill();ctx.stroke();
+// Draw range end point (red) with hover effect
+const isEndHovered=HOVER?.type==='rangeEnd'&&HOVER.idx===ri;
+const endSize=isEndHovered?mr*HOVER_SCALE:mr;
+ctx.fillStyle=isEndHovered?'#FF6B6B':'#FF3B30';
+ctx.beginPath();ctx.arc(ep.x,ep.y,endSize,0,Math.PI*2);ctx.fill();ctx.stroke();
 // Draw "+ Stitch" button on canvas when range is selected and has no stitch yet
 if(sel){
 const hasStitch=EDGE_STITCHES.some(es=>!es.isMerged&&es.rangeIdx===ri);
@@ -1624,12 +1635,24 @@ if(draggingNodeIdx===idx){
 ctx.strokeStyle='rgba(100,100,100,.5)';ctx.lineWidth=1/VIEW.zoom;
 ctx.beginPath();ctx.moveTo(wp.x,wp.y);ctx.lineTo(h1w.x,h1w.y);ctx.stroke();
 ctx.beginPath();ctx.moveTo(wp.x,wp.y);ctx.lineTo(h2w.x,h2w.y);ctx.stroke();
-ctx.fillStyle='#FF3B30';ctx.beginPath();ctx.arc(h1w.x,h1w.y,hs,0,Math.PI*2);ctx.fill();
-ctx.fillStyle='#00C7BE';ctx.beginPath();ctx.arc(h2w.x,h2w.y,hs,0,Math.PI*2);ctx.fill();
+// Draw h1 handle with hover effect
+const isH1Hovered=HOVER?.type==='h1'&&HOVER.idx===idx;
+const h1Size=isH1Hovered?hs*HOVER_SCALE:hs;
+ctx.fillStyle=isH1Hovered?'#FF6B6B':'#FF3B30';
+ctx.beginPath();ctx.arc(h1w.x,h1w.y,h1Size,0,Math.PI*2);ctx.fill();
+// Draw h2 handle with hover effect
+const isH2Hovered=HOVER?.type==='h2'&&HOVER.idx===idx;
+const h2Size=isH2Hovered?hs*HOVER_SCALE:hs;
+ctx.fillStyle=isH2Hovered?'#5DD3D8':'#00C7BE';
+ctx.beginPath();ctx.arc(h2w.x,h2w.y,h2Size,0,Math.PI*2);ctx.fill();
 }
-// Draw node square
-ctx.fillStyle='#007AFF';ctx.fillRect(wp.x-ns/2,wp.y-ns/2,ns,ns);
-ctx.strokeStyle='#fff';ctx.lineWidth=1.5/VIEW.zoom;ctx.strokeRect(wp.x-ns/2,wp.y-ns/2,ns,ns);
+// Draw node square with hover effect
+const isNodeHovered=HOVER?.type==='node'&&HOVER.idx===idx;
+const nodeSize=isNodeHovered?ns*HOVER_SCALE:ns;
+ctx.fillStyle=isNodeHovered?'#FFA500':'#007AFF';
+ctx.fillRect(wp.x-nodeSize/2,wp.y-nodeSize/2,nodeSize,nodeSize);
+ctx.strokeStyle='#fff';ctx.lineWidth=(isNodeHovered?2:1.5)/VIEW.zoom;
+ctx.strokeRect(wp.x-nodeSize/2,wp.y-nodeSize/2,nodeSize,nodeSize);
 });
 }
 getWorld(e){const r=this.canvas.getBoundingClientRect();return{x:(e.clientX-r.left-VIEW.x)/VIEW.zoom,y:(e.clientY-r.top-VIEW.y)/VIEW.zoom}}
@@ -1643,6 +1666,8 @@ const newText=prompt('Edit text:',t.text);if(newText!==null)t.text=newText;
 this.updateInfo();this.draw();return}
 if(MODE==='select'&&!HOLSTER.locked){const local=this.getPatternLocalPath(),lw=M.worldToHolster(w);let minD=Infinity,ins=-1;for(const p of local){const d=M.dist(lw,p);if(d<minD&&p.segIdx>=0){minD=d;ins=p.segIdx}}if(minD<30/(VIEW.zoom*Math.min(HOLSTER.scaleX||1,HOLSTER.scaleY||1))&&ins>=0){NODES.splice(ins+1,0,{x:Math.max(0,lw.x),y:lw.y,h1:{x:0,y:0},h2:{x:0,y:0}});this.draw()}}}
 onDown(e){e.preventDefault();
+// Clear hover state when starting any interaction
+HOVER=null;
 // Handle calibration mode
 if(REF_IMAGE.calibrating){
 const w=this.getWorld(e);
@@ -1758,7 +1783,65 @@ this.updateInfo();this.draw();return;
 }}
 SELECTED=null;this.updateInfo();this.draw()
 }
-onMove(e){if(!DRAG.active)return;e.preventDefault();const w=this.getWorld(e);
+onMove(e){const w=this.getWorld(e);
+// Add hover detection when not dragging
+if(!DRAG.active&&MODE==='select'){
+const prevHover=HOVER;
+HOVER=null;
+// Check node bezier handles first (h1, h2) - only when holster unlocked
+if(!HOLSTER.locked){
+for(let i=0;i<NODES.length;i++){
+const n=NODES[i];
+const nw=M.holsterToWorld(n);
+const h1w=M.holsterToWorld({x:n.x+n.h1.x,y:n.y+n.h1.y});
+const h2w=M.holsterToWorld({x:n.x+n.h2.x,y:n.y+n.h2.y});
+if(M.dist(w,h1w)<HOVER_TOLERANCE.handle/VIEW.zoom){HOVER={type:'h1',idx:i};break}
+if(M.dist(w,h2w)<HOVER_TOLERANCE.handle/VIEW.zoom){HOVER={type:'h2',idx:i};break}
+if(M.dist(w,nw)<HOVER_TOLERANCE.node/VIEW.zoom){HOVER={type:'node',idx:i};break}
+}
+}
+// Check edge range handles
+if(!HOVER){
+for(let ri=0;ri<EDGE_RANGES.length;ri++){
+const range=EDGE_RANGES[ri];
+const rightHalf=this.getRightHalfPath();
+const rightWorld=rightHalf.map(p=>M.holsterToWorld(p));
+const arc=M.buildArc(rightWorld);
+if(!arc||!arc.length)continue;
+const arcLen=arc[arc.length-1].d;
+const sd=range.start*arcLen,ed=range.end*arcLen;
+const sp=M.ptAtDist(arc,sd),ep=M.ptAtDist(arc,ed);
+if(sp&&M.dist(w,sp)<HOVER_TOLERANCE.range/VIEW.zoom){HOVER={type:'rangeStart',idx:ri};break}
+if(ep&&M.dist(w,ep)<HOVER_TOLERANCE.range/VIEW.zoom){HOVER={type:'rangeEnd',idx:ri};break}
+}
+}
+// Check gizmo handles if something is selected
+if(!HOVER&&SELECTED){
+let gizmo=null;
+if(SELECTED.type==='holster'&&!HOLSTER.locked){
+gizmo=this.getGizmos(HOLSTER,'holster');
+}else if(SELECTED.type==='asymShape'){
+gizmo=this.getGizmos(ASYM_SHAPES[SELECTED.idx],'asymShape');
+}
+if(gizmo){
+for(const g of gizmo.handles){
+if(M.dist(w,g)<HOVER_TOLERANCE.gizmo/VIEW.zoom){HOVER={type:'gizmo',gizmoType:g.type};break}
+}
+}
+}
+// Update cursor based on hover state
+if(HOVER){
+this.canvas.style.cursor='pointer';
+}else{
+this.canvas.style.cursor='default';
+}
+// Only redraw if hover state changed (performance optimization)
+if(!M.hoverEq(prevHover,HOVER)){
+this.draw();
+}
+return;
+}
+if(!DRAG.active)return;e.preventDefault();
 switch(DRAG.type){
 case'publishPan':{
 // Convert screen pixel delta to mm offset
