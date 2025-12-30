@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Leather Pattern Tool - Modular</title>
+    <link rel="stylesheet" href="styles/main.css">
+</head>
+<body>
+    <div id="app" class="container">
+        <header class="header">
+            <h1>Leather Pattern Tool</h1>
+            <p class="subtitle">Create and visualize custom leather patterns</p>
+        </header>
+
+        <main class="main-content">
+            <section class="controls-section">
+                <h2>Pattern Settings</h2>
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label for="patternType">Pattern Type:</label>
+                        <select id="patternType" class="input-field">
+                            <option value="dots">Dots</option>
+                            <option value="lines">Lines</option>
+                            <option value="grid">Grid</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="patternDensity">Density:</label>
+                        <input type="range" id="patternDensity" class="input-field" min="1" max="100" value="50">
+                        <span id="densityValue" class="value-display">50</span>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="patternColor">Color:</label>
+                        <input type="color" id="patternColor" class="input-field" value="#8B4513">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="backgroundColor">Background:</label>
+                        <input type="color" id="backgroundColor" class="input-field" value="#D4A574">
+                    </div>
+
+                    <div class="control-group">
+                        <label for="patternScale">Scale:</label>
+                        <input type="range" id="patternScale" class="input-field" min="10" max="200" value="50">
+                        <span id="scaleValue" class="value-display">50</span>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="patternRotation">Rotation:</label>
+                        <input type="range" id="patternRotation" class="input-field" min="0" max="360" value="0">
+                        <span id="rotationValue" class="value-display">0°</span>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button id="previewBtn" class="btn btn-primary">Preview</button>
+                    <button id="resetBtn" class="btn btn-secondary">Reset</button>
+                    <button id="downloadBtn" class="btn btn-success">Download Pattern</button>
+                </div>
+            </section>
+
+            <section class="canvas-section">
+                <h2>Pattern Preview</h2>
+                <div class="canvas-container">
+                    <canvas id="patternCanvas" width="800" height="600"></canvas>
+                </div>
+            </section>
+
+            <section class="presets-section">
+                <h2>Preset Patterns</h2>
+                <div class="presets-grid">
+                    <button class="preset-btn" data-preset="classic">Classic</button>
+                    <button class="preset-btn" data-preset="modern">Modern</button>
+                    <button class="preset-btn" data-preset="vintage">Vintage</button>
+                    <button class="preset-btn" data-preset="geometric">Geometric</button>
+                    <button class="preset-btn" data-preset="floral">Floral</button>
+                    <button class="preset-btn" data-preset="minimal">Minimal</button>
+                </div>
+            </section>
+        </main>
+
+        <footer class="footer">
+            <p>&copy; 2025 Leather Pattern Tool. All rights reserved.</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <script src="js/patternEngine.js"></script>
+    <script src="js/eventHandlers.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
