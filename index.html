@@ -139,6 +139,9 @@
 <div class="prop-group" id="prop-es-holes"><label>Holes</label><input type="checkbox" id="sel-es-holes" checked onchange="app.toggleEdgeStitchHoles(this.checked)"></div>
 <div class="prop-group" id="prop-es-mirror"><label>Mirror</label><input type="checkbox" id="sel-es-mirror" checked onchange="app.toggleEdgeStitchMirror(this.checked)"></div>
 <div class="prop-group" id="prop-extension"><label>Extension</label><input type="checkbox" id="sel-extension" onchange="app.toggleShapeExtension(this.checked)"></div>
+<div class="prop-group" id="prop-link-handles" style="display:none">
+<button onclick="app.linkHandles()" style="background:#007AFF;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer">Link Handles</button>
+</div>
 <button class="delete-btn" onclick="app.deleteSelected()">🗑</button>
 </div>
 
@@ -974,14 +977,29 @@ this.updateInfo();
 this.draw();
 this.saveState();
 }
+linkHandles(){
+if(SELECTED?.type!=='node')return;
+const n=NODES[SELECTED.idx];
+if(!n)return;
+// Calculate the average length of both handles
+const len1=Math.hypot(n.h1.x,n.h1.y);
+const len2=Math.hypot(n.h2.x,n.h2.y);
+const avgLen=(len1+len2)/2||10;
+// Use h2's direction, make h1 opposite
+const angle=Math.atan2(n.h2.y,n.h2.x);
+n.h2={x:Math.cos(angle)*avgLen,y:Math.sin(angle)*avgLen};
+n.h1={x:-n.h2.x,y:-n.h2.y};
+this.draw();
+this.saveState();
+}
 getSelectedObj(){if(SELECTED?.type==='symHole')return SYM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymHole')return ASYM_HOLES[SELECTED.idx];if(SELECTED?.type==='symCustomHole')return SYM_CUSTOM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymCustomHole')return ASYM_CUSTOM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymShape')return ASYM_SHAPES[SELECTED.idx];if(SELECTED?.type==='symStitch')return SYM_STITCHES[SELECTED.idx];if(SELECTED?.type==='asymStitch')return ASYM_STITCHES[SELECTED.idx];if(SELECTED?.type==='edgeStitch')return EDGE_STITCHES[SELECTED.idx];return null}
 updateInfo(){
 if(this.outlinerOpen)this.updateOutliner();
 const bar=document.getElementById('props-bar'),stats=document.getElementById('stats');
 if(!SELECTED){bar.classList.remove('active');stats.classList.remove('hidden');return}
 bar.classList.add('active');stats.classList.add('hidden');
-const propShape=document.getElementById('prop-shape'),propWidth=document.getElementById('prop-width'),propHeight=document.getElementById('prop-height'),propSize=document.getElementById('prop-size'),propText=document.getElementById('prop-text'),propFontsize=document.getElementById('prop-fontsize'),propFontstyle=document.getElementById('prop-fontstyle'),propStitch=document.getElementById('prop-stitch'),propMargin=document.getElementById('prop-margin'),propSpacing=document.getElementById('prop-spacing'),propCreateStitch=document.getElementById('prop-create-stitch'),propEsLine=document.getElementById('prop-es-line'),propEsHoles=document.getElementById('prop-es-holes'),propEsMirror=document.getElementById('prop-es-mirror'),propExtension=document.getElementById('prop-extension');
-[propShape,propWidth,propHeight,propSize,propText,propFontsize,propFontstyle,propStitch,propMargin,propSpacing,propCreateStitch,propEsLine,propEsHoles,propEsMirror,propExtension].forEach(p=>p.style.display='none');
+const propShape=document.getElementById('prop-shape'),propWidth=document.getElementById('prop-width'),propHeight=document.getElementById('prop-height'),propSize=document.getElementById('prop-size'),propText=document.getElementById('prop-text'),propFontsize=document.getElementById('prop-fontsize'),propFontstyle=document.getElementById('prop-fontstyle'),propStitch=document.getElementById('prop-stitch'),propMargin=document.getElementById('prop-margin'),propSpacing=document.getElementById('prop-spacing'),propCreateStitch=document.getElementById('prop-create-stitch'),propEsLine=document.getElementById('prop-es-line'),propEsHoles=document.getElementById('prop-es-holes'),propEsMirror=document.getElementById('prop-es-mirror'),propExtension=document.getElementById('prop-extension'),propLinkHandles=document.getElementById('prop-link-handles');
+[propShape,propWidth,propHeight,propSize,propText,propFontsize,propFontstyle,propStitch,propMargin,propSpacing,propCreateStitch,propEsLine,propEsHoles,propEsMirror,propExtension,propLinkHandles].forEach(p=>p.style.display='none');
 if(SELECTED.type==='holster'){document.getElementById('sel-type').textContent='Main Pattern';propSize.style.display='flex';document.getElementById('sel-size').textContent=HOLSTER.scaleX.toFixed(2)+' × '+HOLSTER.scaleY.toFixed(2)}
 else if(SELECTED.type==='symHole'||SELECTED.type==='asymHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symHole'?'Sym Hole':'Asym Hole';propShape.style.display='flex';propWidth.style.display='flex';propHeight.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-shape').value=h.shape||'ellipse';document.getElementById('sel-width').value=h.width;document.getElementById('sel-width-slider').value=h.width;document.getElementById('sel-height').value=h.height;document.getElementById('sel-height-slider').value=h.height;document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
 else if(SELECTED.type==='asymShape'){const s=this.getSelectedObj();document.getElementById('sel-type').textContent=s.isExtension?'Extension Shape':s.isLinkedCircle?'Linked Circle':'Asym Shape';propSize.style.display='flex';propStitch.style.display='flex';propExtension.style.display='flex';document.getElementById('sel-size').textContent=(s.scaleX||1).toFixed(2)+' × '+(s.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=s.stitchBorder||false;document.getElementById('sel-extension').checked=s.isExtension||false;if(s.stitchBorder&&!s.isExtension){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=s.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=s.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=s.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=s.stitchSpacing||3}}
@@ -991,6 +1009,7 @@ else if(SELECTED.type==='textAnnotation'){const t=TEXT_ANNOTATIONS[SELECTED.idx]
 else if(SELECTED.type==='edgeRange'){document.getElementById('sel-type').textContent='Edge Range #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
 else if(SELECTED.type==='mergedEdgeRange'){document.getElementById('sel-type').textContent='Perimeter #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=MERGED_EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
 else if(SELECTED.type==='edgeStitch'){const es=EDGE_STITCHES[SELECTED.idx];document.getElementById('sel-type').textContent=es.isMerged?'Perim Stitch #'+(SELECTED.idx+1):'Edge Stitch #'+(SELECTED.idx+1);propMargin.style.display='flex';propSpacing.style.display='flex';propEsLine.style.display='flex';propEsHoles.style.display='flex';if(!es.isMerged)propEsMirror.style.display='flex';document.getElementById('sel-stitch-margin').value=es.margin||CFG.stitchMargin;document.getElementById('sel-stitch-margin-slider').value=es.margin||CFG.stitchMargin;document.getElementById('sel-stitch-spacing').value=es.spacing||CFG.stitchSpacing;document.getElementById('sel-stitch-spacing-slider').value=es.spacing||CFG.stitchSpacing;document.getElementById('sel-es-line').checked=es.showLine!==false;document.getElementById('sel-es-holes').checked=es.showHoles!==false;document.getElementById('sel-es-mirror').checked=es.mirror!==false}
+else if(SELECTED.type==='node'){document.getElementById('sel-type').textContent='Node #'+(SELECTED.idx+1);propLinkHandles.style.display='flex'}
 else{document.getElementById('sel-type').textContent=SELECTED.type}}
 getPatternLocalPath(){const pts=[],steps=20;for(let i=0;i<NODES.length;i++){const c=NODES[i],nx=NODES[(i+1)%NODES.length];for(let k=0;k<steps;k++){const pt=M.bezier({x:c.x,y:c.y},{x:c.x+c.h2.x,y:c.y+c.h2.y},{x:nx.x+nx.h1.x,y:nx.y+nx.h1.y},{x:nx.x,y:nx.y},k/steps);pt.segIdx=i;pts.push(pt)}}return pts}
 getRightHalfPath(includeFoldSegments=true){
@@ -1770,7 +1789,7 @@ for(let i=SYM_STITCHES.length-1;i>=0;i--){const sl=SYM_STITCHES[i];for(const sid
 for(let i=ASYM_STITCHES.length-1;i>=0;i--){const sl=ASYM_STITCHES[i];const smp=M.sampleBezier(sl.points,30);if(M.ptOnBezier(smp,w,10/VIEW.zoom)){SELECTED={type:'asymStitch',idx:i};this.updateInfo();this.draw();return}}
 // Text annotation selection
 for(let i=TEXT_ANNOTATIONS.length-1;i>=0;i--){const t=TEXT_ANNOTATIONS[i];const fs=t.fontSize||12;const tw=this.ctx.measureText(t.text).width/VIEW.zoom;if(w.x>=t.x&&w.x<=t.x+tw+20&&w.y>=t.y&&w.y<=t.y+fs+10){SELECTED={type:'textAnnotation',idx:i};if(!t.locked){DRAG={active:true,type:'textMove',idx:i,ox:w.x-t.x,oy:w.y-t.y}}this.updateInfo();this.draw();return}}
-if(!HOLSTER.locked){for(let i=0;i<NODES.length;i++){const n=NODES[i],nw=M.holsterToWorld(n),h1w=M.holsterToWorld({x:n.x+n.h1.x,y:n.y+n.h1.y}),h2w=M.holsterToWorld({x:n.x+n.h2.x,y:n.y+n.h2.y});if(M.dist(w,h1w)<10/VIEW.zoom){DRAG={active:true,type:'h1',idx:i};SELECTED=null;this.updateInfo();this.draw();return}if(M.dist(w,h2w)<10/VIEW.zoom){DRAG={active:true,type:'h2',idx:i};SELECTED=null;this.updateInfo();this.draw();return}if(M.dist(w,nw)<12/VIEW.zoom){DRAG={active:true,type:'node',idx:i};SELECTED=null;this.updateInfo();this.draw();return}}}
+if(!HOLSTER.locked){for(let i=0;i<NODES.length;i++){const n=NODES[i],nw=M.holsterToWorld(n),h1w=M.holsterToWorld({x:n.x+n.h1.x,y:n.y+n.h1.y}),h2w=M.holsterToWorld({x:n.x+n.h2.x,y:n.y+n.h2.y});if(M.dist(w,h1w)<10/VIEW.zoom){DRAG={active:true,type:'h1',idx:i};SELECTED=null;this.updateInfo();this.draw();return}if(M.dist(w,h2w)<10/VIEW.zoom){DRAG={active:true,type:'h2',idx:i};SELECTED=null;this.updateInfo();this.draw();return}if(M.dist(w,nw)<12/VIEW.zoom){DRAG={active:true,type:'node',idx:i};SELECTED={type:'node',idx:i};this.updateInfo();this.draw();return}}}
 const pat=this.getPatternPath();
 if(M.insidePoly(w,pat)){SELECTED={type:'holster'};this.updateInfo();this.draw();return}
 // Check for click on reference image (to drag it)
@@ -1882,8 +1901,14 @@ case'mergedRangeEnd':MERGED_EDGE_RANGES[DRAG.idx].end=Math.max(MERGED_EDGE_RANGE
 case'textMove':{const t=TEXT_ANNOTATIONS[DRAG.idx];const s=snapWorld({x:w.x-DRAG.ox,y:w.y-DRAG.oy});t.x=s.x;t.y=s.y;break}
 case'textArrow':{const t=TEXT_ANNOTATIONS[DRAG.idx];t.arrowTo={x:w.x,y:w.y};break}
 case'node':{const lw=M.worldToHolster(w);const s=snapLocal({x:Math.max(0,lw.x),y:lw.y});NODES[DRAG.idx].x=s.x;NODES[DRAG.idx].y=s.y;break}
-case'h1':{const lw=M.worldToHolster(w);NODES[DRAG.idx].h1={x:lw.x-NODES[DRAG.idx].x,y:lw.y-NODES[DRAG.idx].y};break}
-case'h2':{const lw=M.worldToHolster(w);NODES[DRAG.idx].h2={x:lw.x-NODES[DRAG.idx].x,y:lw.y-NODES[DRAG.idx].y};break}
+case'h1':{const lw=M.worldToHolster(w);NODES[DRAG.idx].h1={x:lw.x-NODES[DRAG.idx].x,y:lw.y-NODES[DRAG.idx].y};
+// When dragging h1 with Shift held, also update h2 to be opposite
+if(SHIFT_HELD){const n=NODES[DRAG.idx];n.h2={x:-n.h1.x,y:-n.h1.y}}
+break}
+case'h2':{const lw=M.worldToHolster(w);NODES[DRAG.idx].h2={x:lw.x-NODES[DRAG.idx].x,y:lw.y-NODES[DRAG.idx].y};
+// When dragging h2 with Shift held, also update h1 to be opposite
+if(SHIFT_HELD){const n=NODES[DRAG.idx];n.h1={x:-n.h2.x,y:-n.h2.y}}
+break}
 }
 this.draw();
 }
