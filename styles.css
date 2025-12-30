@@ -12,7 +12,8 @@ html,body{margin:0;padding:0;overflow:hidden;background:var(--bg);font-family:-a
 .tool-btn.active{background:var(--accent);color:#fff}
 .tool-btn.active.orange{background:var(--orange)}
 .tool-btn.active.purple{background:var(--purple)}
-.tool-btn .icon{font-size:16px;line-height:1}
+.tool-btn .icon{font-size:16px;line-height:1;display:flex;align-items:center;justify-content:center}
+.tool-btn .icon svg{display:block}
 .tool-sep{height:1px;background:var(--border);margin:6px 8px;flex-shrink:0}
 
 /* Top Header */
