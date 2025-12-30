@@ -199,7 +199,7 @@
 <script>
 const SCALE=100,CFG={thickness:3,stitchMargin:5,stitchSpacing:4,holeSize:1.5,defaultHoleShape:'circle',defaultHoleWidth:4,defaultHoleHeight:4,defaultHoleStitchBorder:false,defaultHoleStitchMargin:3,defaultHoleStitchSpacing:3,showCavity:true,showFoldLine:true,lockFoldLine:false,mirrorEdgeStitches:true,gridOpacity:.6,leatherColor:'#b4783c',showSymmetric:true,showAsymmetric:true,showRegMarks:true,showCenterMarks:true,pageOverlap:15,pageMargin:10,showOutline:true,showEdgeStitches:true,showStitchLines:true,showText:true,snapGrid:false,gridSize:5,snapFold:false,showRefImage:true,refImageOpacity:0.3};
 const VIEW={x:0,y:0,zoom:1},HOLSTER={x:0,y:0,rotation:0,scaleX:1,scaleY:1,locked:false};
-const HOVER_TOLERANCE={node:12,handle:10,range:10,gizmo:15}; // Hover detection distances
+const HOVER_TOLERANCE={node:12,handle:10,range:10,gizmo:15},HOVER_SCALE=1.4; // Hover detection & visual feedback
 let MODE='select',LAYER='symmetric',SELECTED=null,TEMP_STITCH=null,TEMP_SHAPE=null,TEMP_CUSTOMHOLE=null,SHIFT_HELD=false,isPanning=false,DRAG={active:false},HOVER=null,PUBLISH_MODE=false;
 let HISTORY=[],HISTORY_IDX=-1,MAX_HISTORY=50;
 let PUBLISH_VIEW={x:0,y:0,scale:1}; // Offset and scale for publish mode layout
@@ -1429,14 +1429,14 @@ const sp=M.ptAtDist(offsetArc,sd),ep=M.ptAtDist(offsetArc,ed),mr=6/VIEW.zoom;
 if(sp&&ep){
 // Draw range start point (green) with hover effect
 const isStartHovered=HOVER?.type==='rangeStart'&&HOVER.idx===ri;
-const startSize=isStartHovered?mr*1.4:mr;
+const startSize=isStartHovered?mr*HOVER_SCALE:mr;
 ctx.fillStyle=isStartHovered?'#5AE07A':'#34C759';
 ctx.strokeStyle=sel?'#007AFF':'#fff';
-ctx.lineWidth=(isStartHovered?3:(sel?3:2))/VIEW.zoom;
+ctx.lineWidth=(isStartHovered||sel?3:2)/VIEW.zoom;
 ctx.beginPath();ctx.arc(sp.x,sp.y,startSize,0,Math.PI*2);ctx.fill();ctx.stroke();
 // Draw range end point (red) with hover effect
 const isEndHovered=HOVER?.type==='rangeEnd'&&HOVER.idx===ri;
-const endSize=isEndHovered?mr*1.4:mr;
+const endSize=isEndHovered?mr*HOVER_SCALE:mr;
 ctx.fillStyle=isEndHovered?'#FF6B6B':'#FF3B30';
 ctx.beginPath();ctx.arc(ep.x,ep.y,endSize,0,Math.PI*2);ctx.fill();ctx.stroke();
 // Draw "+ Stitch" button on canvas when range is selected and has no stitch yet
@@ -1637,18 +1637,18 @@ ctx.beginPath();ctx.moveTo(wp.x,wp.y);ctx.lineTo(h1w.x,h1w.y);ctx.stroke();
 ctx.beginPath();ctx.moveTo(wp.x,wp.y);ctx.lineTo(h2w.x,h2w.y);ctx.stroke();
 // Draw h1 handle with hover effect
 const isH1Hovered=HOVER?.type==='h1'&&HOVER.idx===idx;
-const h1Size=isH1Hovered?hs*1.4:hs;
+const h1Size=isH1Hovered?hs*HOVER_SCALE:hs;
 ctx.fillStyle=isH1Hovered?'#FF6B6B':'#FF3B30';
 ctx.beginPath();ctx.arc(h1w.x,h1w.y,h1Size,0,Math.PI*2);ctx.fill();
 // Draw h2 handle with hover effect
 const isH2Hovered=HOVER?.type==='h2'&&HOVER.idx===idx;
-const h2Size=isH2Hovered?hs*1.4:hs;
+const h2Size=isH2Hovered?hs*HOVER_SCALE:hs;
 ctx.fillStyle=isH2Hovered?'#5DD3D8':'#00C7BE';
 ctx.beginPath();ctx.arc(h2w.x,h2w.y,h2Size,0,Math.PI*2);ctx.fill();
 }
 // Draw node square with hover effect
 const isNodeHovered=HOVER?.type==='node'&&HOVER.idx===idx;
-const nodeSize=isNodeHovered?ns*1.4:ns;
+const nodeSize=isNodeHovered?ns*HOVER_SCALE:ns;
 ctx.fillStyle=isNodeHovered?'#FFA500':'#007AFF';
 ctx.fillRect(wp.x-nodeSize/2,wp.y-nodeSize/2,nodeSize,nodeSize);
 ctx.strokeStyle='#fff';ctx.lineWidth=(isNodeHovered?2:1.5)/VIEW.zoom;
