@@ -1624,14 +1624,16 @@ drawNodes(ctx){
 // Don't show node handles if main shape is locked
 if(HOLSTER.locked)return;
 const ns=8/VIEW.zoom,hs=5/VIEW.zoom;
-// Check if we're currently dragging a specific node
-const draggingNodeIdx=(DRAG.active&&(DRAG.type==='node'||DRAG.type==='h1'||DRAG.type==='h2'))?DRAG.idx:null;
+// Show bezier handles when dragging OR hovering over this node or its handles
+const showHandlesForIdx = (DRAG.active && (DRAG.type==='node'||DRAG.type==='h1'||DRAG.type==='h2')) ? DRAG.idx 
+                        : (HOVER?.type==='node' || HOVER?.type==='h1' || HOVER?.type==='h2') ? HOVER.idx 
+                        : null;
 NODES.forEach((n,idx)=>{
 const wp=M.holsterToWorld(n);
 const h1w=M.holsterToWorld({x:n.x+n.h1.x,y:n.y+n.h1.y});
 const h2w=M.holsterToWorld({x:n.x+n.h2.x,y:n.y+n.h2.y});
-// Only show bezier handles for the node being dragged
-if(draggingNodeIdx===idx){
+// Only show bezier handles for the node being dragged or hovered
+if(showHandlesForIdx===idx){
 ctx.strokeStyle='rgba(100,100,100,.5)';ctx.lineWidth=1/VIEW.zoom;
 ctx.beginPath();ctx.moveTo(wp.x,wp.y);ctx.lineTo(h1w.x,h1w.y);ctx.stroke();
 ctx.beginPath();ctx.moveTo(wp.x,wp.y);ctx.lineTo(h2w.x,h2w.y);ctx.stroke();
