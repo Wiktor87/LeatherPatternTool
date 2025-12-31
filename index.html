@@ -140,7 +140,7 @@
 <div class="prop-group" id="prop-es-mirror"><label>Mirror</label><input type="checkbox" id="sel-es-mirror" checked onchange="app.toggleEdgeStitchMirror(this.checked)"></div>
 <div class="prop-group" id="prop-extension"><label>Extension</label><input type="checkbox" id="sel-extension" onchange="app.toggleShapeExtension(this.checked)"></div>
 <div class="prop-group" id="prop-link-handles" style="display:none">
-<button onclick="app.linkHandles()" style="background:#007AFF;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer">Link Handles</button>
+<button id="btn-link-handles" onclick="app.toggleHandleLink()" style="background:#007AFF;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer">Link Handles</button>
 </div>
 <button class="delete-btn" onclick="app.deleteSelected()">🗑</button>
 </div>
@@ -989,8 +989,30 @@ const avgLen=(len1+len2)/2||10;
 const angle=Math.atan2(n.h2.y,n.h2.x);
 n.h2={x:Math.cos(angle)*avgLen,y:Math.sin(angle)*avgLen};
 n.h1={x:-n.h2.x,y:-n.h2.y};
+// Mark as linked
+n.linked=true;
+this.updateInfo(); // Update button text
 this.draw();
 this.saveState();
+}
+breakHandles(){
+if(SELECTED?.type!=='node')return;
+const n=NODES[SELECTED.idx];
+if(!n)return;
+n.linked=false;
+this.updateInfo(); // Update button text
+this.draw();
+this.saveState();
+}
+toggleHandleLink(){
+if(SELECTED?.type!=='node')return;
+const n=NODES[SELECTED.idx];
+if(!n)return;
+if(n.linked){
+this.breakHandles();
+}else{
+this.linkHandles();
+}
 }
 getSelectedObj(){if(SELECTED?.type==='symHole')return SYM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymHole')return ASYM_HOLES[SELECTED.idx];if(SELECTED?.type==='symCustomHole')return SYM_CUSTOM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymCustomHole')return ASYM_CUSTOM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymShape')return ASYM_SHAPES[SELECTED.idx];if(SELECTED?.type==='symStitch')return SYM_STITCHES[SELECTED.idx];if(SELECTED?.type==='asymStitch')return ASYM_STITCHES[SELECTED.idx];if(SELECTED?.type==='edgeStitch')return EDGE_STITCHES[SELECTED.idx];return null}
 updateInfo(){
@@ -1009,7 +1031,17 @@ else if(SELECTED.type==='textAnnotation'){const t=TEXT_ANNOTATIONS[SELECTED.idx]
 else if(SELECTED.type==='edgeRange'){document.getElementById('sel-type').textContent='Edge Range #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
 else if(SELECTED.type==='mergedEdgeRange'){document.getElementById('sel-type').textContent='Perimeter #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=MERGED_EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
 else if(SELECTED.type==='edgeStitch'){const es=EDGE_STITCHES[SELECTED.idx];document.getElementById('sel-type').textContent=es.isMerged?'Perim Stitch #'+(SELECTED.idx+1):'Edge Stitch #'+(SELECTED.idx+1);propMargin.style.display='flex';propSpacing.style.display='flex';propEsLine.style.display='flex';propEsHoles.style.display='flex';if(!es.isMerged)propEsMirror.style.display='flex';document.getElementById('sel-stitch-margin').value=es.margin||CFG.stitchMargin;document.getElementById('sel-stitch-margin-slider').value=es.margin||CFG.stitchMargin;document.getElementById('sel-stitch-spacing').value=es.spacing||CFG.stitchSpacing;document.getElementById('sel-stitch-spacing-slider').value=es.spacing||CFG.stitchSpacing;document.getElementById('sel-es-line').checked=es.showLine!==false;document.getElementById('sel-es-holes').checked=es.showHoles!==false;document.getElementById('sel-es-mirror').checked=es.mirror!==false}
-else if(SELECTED.type==='node'){document.getElementById('sel-type').textContent='Node #'+(SELECTED.idx+1);propLinkHandles.style.display='flex'}
+else if(SELECTED.type==='node'){const n=NODES[SELECTED.idx];document.getElementById('sel-type').textContent='Node #'+(SELECTED.idx+1);propLinkHandles.style.display='flex';
+// Update button text based on linked state
+const btn=document.getElementById('btn-link-handles');
+if(n.linked){
+btn.textContent='Break Handles';
+btn.style.background='#FF9500'; // Orange for "break" action
+}else{
+btn.textContent='Link Handles';
+btn.style.background='#007AFF'; // Blue for "link" action
+}
+}
 else{document.getElementById('sel-type').textContent=SELECTED.type}}
 getPatternLocalPath(){const pts=[],steps=20;for(let i=0;i<NODES.length;i++){const c=NODES[i],nx=NODES[(i+1)%NODES.length];for(let k=0;k<steps;k++){const pt=M.bezier({x:c.x,y:c.y},{x:c.x+c.h2.x,y:c.y+c.h2.y},{x:nx.x+nx.h1.x,y:nx.y+nx.h1.y},{x:nx.x,y:nx.y},k/steps);pt.segIdx=i;pts.push(pt)}}return pts}
 getRightHalfPath(includeFoldSegments=true){
@@ -1646,6 +1678,7 @@ const ns=8/VIEW.zoom,hs=5/VIEW.zoom;
 // Show bezier handles when dragging OR hovering over this node or its handles
 const showHandlesForIdx = (DRAG.active && (DRAG.type==='node'||DRAG.type==='h1'||DRAG.type==='h2')) ? DRAG.idx 
                         : (HOVER?.type==='node' || HOVER?.type==='h1' || HOVER?.type==='h2') ? HOVER.idx 
+                        : (SELECTED?.type==='node') ? SELECTED.idx
                         : null;
 NODES.forEach((n,idx)=>{
 const wp=M.holsterToWorld(n);
@@ -1901,13 +1934,13 @@ case'mergedRangeEnd':MERGED_EDGE_RANGES[DRAG.idx].end=Math.max(MERGED_EDGE_RANGE
 case'textMove':{const t=TEXT_ANNOTATIONS[DRAG.idx];const s=snapWorld({x:w.x-DRAG.ox,y:w.y-DRAG.oy});t.x=s.x;t.y=s.y;break}
 case'textArrow':{const t=TEXT_ANNOTATIONS[DRAG.idx];t.arrowTo={x:w.x,y:w.y};break}
 case'node':{const lw=M.worldToHolster(w);const s=snapLocal({x:Math.max(0,lw.x),y:lw.y});NODES[DRAG.idx].x=s.x;NODES[DRAG.idx].y=s.y;break}
-case'h1':{const lw=M.worldToHolster(w);NODES[DRAG.idx].h1={x:lw.x-NODES[DRAG.idx].x,y:lw.y-NODES[DRAG.idx].y};
-// When dragging h1 with Shift held, also update h2 to be opposite
-if(SHIFT_HELD){const n=NODES[DRAG.idx];n.h2={x:-n.h1.x,y:-n.h1.y}}
+case'h1':{const lw=M.worldToHolster(w);const n=NODES[DRAG.idx];n.h1={x:lw.x-n.x,y:lw.y-n.y};
+// When dragging h1, update h2 if linked OR if Shift is held
+if(n.linked||SHIFT_HELD){n.h2={x:-n.h1.x,y:-n.h1.y}}
 break}
-case'h2':{const lw=M.worldToHolster(w);NODES[DRAG.idx].h2={x:lw.x-NODES[DRAG.idx].x,y:lw.y-NODES[DRAG.idx].y};
-// When dragging h2 with Shift held, also update h1 to be opposite
-if(SHIFT_HELD){const n=NODES[DRAG.idx];n.h1={x:-n.h2.x,y:-n.h2.y}}
+case'h2':{const lw=M.worldToHolster(w);const n=NODES[DRAG.idx];n.h2={x:lw.x-n.x,y:lw.y-n.y};
+// When dragging h2, update h1 if linked OR if Shift is held
+if(n.linked||SHIFT_HELD){n.h1={x:-n.h2.x,y:-n.h2.y}}
 break}
 }
 this.draw();
