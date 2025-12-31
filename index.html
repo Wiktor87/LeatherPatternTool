@@ -12,11 +12,11 @@
 <div id="toolbar">
 <button class="tool-btn active" id="tool-select" onclick="app.setMode('select')" title="Select (V)"><span class="icon">↖</span><span>Select</span></button>
 <div class="tool-sep"></div>
-<button class="tool-btn" id="tool-hole" onclick="app.setMode('hole')" title="Hole (H)"><span class="icon">○</span><span>Hole</span></button>
+<button class="tool-btn" id="tool-hole" onclick="app.setMode('hole')" title="Add Hole (H)"><span class="icon">○</span><span>Hole</span></button>
 <button class="tool-btn" id="tool-customhole" onclick="app.setMode('customhole')" title="Custom Hole"><span class="icon">✎</span><span>Custom</span></button>
 <button class="tool-btn" id="tool-stitch" onclick="app.setMode('stitch')" title="Stitch Line (S)"><span class="icon">┅</span><span>Stitch</span></button>
 <button class="tool-btn" id="tool-shape" onclick="app.setMode('shape')" title="Shape"><span class="icon">◇</span><span>Shape</span></button>
-<button class="tool-btn" id="tool-text" onclick="app.setMode('text')" title="Text (T)"><span class="icon">T</span><span>Text</span></button>
+<button class="tool-btn" id="tool-text" onclick="app.setMode('text')" title="Add Text (T)"><span class="icon">T</span><span>Text</span></button>
 <div class="tool-sep"></div>
 <button class="tool-btn" onclick="app.generateMatchingCircle()" title="Circle from Edge"><span class="icon">◎</span><span>Circle</span></button>
 <button class="tool-btn" onclick="app.addEdgeRange()" title="Add Edge Range (symmetric)"><span class="icon">⊢</span><span>Edge</span></button>
@@ -198,7 +198,9 @@
 <button class="pbtn danger" onclick="app.togglePublish()">✕ Exit</button>
 </div>
 
+<div id="zoom-indicator" onclick="app.resetView()" title="Click to reset view">100%</div>
 <canvas id="c"></canvas>
+<div id="toast-container"></div>
 <script>
 const SCALE=100,CFG={thickness:3,stitchMargin:5,stitchSpacing:4,holeSize:1.5,defaultHoleShape:'circle',defaultHoleWidth:4,defaultHoleHeight:4,defaultHoleStitchBorder:false,defaultHoleStitchMargin:3,defaultHoleStitchSpacing:3,showCavity:true,showFoldLine:true,lockFoldLine:false,mirrorEdgeStitches:true,gridOpacity:.6,leatherColor:'#b4783c',showSymmetric:true,showAsymmetric:true,showRegMarks:true,showCenterMarks:true,pageOverlap:15,pageMargin:10,showOutline:true,showEdgeStitches:true,showStitchLines:true,showText:true,snapGrid:false,gridSize:5,snapFold:false,showRefImage:true,refImageOpacity:0.3};
 const VIEW={x:0,y:0,zoom:1},HOLSTER={x:0,y:0,rotation:0,scaleX:1,scaleY:1,locked:false};
@@ -268,6 +270,18 @@ return{x,y};
 class App{
 constructor(){this.canvas=document.getElementById('c');this.ctx=this.canvas.getContext('2d');this.dpr=devicePixelRatio||1;this.off=document.createElement('canvas');this.offCtx=this.off.getContext('2d');this.init()}
 init(){this.setupEvents();this.resize();this.settingsOpen=false;this.outlinerOpen=false;this.saveState()}
+showToast(message, type = 'info') {
+  const container = document.getElementById('toast-container');
+  const toast = document.createElement('div');
+  toast.className = 'toast ' + type;
+  toast.textContent = message;
+  container.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+updateZoomIndicator() {
+  const pct = Math.round(VIEW.zoom * 100);
+  document.getElementById('zoom-indicator').textContent = pct + '%';
+}
 // History management for undo/redo
 saveState(){
 const state={
@@ -322,6 +336,7 @@ if(HISTORY_IDX>0){
 HISTORY_IDX--;
 this.restoreState(HISTORY[HISTORY_IDX]);
 this.updateUndoRedoButtons();
+this.showToast('Undo', 'info');
 }
 }
 redo(){
@@ -329,6 +344,7 @@ if(HISTORY_IDX<HISTORY.length-1){
 HISTORY_IDX++;
 this.restoreState(HISTORY[HISTORY_IDX]);
 this.updateUndoRedoButtons();
+this.showToast('Redo', 'info');
 }
 }
 updateUndoRedoButtons(){
@@ -402,6 +418,7 @@ document.body.appendChild(a);
 a.click();
 document.body.removeChild(a);
 URL.revokeObjectURL(url);
+this.showToast('Project saved!', 'success');
 }
 loadProject(){
 document.getElementById('file-menu').classList.remove('open');
@@ -455,8 +472,10 @@ this.updateInfo();
 this.updateOutliner();
 this.draw();
 this.saveState();
+this.showToast('Project loaded!', 'success');
 }catch(err){
 alert('Error loading project: '+err.message);
+this.showToast('Error loading project', 'error');
 }
 };
 reader.readAsText(file);
@@ -708,7 +727,7 @@ return null;
 updateCfg(key,val){if(typeof CFG[key]==='number')CFG[key]=parseFloat(val);else if(typeof CFG[key]==='boolean')CFG[key]=!!val;else CFG[key]=val;this.draw()}
 setupEvents(){
 window.addEventListener('resize',()=>this.resize());
-this.canvas.addEventListener('wheel',e=>{e.preventDefault();if(PUBLISH_MODE){PUBLISH_VIEW.scale*=e.deltaY>0?.9:1.1;PUBLISH_VIEW.scale=Math.max(.3,Math.min(3,PUBLISH_VIEW.scale))}else{VIEW.zoom*=e.deltaY>0?.9:1.1;VIEW.zoom=Math.max(.2,Math.min(4,VIEW.zoom))}this.draw()},{passive:false});
+this.canvas.addEventListener('wheel',e=>{e.preventDefault();if(PUBLISH_MODE){PUBLISH_VIEW.scale*=e.deltaY>0?.9:1.1;PUBLISH_VIEW.scale=Math.max(.3,Math.min(3,PUBLISH_VIEW.scale))}else{VIEW.zoom*=e.deltaY>0?.9:1.1;VIEW.zoom=Math.max(.2,Math.min(4,VIEW.zoom));this.updateZoomIndicator()}this.draw()},{passive:false});
 this.canvas.addEventListener('mousedown',e=>this.onDown(e));
 this.canvas.addEventListener('mousemove',e=>this.onMove(e));
 window.addEventListener('mouseup',()=>this.onUp());
@@ -761,7 +780,7 @@ if((e.ctrlKey||e.metaKey)&&(e.code==='KeyY'||(e.code==='KeyZ'&&e.shiftKey))&&!is
 window.addEventListener('keyup',e=>{if(e.code==='Space'){isPanning=false;this.canvas.style.cursor='default'}if(!e.shiftKey)SHIFT_HELD=false});
 }
 resize(){const w=innerWidth,h=innerHeight;this.canvas.width=w*this.dpr;this.canvas.height=h*this.dpr;this.canvas.style.width=w+'px';this.canvas.style.height=h+'px';this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);this.off.width=this.canvas.width;this.off.height=this.canvas.height;VIEW.x=w/2;VIEW.y=h/2;this.draw()}
-resetView(){VIEW.zoom=1;VIEW.x=innerWidth/2;VIEW.y=innerHeight/2;this.draw()}
+resetView(){VIEW.zoom=1;VIEW.x=innerWidth/2;VIEW.y=innerHeight/2;this.updateZoomIndicator();this.draw()}
 setLayer(l){LAYER=l;document.querySelector('.layer-btn.sym').classList.toggle('active',l==='symmetric');document.querySelector('.layer-btn.asym').classList.toggle('active',l==='asymmetric');CFG.showSymmetric=true;CFG.showAsymmetric=true;this.draw()}
 selectHolster(){SELECTED={type:'holster'};this.updateInfo();this.draw()}
 setMode(m){MODE=m;TEMP_STITCH=null;TEMP_SHAPE=null;TEMP_CUSTOMHOLE=null;
@@ -834,7 +853,7 @@ circlePoints.push({x:Math.cos(angle)*radius,y:Math.sin(angle)*radius});
 return{points:circlePoints,radius:radius,edgeLength:baseLen,stitchPositions:stitchPositions,stitchCount:stitchPositions.length};
 }catch(e){console.error('getLinkedCircleData error:',e);return null;}
 }
-deleteSelected(){if(!SELECTED)return;if(SELECTED.type==='symHole')SYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='symStitch')SYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='symCustomHole')SYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymShape')ASYM_SHAPES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymHole')ASYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymStitch')ASYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymCustomHole')ASYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='textAnnotation')TEXT_ANNOTATIONS.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeRange'&&EDGE_RANGES.length>1)EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='mergedEdgeRange')MERGED_EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeStitch')EDGE_STITCHES.splice(SELECTED.idx,1);SELECTED=null;this.updateInfo();this.updateOutliner();this.draw();this.saveState()}
+deleteSelected(){if(!SELECTED)return;if(SELECTED.type==='symHole')SYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='symStitch')SYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='symCustomHole')SYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymShape')ASYM_SHAPES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymHole')ASYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymStitch')ASYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymCustomHole')ASYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='textAnnotation')TEXT_ANNOTATIONS.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeRange'&&EDGE_RANGES.length>1)EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='mergedEdgeRange')MERGED_EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeStitch')EDGE_STITCHES.splice(SELECTED.idx,1);SELECTED=null;this.updateInfo();this.updateOutliner();this.draw();this.saveState();this.showToast('Deleted', 'info')}
 changeHoleShape(s){const h=this.getSelectedObj();if(h&&h.shape!==undefined){h.shape=s;if(s==='circle')h.width=h.height=Math.max(h.width,h.height);this.updateInfo();this.draw();this.saveState()}}
 changeHoleWidth(v){const h=this.getSelectedObj();if(h&&h.width!==undefined){h.width=parseFloat(v);document.getElementById('sel-width').value=v;document.getElementById('sel-width-slider').value=v;this.draw()}}
 changeHoleHeight(v){const h=this.getSelectedObj();if(h&&h.height!==undefined){h.height=parseFloat(v);document.getElementById('sel-height').value=v;document.getElementById('sel-height-slider').value=v;this.draw()}}
@@ -1669,6 +1688,7 @@ if(sel){const tw=ctx.measureText(t.text||'').width||20;ctx.strokeStyle='#007AFF'
 });
 this.drawNodes(ctx);
 ctx.restore();
+this.updateZoomIndicator();
 }
 drawGrid(ctx,w,h){const gs=25*VIEW.zoom;ctx.strokeStyle='#ccc';ctx.lineWidth=.5;ctx.beginPath();for(let x=VIEW.x%gs;x<w;x+=gs){ctx.moveTo(x,0);ctx.lineTo(x,h)}for(let y=VIEW.y%gs;y<h;y+=gs){ctx.moveTo(0,y);ctx.lineTo(w,y)}ctx.stroke();const ms=100*VIEW.zoom;ctx.strokeStyle='#aaa';ctx.lineWidth=1;ctx.beginPath();for(let x=VIEW.x%ms;x<w;x+=ms){ctx.moveTo(x,0);ctx.lineTo(x,h)}for(let y=VIEW.y%ms;y<h;y+=ms){ctx.moveTo(0,y);ctx.lineTo(w,y)}ctx.stroke()}
 drawNodes(ctx){
@@ -1749,9 +1769,9 @@ if(MODE==='stitch'){if(!TEMP_STITCH)TEMP_STITCH={points:[{x:w.x,y:w.y}]};else TE
 if(MODE==='shape'){if(!TEMP_SHAPE)TEMP_SHAPE={points:[{x:w.x,y:w.y}]};else TEMP_SHAPE.points.push({x:w.x,y:w.y});document.getElementById('mode-indicator').querySelector('.mode-text').textContent='◧ '+TEMP_SHAPE.points.length+' pts';this.draw();return}
 if(MODE==='customhole'){if(!TEMP_CUSTOMHOLE)TEMP_CUSTOMHOLE={points:[{x:w.x,y:w.y}]};else TEMP_CUSTOMHOLE.points.push({x:w.x,y:w.y});document.getElementById('mode-indicator').querySelector('.mode-text').textContent='✏ '+TEMP_CUSTOMHOLE.points.length+' pts';this.draw();return}
 // Gizmo checks
-if(SELECTED?.type==='holster'&&!HOLSTER.locked){const gizmo=this.getGizmos(HOLSTER,'holster');for(const g of gizmo.handles){if(M.dist(w,g)<15/VIEW.zoom){DRAG={active:true,type:'holsterGizmo',gizmoType:g.type,sx:w.x,sy:w.y,shx:HOLSTER.x,shy:HOLSTER.y,ssx:HOLSTER.scaleX,ssy:HOLSTER.scaleY,sr:HOLSTER.rotation};return}}}
-if(SELECTED?.type==='symHole'){const hole=SYM_HOLES[SELECTED.idx];if(!hole.locked){const wh=this.getSymHoleWorld(hole,1),gizmo=this.getGizmos(wh,'hole');for(const g of gizmo.handles){if(M.dist(w,g)<12/VIEW.zoom){DRAG={active:true,type:'symHoleGizmo',gizmoType:g.type,idx:SELECTED.idx,sx:w.x,sy:w.y,shx:hole.x,shy:hole.y,sw:hole.width,sh:hole.height,sr:hole.rotation||0};return}}}}
-if(SELECTED?.type==='asymHole'){const hole=ASYM_HOLES[SELECTED.idx];if(!hole.locked){const gizmo=this.getGizmos(hole,'hole');for(const g of gizmo.handles){if(M.dist(w,g)<12/VIEW.zoom){DRAG={active:true,type:'asymHoleGizmo',gizmoType:g.type,idx:SELECTED.idx,sx:w.x,sy:w.y,shx:hole.x,shy:hole.y,sw:hole.width,sh:hole.height,sr:hole.rotation||0};return}}}}
+if(SELECTED?.type==='holster'&&!HOLSTER.locked){const gizmo=this.getGizmos(HOLSTER,'holster');for(const g of gizmo.handles){if(M.dist(w,g)<15/VIEW.zoom){DRAG={active:true,type:'holsterGizmo',gizmoType:g.type,sx:w.x,sy:w.y,shx:HOLSTER.x,shy:HOLSTER.y,ssx:HOLSTER.scaleX,ssy:HOLSTER.scaleY,sr:HOLSTER.rotation};if(g.type==='rotate'){this.canvas.style.cursor='crosshair'}else if(g.type==='scale'||g.type.includes('e')||g.type.includes('w')||g.type.includes('n')||g.type.includes('s')){this.canvas.style.cursor='nwse-resize'}else{this.canvas.style.cursor='move'}return}}}
+if(SELECTED?.type==='symHole'){const hole=SYM_HOLES[SELECTED.idx];if(!hole.locked){const wh=this.getSymHoleWorld(hole,1),gizmo=this.getGizmos(wh,'hole');for(const g of gizmo.handles){if(M.dist(w,g)<12/VIEW.zoom){DRAG={active:true,type:'symHoleGizmo',gizmoType:g.type,idx:SELECTED.idx,sx:w.x,sy:w.y,shx:hole.x,shy:hole.y,sw:hole.width,sh:hole.height,sr:hole.rotation||0};if(g.type==='rotate'){this.canvas.style.cursor='crosshair'}else if(g.type==='scale'||g.type.includes('e')||g.type.includes('w')||g.type.includes('n')||g.type.includes('s')){this.canvas.style.cursor='nwse-resize'}else{this.canvas.style.cursor='move'}return}}}}
+if(SELECTED?.type==='asymHole'){const hole=ASYM_HOLES[SELECTED.idx];if(!hole.locked){const gizmo=this.getGizmos(hole,'hole');for(const g of gizmo.handles){if(M.dist(w,g)<12/VIEW.zoom){DRAG={active:true,type:'asymHoleGizmo',gizmoType:g.type,idx:SELECTED.idx,sx:w.x,sy:w.y,shx:hole.x,shy:hole.y,sw:hole.width,sh:hole.height,sr:hole.rotation||0};if(g.type==='rotate'){this.canvas.style.cursor='crosshair'}else if(g.type==='scale'||g.type.includes('e')||g.type.includes('w')||g.type.includes('n')||g.type.includes('s')){this.canvas.style.cursor='nwse-resize'}else{this.canvas.style.cursor='move'}return}}}}
 if(SELECTED?.type==='asymShape'){const s=ASYM_SHAPES[SELECTED.idx];if(!s.locked){
 // Check for vertex drag first
 const pts=s.points.map((p,i)=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sc,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y,idx:i}});
@@ -1789,8 +1809,8 @@ if(rightSt.length>2){
 const arc=M.buildArc(rightSt),tot=arc[arc.length-1].d;
 for(let i=0;i<EDGE_RANGES.length;i++){
 const r=EDGE_RANGES[i],sp=M.ptAtDist(arc,tot*r.start),ep=M.ptAtDist(arc,tot*r.end);
-if(sp&&M.dist(w,sp)<18/VIEW.zoom){SELECTED={type:'edgeRange',idx:i};DRAG={active:true,type:'rangeStart',idx:i,path:rightSt,arc,tot};this.updateInfo();this.draw();return true}
-if(ep&&M.dist(w,ep)<18/VIEW.zoom){SELECTED={type:'edgeRange',idx:i};DRAG={active:true,type:'rangeEnd',idx:i,path:rightSt,arc,tot};this.updateInfo();this.draw();return true}
+if(sp&&M.dist(w,sp)<18/VIEW.zoom){SELECTED={type:'edgeRange',idx:i};DRAG={active:true,type:'rangeStart',idx:i,path:rightSt,arc,tot};this.canvas.style.cursor='ew-resize';this.updateInfo();this.draw();return true}
+if(ep&&M.dist(w,ep)<18/VIEW.zoom){SELECTED={type:'edgeRange',idx:i};DRAG={active:true,type:'rangeEnd',idx:i,path:rightSt,arc,tot};this.canvas.style.cursor='ew-resize';this.updateInfo();this.draw();return true}
 }}return false};
 // Helper to check merged range handles
 const checkMergedHandles=()=>{
@@ -1800,8 +1820,8 @@ if(mergedOffset.length>2){
 const mergedArc=M.buildArcClosed(mergedOffset),mergedTot=mergedArc[mergedArc.length-1].d;
 for(let i=0;i<MERGED_EDGE_RANGES.length;i++){
 const r=MERGED_EDGE_RANGES[i],sp=M.ptAtDist(mergedArc,mergedTot*r.start),ep=M.ptAtDist(mergedArc,mergedTot*r.end);
-if(sp&&M.dist(w,sp)<18/VIEW.zoom){SELECTED={type:'mergedEdgeRange',idx:i};DRAG={active:true,type:'mergedRangeStart',idx:i,path:mergedOffset,arc:mergedArc,tot:mergedTot};this.updateInfo();this.draw();return true}
-if(ep&&M.dist(w,ep)<18/VIEW.zoom){SELECTED={type:'mergedEdgeRange',idx:i};DRAG={active:true,type:'mergedRangeEnd',idx:i,path:mergedOffset,arc:mergedArc,tot:mergedTot};this.updateInfo();this.draw();return true}
+if(sp&&M.dist(w,sp)<18/VIEW.zoom){SELECTED={type:'mergedEdgeRange',idx:i};DRAG={active:true,type:'mergedRangeStart',idx:i,path:mergedOffset,arc:mergedArc,tot:mergedTot};this.canvas.style.cursor='ew-resize';this.updateInfo();this.draw();return true}
+if(ep&&M.dist(w,ep)<18/VIEW.zoom){SELECTED={type:'mergedEdgeRange',idx:i};DRAG={active:true,type:'mergedRangeEnd',idx:i,path:mergedOffset,arc:mergedArc,tot:mergedTot};this.canvas.style.cursor='ew-resize';this.updateInfo();this.draw();return true}
 }}}return false};
 // Check based on current selection - prioritize the type that's already selected
 if(SELECTED?.type==='edgeRange'){if(checkEdgeHandles())return;if(checkMergedHandles())return}
@@ -1822,7 +1842,7 @@ for(let i=SYM_STITCHES.length-1;i>=0;i--){const sl=SYM_STITCHES[i];for(const sid
 for(let i=ASYM_STITCHES.length-1;i>=0;i--){const sl=ASYM_STITCHES[i];const smp=M.sampleBezier(sl.points,30);if(M.ptOnBezier(smp,w,10/VIEW.zoom)){SELECTED={type:'asymStitch',idx:i};this.updateInfo();this.draw();return}}
 // Text annotation selection
 for(let i=TEXT_ANNOTATIONS.length-1;i>=0;i--){const t=TEXT_ANNOTATIONS[i];const fs=t.fontSize||12;const tw=this.ctx.measureText(t.text).width/VIEW.zoom;if(w.x>=t.x&&w.x<=t.x+tw+20&&w.y>=t.y&&w.y<=t.y+fs+10){SELECTED={type:'textAnnotation',idx:i};if(!t.locked){DRAG={active:true,type:'textMove',idx:i,ox:w.x-t.x,oy:w.y-t.y}}this.updateInfo();this.draw();return}}
-if(!HOLSTER.locked){for(let i=0;i<NODES.length;i++){const n=NODES[i],nw=M.holsterToWorld(n),h1w=M.holsterToWorld({x:n.x+n.h1.x,y:n.y+n.h1.y}),h2w=M.holsterToWorld({x:n.x+n.h2.x,y:n.y+n.h2.y});if(M.dist(w,h1w)<10/VIEW.zoom){DRAG={active:true,type:'h1',idx:i};SELECTED=null;this.updateInfo();this.draw();return}if(M.dist(w,h2w)<10/VIEW.zoom){DRAG={active:true,type:'h2',idx:i};SELECTED=null;this.updateInfo();this.draw();return}if(M.dist(w,nw)<12/VIEW.zoom){DRAG={active:true,type:'node',idx:i};SELECTED={type:'node',idx:i};this.updateInfo();this.draw();return}}}
+if(!HOLSTER.locked){for(let i=0;i<NODES.length;i++){const n=NODES[i],nw=M.holsterToWorld(n),h1w=M.holsterToWorld({x:n.x+n.h1.x,y:n.y+n.h1.y}),h2w=M.holsterToWorld({x:n.x+n.h2.x,y:n.y+n.h2.y});if(M.dist(w,h1w)<10/VIEW.zoom){DRAG={active:true,type:'h1',idx:i};SELECTED=null;this.canvas.style.cursor='grabbing';this.updateInfo();this.draw();return}if(M.dist(w,h2w)<10/VIEW.zoom){DRAG={active:true,type:'h2',idx:i};SELECTED=null;this.canvas.style.cursor='grabbing';this.updateInfo();this.draw();return}if(M.dist(w,nw)<12/VIEW.zoom){DRAG={active:true,type:'node',idx:i};SELECTED={type:'node',idx:i};this.canvas.style.cursor='grabbing';this.updateInfo();this.draw();return}}}
 const pat=this.getPatternPath();
 if(M.insidePoly(w,pat)){SELECTED={type:'holster'};this.updateInfo();this.draw();return}
 // Check for click on reference image (to drag it)
@@ -1885,9 +1905,23 @@ if(M.dist(w,g)<HOVER_TOLERANCE.gizmo/VIEW.zoom){HOVER={type:'gizmo',gizmoType:g.
 }
 // Update cursor based on hover state
 if(HOVER){
-this.canvas.style.cursor='pointer';
-}else{
-this.canvas.style.cursor='default';
+  if(HOVER.type === 'node' || HOVER.type === 'h1' || HOVER.type === 'h2') {
+    this.canvas.style.cursor = 'grab';
+  } else if(HOVER.type === 'gizmo') {
+    if(HOVER.gizmoType === 'rotate') {
+      this.canvas.style.cursor = 'crosshair';
+    } else if(HOVER.gizmoType === 'scale' || HOVER.gizmoType === 'scaleX' || HOVER.gizmoType === 'scaleY') {
+      this.canvas.style.cursor = 'nwse-resize';
+    } else {
+      this.canvas.style.cursor = 'move';
+    }
+  } else if(HOVER.type === 'rangeStart' || HOVER.type === 'rangeEnd') {
+    this.canvas.style.cursor = 'ew-resize';
+  } else {
+    this.canvas.style.cursor = 'pointer';
+  }
+} else {
+  this.canvas.style.cursor = 'default';
 }
 // Only redraw if hover state changed (performance optimization)
 if(!M.hoverEq(prevHover,HOVER)){
