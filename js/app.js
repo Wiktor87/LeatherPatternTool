@@ -652,6 +652,7 @@ const isTwoLayer=type==='two-layer';
 document.getElementById('layer-toggle').style.display=isTwoLayer?'none':'flex';
 document.getElementById('two-layer-toggle').style.display=isTwoLayer?'flex':'none';
 document.getElementById('two-layer-sync').style.display=isTwoLayer?'block':'none';
+document.getElementById('two-layer-ghost').style.display=isTwoLayer?'block':'none';
 document.getElementById('two-layer-actions').style.display=isTwoLayer?'flex':'none';
 document.getElementById('publish-layout').style.display=isTwoLayer?'inline-block':'none';
 // Initialize layers if switching to two-layer mode
@@ -1710,6 +1711,14 @@ ctx.stroke();
 // Selection indicator
 if(sel){const tw=ctx.measureText(t.text||'').width||20;ctx.strokeStyle='#007AFF';ctx.lineWidth=1/VIEW.zoom;ctx.setLineDash([3/VIEW.zoom,3/VIEW.zoom]);ctx.strokeRect(t.x-3/VIEW.zoom,t.y-3/VIEW.zoom,tw+6/VIEW.zoom,fs+6/VIEW.zoom);ctx.setLineDash([])}
 });
+// Draw ghost layer in two-layer mode
+if(CFG.projectType==='two-layer'&&CFG.showGhostLayer){
+const ghostState=CURRENT_LAYER==='front'?BACK_LAYER:FRONT_LAYER;
+if(ghostState){
+const tintColor=CURRENT_LAYER==='front'?'#FF9500':'#007AFF';
+this.drawGhostLayer(ctx,ghostState,tintColor);
+}
+}
 this.drawNodes(ctx);
 ctx.restore();
 this.updateZoomIndicator();
@@ -1752,6 +1761,80 @@ ctx.fillRect(wp.x-nodeSize/2,wp.y-nodeSize/2,nodeSize,nodeSize);
 ctx.strokeStyle='#fff';ctx.lineWidth=(isNodeHovered?2:1.5)/VIEW.zoom;
 ctx.strokeRect(wp.x-nodeSize/2,wp.y-nodeSize/2,nodeSize,nodeSize);
 });
+}
+drawGhostLayer(ctx,layerState,tintColor){
+// Save current state
+ctx.save();
+ctx.globalAlpha=CFG.ghostLayerOpacity||0.25;
+// Temporarily store current state
+const savedNODES=NODES;
+const savedEDGE_RANGES=EDGE_RANGES;
+const savedMERGED_EDGE_RANGES=MERGED_EDGE_RANGES;
+const savedEDGE_STITCHES=EDGE_STITCHES;
+const savedSYM_HOLES=SYM_HOLES;
+const savedSYM_CUSTOM_HOLES=SYM_CUSTOM_HOLES;
+const savedASYM_HOLES=ASYM_HOLES;
+const savedASYM_CUSTOM_HOLES=ASYM_CUSTOM_HOLES;
+const savedASYM_SHAPES=ASYM_SHAPES;
+// Apply ghost layer state
+NODES=layerState.NODES;
+EDGE_RANGES=layerState.EDGE_RANGES;
+MERGED_EDGE_RANGES=layerState.MERGED_EDGE_RANGES;
+EDGE_STITCHES=layerState.EDGE_STITCHES;
+SYM_HOLES=layerState.SYM_HOLES;
+SYM_CUSTOM_HOLES=layerState.SYM_CUSTOM_HOLES;
+ASYM_HOLES=layerState.ASYM_HOLES;
+ASYM_CUSTOM_HOLES=layerState.ASYM_CUSTOM_HOLES;
+ASYM_SHAPES=layerState.ASYM_SHAPES;
+// Draw ghost layer elements
+const pat=this.getMergedPatternPath();
+// Draw outline with tint
+ctx.beginPath();pat.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
+ctx.strokeStyle=tintColor;ctx.lineWidth=1.5/VIEW.zoom;ctx.stroke();
+// Draw stitch holes with tint
+const rightHalfP=this.getRightHalfPath();
+const rightWorld=rightHalfP.map(p=>M.holsterToWorld(p));
+EDGE_STITCHES.forEach(es=>{
+const rng=EDGE_RANGES[es.rangeIdx];if(!rng)return;
+const stitchPath=this.offsetPathStable(rightWorld,-(es.margin||CFG.stitchMargin));
+if(stitchPath.length<3)return;
+const stitchArc=M.buildArc(stitchPath);
+const tot=stitchArc[stitchArc.length-1].d;
+const sd=tot*rng.start,ed=tot*rng.end;
+if(es.showHoles!==false){
+const spacing=es.spacing||CFG.stitchSpacing;
+ctx.fillStyle=tintColor;
+for(let d=sd;d<=ed;d+=spacing){
+const pt=M.ptAtDist(stitchArc,d);if(!pt)continue;
+ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();
+if(es.mirror!==false&&CFG.mirrorEdgeStitches){
+const mx=2*HOLSTER.x-pt.x;
+ctx.beginPath();ctx.arc(mx,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();
+}}}
+});
+// Draw holes with tint
+SYM_HOLES.forEach(hole=>{[1,-1].forEach(side=>{const wh=this.getSymHoleWorld(hole,side);this.drawHole(ctx,wh.x,wh.y,wh.rotation,wh.width,wh.height,wh.shape);ctx.strokeStyle=tintColor;ctx.lineWidth=1/VIEW.zoom;ctx.stroke()})});
+ASYM_HOLES.forEach(hole=>{this.drawHole(ctx,hole.x,hole.y,hole.rotation||0,hole.width,hole.height,hole.shape);ctx.strokeStyle=tintColor;ctx.lineWidth=1/VIEW.zoom;ctx.stroke()});
+// Draw custom holes with tint
+SYM_CUSTOM_HOLES.forEach(h=>{[1,-1].forEach(side=>{const pts=this.getCustomHoleWorld(h,side);ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle=tintColor;ctx.lineWidth=1/VIEW.zoom;ctx.stroke()})});
+ASYM_CUSTOM_HOLES.forEach(h=>{const pts=this.getCustomHoleWorldAsym(h);ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle=tintColor;ctx.lineWidth=1/VIEW.zoom;ctx.stroke()});
+// Draw shapes with tint
+ASYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{
+const pts=s.points.map(p=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sc,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y}});
+ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
+ctx.strokeStyle=tintColor;ctx.lineWidth=1/VIEW.zoom;ctx.stroke();
+});
+// Restore original state
+NODES=savedNODES;
+EDGE_RANGES=savedEDGE_RANGES;
+MERGED_EDGE_RANGES=savedMERGED_EDGE_RANGES;
+EDGE_STITCHES=savedEDGE_STITCHES;
+SYM_HOLES=savedSYM_HOLES;
+SYM_CUSTOM_HOLES=savedSYM_CUSTOM_HOLES;
+ASYM_HOLES=savedASYM_HOLES;
+ASYM_CUSTOM_HOLES=savedASYM_CUSTOM_HOLES;
+ASYM_SHAPES=savedASYM_SHAPES;
+ctx.restore();
 }
 getWorld(e){const r=this.canvas.getBoundingClientRect();return{x:(e.clientX-r.left-VIEW.x)/VIEW.zoom,y:(e.clientY-r.top-VIEW.y)/VIEW.zoom}}
 onDblClick(e){const w=this.getWorld(e);if(MODE==='stitch'&&TEMP_STITCH&&TEMP_STITCH.points.length>=2){this.finishMode();return}if(MODE==='shape'&&TEMP_SHAPE&&TEMP_SHAPE.points.length>=3){this.finishMode();return}if(MODE==='customhole'&&TEMP_CUSTOMHOLE&&TEMP_CUSTOMHOLE.points.length>=3){this.finishMode();return}

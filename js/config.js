@@ -36,7 +36,9 @@ export const CFG = {
   projectType: 'fold-over', // 'fold-over' or 'two-layer'
   syncEdgeStitches: true,
   syncOutline: true,
-  publishLayout: 'side-by-side' // 'side-by-side', 'overlaid', 'separate-pages'
+  publishLayout: 'side-by-side', // 'front-only', 'back-only', 'side-by-side', 'stacked', 'overlaid'
+  showGhostLayer: true, // Show other layer as ghost/overlay in two-layer mode
+  ghostLayerOpacity: 0.25 // Opacity of ghost layer (0.1 - 0.5)
 };
 
 export const HOVER_TOLERANCE = {
