@@ -251,8 +251,9 @@ const snapDist=5; // mm threshold
 if(Math.abs(x-foldX)<snapDist)x=foldX;
 }
 // Snap to edge/border
-if(CFG.snapEdge){
+if(CFG.snapEdge&&typeof app!=='undefined'){
 const snapDist=5; // mm threshold
+try{
 const mergedPath=app.getMergedPatternPath();
 if(mergedPath&&mergedPath.length>2){
 let minDist=Infinity,closestPt=null;
@@ -268,6 +269,7 @@ if(d<minDist){minDist=d;closestPt=proj}
 }
 if(closestPt&&minDist<snapDist){x=closestPt.x;y=closestPt.y}
 }
+}catch(e){/* Edge snap failed, continue without it */}
 }
 return{x,y};
 }
@@ -286,8 +288,9 @@ const snapDist=5;
 if(Math.abs(x)<snapDist)x=0;
 }
 // Snap to edge (in holster local coordinates)
-if(CFG.snapEdge){
+if(CFG.snapEdge&&typeof app!=='undefined'){
 const snapDist=5;
+try{
 const localPath=app.getPatternLocalPath();
 if(localPath&&localPath.length>2){
 let minDist=Infinity,closestPt=null;
@@ -303,6 +306,7 @@ if(d<minDist){minDist=d;closestPt=proj}
 }
 if(closestPt&&minDist<snapDist){x=closestPt.x;y=closestPt.y}
 }
+}catch(e){/* Edge snap failed, continue without it */}
 }
 return{x,y};
 }
