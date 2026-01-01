@@ -5,6 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Leather Pattern Tool - Pre-Apha V0.2</title>
 <script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
+<script>
+// Fallback ClipperLib stub if CDN fails
+if (typeof ClipperLib === 'undefined') {
+  console.warn('ClipperLib CDN failed, using minimal stub - some features may not work');
+  window.ClipperLib = {
+    Clipper: function() {
+      this.AddPath = function() {};
+      this.Execute = function(clipType, solution) { 
+        // Return empty solution array
+        solution.length = 0;
+        return true; 
+      };
+    },
+    ClipperOffset: function() {
+      this.AddPath = function() {};
+      this.AddPaths = function() {};
+      this.Execute = function(solution) {
+        // Return empty solution array
+        solution.length = 0;
+      };
+    },
+    PolyType: { ptSubject: 0, ptClip: 1 },
+    ClipType: { ctUnion: 0, ctDifference: 1, ctIntersection: 2, ctXor: 3 },
+    PolyFillType: { pftNonZero: 0, pftEvenOdd: 1 },
+    JoinType: { jtSquare: 0, jtRound: 1, jtMiter: 2 },
+    EndType: { etClosedPolygon: 0, etClosedLine: 1, etOpenButt: 2, etOpenSquare: 3, etOpenRound: 4 }
+  };
+  ClipperLib.Clipper.Area = function() { return 1000; };
+  ClipperLib.Clipper.Orientation = function() { return true; };
+  ClipperLib.Clipper.SimplifyPolygon = function(path, fillType) { return [path]; };
+  ClipperLib.JS = { Clone: function(obj) { return JSON.parse(JSON.stringify(obj)); } };
+}
+</script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -211,6 +244,10 @@
 <span class="title">📐 Publish Mode</span>
 <input type="text" id="pattern-title" placeholder="Pattern name..." value="Holster Pattern">
 <span class="info">Print at 100% scale</span>
+<select id="publish-view-mode" style="padding:6px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;font-size:12px" onchange="app.updateCfg('publishViewMode',this.value);app.draw()">
+<option value="a4-pages">A4 Pages</option>
+<option value="full-pattern">Full Pattern</option>
+</select>
 <select id="publish-layout" style="padding:6px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;font-size:12px;display:none" onchange="app.updateCfg('publishLayout',this.value)">
 <option value="front-only">Front Only</option>
 <option value="back-only">Back Only</option>
