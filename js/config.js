@@ -37,6 +37,7 @@ export const CFG = {
   syncEdgeStitches: true,
   syncOutline: true,
   publishLayout: 'side-by-side', // 'front-only', 'back-only', 'side-by-side', 'stacked', 'overlaid'
+  publishViewMode: 'a4-pages', // 'full-pattern' or 'a4-pages'
   showGhostLayer: true, // Show other layer as ghost/overlay in two-layer mode
   ghostLayerOpacity: 0.25, // Opacity of ghost layer (0.1 - 0.5)
   asymmetricOutline: false // When true, nodes define full perimeter instead of right half only

@@ -2320,6 +2320,8 @@ PUBLISH_MODE=!PUBLISH_MODE;
 document.body.classList.toggle('publish-mode',PUBLISH_MODE);
 if(PUBLISH_MODE){
 SELECTED=null;this.updateInfo();
+// Set view mode selector
+document.getElementById('publish-view-mode').value=CFG.publishViewMode||'a4-pages';
 // Check stitch count mismatch for two-layer mode
 if(CFG.projectType==='two-layer'&&FRONT_LAYER&&BACK_LAYER){
 const frontCount=this.getStitchCount(FRONT_LAYER);
@@ -2353,6 +2355,126 @@ this.draw();
 downloadPattern(){
 const format=document.getElementById('export-format').value;
 const title=document.getElementById('pattern-title').value||'pattern';
+if(CFG.publishViewMode==='full-pattern'){
+this.downloadFullPattern(format,title);
+}else{
+this.downloadA4Pages(format,title);
+}
+}
+downloadFullPattern(format,title){
+// Export single full-size pattern image
+const DPI=150; // 150 DPI for print quality
+const scale=DPI/25.4; // pixels per mm
+// Determine which layers to render
+const isTwoLayer=CFG.projectType==='two-layer';
+const layout=isTwoLayer?CFG.publishLayout:'front-only';
+let layersToRender=[];
+if(isTwoLayer){
+if(layout==='front-only'){layersToRender=[{state:FRONT_LAYER,label:'FRONT',color:'#000'}]}
+else if(layout==='back-only'){layersToRender=[{state:BACK_LAYER,label:'BACK',color:'#000'}]}
+else if(layout==='overlaid'){layersToRender=[{state:FRONT_LAYER,label:'FRONT',color:'#007AFF'},{state:BACK_LAYER,label:'BACK',color:'#FF6600'}]}
+else{layersToRender=[{state:FRONT_LAYER,label:'FRONT',color:'#000'},{state:BACK_LAYER,label:'BACK',color:'#000'}]}
+}else{
+layersToRender=[{state:null,label:'',color:'#000'}];
+}
+// Get pattern bounds
+let pat,b;
+if(isTwoLayer&&FRONT_LAYER){
+const savedNODES=NODES;
+NODES=FRONT_LAYER.NODES;
+pat=this.getMergedPatternPath();
+b=M.getBounds(pat);
+NODES=savedNODES;
+}else{
+pat=this.getMergedPatternPath();
+b=M.getBounds(pat);
+}
+// Adjust bounds for layouts
+const layerGap=20;
+let totalW=b.w,totalH=b.h;
+if(isTwoLayer&&layout==='side-by-side'){
+totalW=b.w*2+layerGap;
+}else if(isTwoLayer&&layout==='stacked'){
+totalH=b.h*2+layerGap;
+}
+// Add margins for header, footer, and sides
+const headerH=120/scale; // mm
+const footerH=60/scale; // mm
+const sideMargin=40/scale; // mm
+const canvasW=(totalW+sideMargin*2)*scale;
+const canvasH=(totalH+headerH+footerH)*scale;
+// Create canvas
+const canvas=document.createElement('canvas');
+canvas.width=canvasW;
+canvas.height=canvasH;
+const ctx=canvas.getContext('2d');
+// White background
+ctx.fillStyle='#fff';
+ctx.fillRect(0,0,canvasW,canvasH);
+// Draw header
+ctx.fillStyle='#000';
+ctx.font='bold 48px sans-serif';
+ctx.textAlign='center';
+ctx.fillText(title,canvasW/2,60);
+ctx.font='24px sans-serif';
+ctx.fillStyle='#555';
+ctx.fillText('Made with 9-10oz Veg-Tan Leather',canvasW/2,100);
+ctx.fillText(`Pattern Size: ${totalW.toFixed(0)}×${totalH.toFixed(0)}mm`,canvasW/2,130);
+// Position and scale for pattern
+ctx.save();
+ctx.translate(sideMargin*scale,headerH*scale);
+ctx.translate(-b.minx*scale,-b.miny*scale);
+ctx.scale(scale,scale);
+// Draw patterns
+if(isTwoLayer&&layout==='side-by-side'&&layersToRender.length>=2){
+layersToRender[0].state&&this.drawPatternLayerFullPattern(ctx,layersToRender[0].state,scale,layersToRender[0].color,layersToRender[0].label);
+ctx.save();
+ctx.translate(b.w+layerGap,0);
+layersToRender[1].state&&this.drawPatternLayerFullPattern(ctx,layersToRender[1].state,scale,layersToRender[1].color,layersToRender[1].label);
+ctx.restore();
+}else if(isTwoLayer&&layout==='stacked'&&layersToRender.length>=2){
+layersToRender[0].state&&this.drawPatternLayerFullPattern(ctx,layersToRender[0].state,scale,layersToRender[0].color,layersToRender[0].label);
+ctx.save();
+ctx.translate(0,b.h+layerGap);
+layersToRender[1].state&&this.drawPatternLayerFullPattern(ctx,layersToRender[1].state,scale,layersToRender[1].color,layersToRender[1].label);
+ctx.restore();
+}else if(isTwoLayer&&layout==='overlaid'){
+layersToRender.forEach(lr=>{
+ctx.save();
+ctx.globalAlpha=0.7;
+lr.state&&this.drawPatternLayerFullPattern(ctx,lr.state,scale,lr.color,lr.label);
+ctx.restore();
+});
+}else{
+const lr=layersToRender[0];
+lr.state?this.drawPatternLayerFullPattern(ctx,lr.state,scale,lr.color,lr.label):this.drawPatternLayerFullPattern(ctx,null,scale,'#000','');
+}
+// Draw text annotations
+if(!isTwoLayer||layout==='front-only'||layout==='back-only'){
+TEXT_ANNOTATIONS.forEach(t=>{
+if(!t.text)return;
+const fs=t.fontSize||12;
+ctx.font=`${t.italic?'italic ':''}${t.bold?'bold ':''}${fs}px sans-serif`;
+ctx.fillStyle='#000';ctx.textAlign='left';ctx.textBaseline='top';
+ctx.fillText(t.text,t.x,t.y);
+});
+}
+ctx.restore();
+// Draw footer
+ctx.fillStyle='#999';
+ctx.font='20px sans-serif';
+ctx.textAlign='center';
+const layoutInfo=isTwoLayer?` · ${layout.replace(/-/g,' ')} layout`:'';
+ctx.fillText(`Full Pattern${layoutInfo}`,canvasW/2,canvasH-30);
+// Download
+const link=document.createElement('a');
+link.download=title+'_full.'+(format==='jpg'?'jpg':'png');
+link.href=canvas.toDataURL(format==='jpg'?'image/jpeg':'image/png',0.95);
+document.body.appendChild(link);
+link.click();
+document.body.removeChild(link);
+}
+downloadA4Pages(format,title){
 // Get page layout info
 const A4W=210,A4H=300;
 const pageMargin=parseFloat(CFG.pageMargin)||10;
@@ -2499,6 +2621,14 @@ link.click();
 document.body.removeChild(link);
 }
 drawPublish(){
+// Dispatch to appropriate render mode
+if(CFG.publishViewMode==='full-pattern'){
+this.drawPublishFullPattern();
+}else{
+this.drawPublishA4Pages();
+}
+}
+drawPublishA4Pages(){
 const dpr=this.dpr;
 const ctx=this.ctx,w=this.canvas.width/dpr,h=this.canvas.height/dpr;
 ctx.setTransform(dpr,0,0,dpr,0,0);
@@ -2705,6 +2835,213 @@ const match=frontCount===backCount;
 stitchInfo=` · Front: ${frontCount} | Back: ${backCount} ${match?'✓':'⚠'}`;
 }
 ctx.fillText(`${b.w.toFixed(0)}×${b.h.toFixed(0)}mm · ${pagesX}×${pagesY} pages${layoutInfo}${stitchInfo} · ${overlap}mm overlap · Drag to position, scroll to zoom`,w/2,h-15);
+}
+drawPublishFullPattern(){
+const dpr=this.dpr;
+const ctx=this.ctx,w=this.canvas.width/dpr,h=this.canvas.height/dpr;
+ctx.setTransform(dpr,0,0,dpr,0,0);
+// White background for professional output
+ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h);
+// Determine which layers to render for two-layer mode
+const isTwoLayer=CFG.projectType==='two-layer';
+const layout=isTwoLayer?CFG.publishLayout:'front-only';
+let layersToRender=[];
+if(isTwoLayer){
+if(layout==='front-only'){layersToRender=[{state:FRONT_LAYER,label:'FRONT',color:'#000'}]}
+else if(layout==='back-only'){layersToRender=[{state:BACK_LAYER,label:'BACK',color:'#000'}]}
+else if(layout==='overlaid'){layersToRender=[{state:FRONT_LAYER,label:'FRONT',color:'#007AFF'},{state:BACK_LAYER,label:'BACK',color:'#FF6600'}]}
+else{layersToRender=[{state:FRONT_LAYER,label:'FRONT',color:'#000'},{state:BACK_LAYER,label:'BACK',color:'#000'}]}
+}else{
+layersToRender=[{state:null,label:'',color:'#000'}];
+}
+// Get pattern bounds (use front layer for sizing in two-layer mode)
+let pat,b;
+if(isTwoLayer&&FRONT_LAYER){
+const savedNODES=NODES;
+NODES=FRONT_LAYER.NODES;
+pat=this.getMergedPatternPath();
+b=M.getBounds(pat);
+NODES=savedNODES;
+}else{
+pat=this.getMergedPatternPath();
+b=M.getBounds(pat);
+}
+// Adjust bounds for side-by-side or stacked layouts
+const layerGap=20; // mm gap between layers in multi-layer layouts
+let totalW=b.w,totalH=b.h;
+if(isTwoLayer&&layout==='side-by-side'){
+totalW=b.w*2+layerGap;
+}else if(isTwoLayer&&layout==='stacked'){
+totalH=b.h*2+layerGap;
+}
+// Calculate scale to fit pattern on screen with margins
+const headerH=120; // Header space in pixels
+const footerH=80; // Footer space in pixels
+const margin=60; // Side margins in pixels
+const availW=w-margin*2;
+const availH=h-headerH-footerH;
+// Scale based on pattern size - aim for good visibility
+const scaleX=availW/(totalW*1.1); // Add 10% padding
+const scaleY=availH/(totalH*1.1);
+const scale=Math.min(scaleX,scaleY,3); // Cap at 3x for very small patterns
+// Center the pattern
+const patternW=totalW*scale;
+const patternH=totalH*scale;
+const offsetX=(w-patternW)/2;
+const offsetY=headerH+(availH-patternH)/2;
+// Draw header section
+ctx.save();
+const title=document.getElementById('pattern-title').value||'Holster Pattern';
+ctx.fillStyle='#000';
+ctx.font='bold 28px sans-serif';
+ctx.textAlign='center';
+ctx.fillText(title,w/2,40);
+// Specifications
+ctx.font='14px sans-serif';
+ctx.fillStyle='#555';
+ctx.fillText('Made with 9-10oz Veg-Tan Leather',w/2,70);
+ctx.fillText(`Pattern Size: ${b.w.toFixed(0)}×${b.h.toFixed(0)}mm`,w/2,92);
+ctx.restore();
+// Draw pattern(s)
+ctx.save();
+ctx.translate(offsetX,offsetY);
+ctx.translate(-b.minx*scale,-b.miny*scale);
+ctx.scale(scale,scale);
+// Draw patterns based on layout
+if(isTwoLayer&&layout==='side-by-side'&&layersToRender.length>=2){
+// Draw front layer on left
+layersToRender[0].state&&this.drawPatternLayerFullPattern(ctx,layersToRender[0].state,scale,layersToRender[0].color,layersToRender[0].label);
+// Draw back layer on right (offset by pattern width + gap)
+ctx.save();
+ctx.translate(b.w+layerGap,0);
+layersToRender[1].state&&this.drawPatternLayerFullPattern(ctx,layersToRender[1].state,scale,layersToRender[1].color,layersToRender[1].label);
+ctx.restore();
+}else if(isTwoLayer&&layout==='stacked'&&layersToRender.length>=2){
+// Draw front layer on top
+layersToRender[0].state&&this.drawPatternLayerFullPattern(ctx,layersToRender[0].state,scale,layersToRender[0].color,layersToRender[0].label);
+// Draw back layer on bottom (offset by pattern height + gap)
+ctx.save();
+ctx.translate(0,b.h+layerGap);
+layersToRender[1].state&&this.drawPatternLayerFullPattern(ctx,layersToRender[1].state,scale,layersToRender[1].color,layersToRender[1].label);
+ctx.restore();
+}else if(isTwoLayer&&layout==='overlaid'){
+// Draw both layers overlaid with different colors
+layersToRender.forEach(lr=>{
+ctx.save();
+ctx.globalAlpha=0.7;
+lr.state&&this.drawPatternLayerFullPattern(ctx,lr.state,scale,lr.color,lr.label);
+ctx.restore();
+});
+}else{
+// Single layer or front-only/back-only
+const lr=layersToRender[0];
+lr.state?this.drawPatternLayerFullPattern(ctx,lr.state,scale,lr.color,lr.label):this.drawPatternLayerFullPattern(ctx,null,scale,'#000','');
+}
+// Draw text annotations
+if(!isTwoLayer||layout==='front-only'||layout==='back-only'){
+TEXT_ANNOTATIONS.forEach(t=>{
+if(!t.text)return;
+const fs=t.fontSize||12;
+ctx.font=`${t.italic?'italic ':''}${t.bold?'bold ':''}${fs}px sans-serif`;
+ctx.fillStyle='#000';ctx.textAlign='left';ctx.textBaseline='top';
+ctx.fillText(t.text,t.x,t.y);
+});
+}
+ctx.restore();
+// Draw footer
+ctx.fillStyle='#999';
+ctx.font='12px sans-serif';
+ctx.textAlign='center';
+const layoutInfo=isTwoLayer?` · ${layout.replace(/-/g,' ')} layout`:'';
+let stitchInfo='';
+if(isTwoLayer&&FRONT_LAYER&&BACK_LAYER){
+const frontCount=this.getStitchCount(FRONT_LAYER);
+const backCount=this.getStitchCount(BACK_LAYER);
+const match=frontCount===backCount;
+stitchInfo=` · Front: ${frontCount} | Back: ${backCount} ${match?'✓':'⚠'}`;
+}
+ctx.fillText(`Full Pattern View${layoutInfo}${stitchInfo}`,w/2,h-50);
+ctx.fillText('Scroll to zoom · Drag to pan',w/2,h-30);
+}
+drawPatternLayerFullPattern(ctx,layerState,scale,strokeColor='#000',labelText=''){
+// Similar to drawPatternLayer but with professional styling for full pattern view
+let savedNODES,savedEDGE_RANGES,savedMERGED_EDGE_RANGES,savedEDGE_STITCHES;
+let savedSYM_HOLES,savedSYM_CUSTOM_HOLES,savedASYM_HOLES,savedASYM_CUSTOM_HOLES,savedASYM_SHAPES;
+if(layerState){
+savedNODES=NODES;savedEDGE_RANGES=EDGE_RANGES;savedMERGED_EDGE_RANGES=MERGED_EDGE_RANGES;
+savedEDGE_STITCHES=EDGE_STITCHES;savedSYM_HOLES=SYM_HOLES;savedSYM_CUSTOM_HOLES=SYM_CUSTOM_HOLES;
+savedASYM_HOLES=ASYM_HOLES;savedASYM_CUSTOM_HOLES=ASYM_CUSTOM_HOLES;savedASYM_SHAPES=ASYM_SHAPES;
+NODES=layerState.NODES;EDGE_RANGES=layerState.EDGE_RANGES;MERGED_EDGE_RANGES=layerState.MERGED_EDGE_RANGES;
+EDGE_STITCHES=layerState.EDGE_STITCHES;SYM_HOLES=layerState.SYM_HOLES;SYM_CUSTOM_HOLES=layerState.SYM_CUSTOM_HOLES;
+ASYM_HOLES=layerState.ASYM_HOLES;ASYM_CUSTOM_HOLES=layerState.ASYM_CUSTOM_HOLES;ASYM_SHAPES=layerState.ASYM_SHAPES;
+}
+const pat=this.getMergedPatternPath();
+const b=M.getBounds(pat);
+// Draw label if provided
+if(labelText){
+ctx.save();
+ctx.fillStyle=strokeColor;ctx.font=`bold ${18/scale}px sans-serif`;
+ctx.textAlign='center';ctx.textBaseline='top';
+ctx.fillText(labelText,b.cx,b.miny-25/scale);
+ctx.restore();
+}
+// Draw pattern outline - clean black line
+ctx.beginPath();pat.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
+ctx.strokeStyle=strokeColor;ctx.lineWidth=2/scale;ctx.stroke();
+// Draw fold line with dashed style
+if(CFG.showFoldLine){
+ctx.strokeStyle=strokeColor;ctx.lineWidth=1/scale;ctx.setLineDash([8/scale,4/scale]);
+ctx.beginPath();ctx.moveTo(HOLSTER.x,b.miny-10);ctx.lineTo(HOLSTER.x,b.maxy+10);ctx.stroke();
+ctx.setLineDash([]);
+// Add fold line label
+ctx.save();
+ctx.fillStyle=strokeColor;ctx.font=`${10/scale}px sans-serif`;
+ctx.textAlign='center';ctx.textBaseline='bottom';
+ctx.fillText('FOLD LINE',HOLSTER.x,b.miny-12/scale);
+ctx.restore();
+}
+// Draw edge stitches with dotted style for professional look
+const rightHalfP=this.getRightHalfPath();
+const rightWorldP=rightHalfP.map(p=>M.holsterToWorld(p));
+EDGE_STITCHES.forEach(es=>{
+const rng=EDGE_RANGES[es.rangeIdx];if(!rng)return;
+const esMargin=es.margin||CFG.stitchMargin;
+const stitchPath=this.offsetPathStable(rightWorldP,-esMargin);
+if(stitchPath.length<3)return;
+const stitchArc=M.buildArc(stitchPath);
+const stitchTot=stitchArc[stitchArc.length-1].d;
+const sd=stitchTot*rng.start,ed=stitchTot*rng.end;
+if(es.showHoles!==false){
+const spacing=es.spacing||CFG.stitchSpacing;
+ctx.fillStyle=strokeColor;
+// Draw as small dots for professional template
+for(let d=sd;d<=ed;d+=spacing){
+const pt=M.ptAtDist(stitchArc,d);if(!pt)continue;
+ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/3,0,Math.PI*2);ctx.fill();
+if(es.mirror!==false&&CFG.mirrorEdgeStitches&&!CFG.asymmetricOutline){
+const mx=2*HOLSTER.x-pt.x;
+ctx.beginPath();ctx.arc(mx,pt.y,(es.holeSize||CFG.holeSize)/3,0,Math.PI*2);ctx.fill();
+}}}
+});
+// Draw holes with outline only
+if(CFG.showSymmetric)SYM_HOLES.forEach(hole=>{[1,-1].forEach(side=>{const wh=this.getSymHoleWorld(hole,side);this.drawHole(ctx,wh.x,wh.y,wh.rotation,wh.width,wh.height,wh.shape);ctx.strokeStyle=strokeColor;ctx.lineWidth=1.5/scale;ctx.stroke()})});
+if(CFG.showAsymmetric)ASYM_HOLES.forEach(hole=>{this.drawHole(ctx,hole.x,hole.y,hole.rotation||0,hole.width,hole.height,hole.shape);ctx.strokeStyle=strokeColor;ctx.lineWidth=1.5/scale;ctx.stroke()});
+// Draw custom holes
+if(CFG.showSymmetric)SYM_CUSTOM_HOLES.forEach(h=>{[1,-1].forEach(side=>{const pts=this.getCustomHoleWorld(h,side);ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle=strokeColor;ctx.lineWidth=1.5/scale;ctx.stroke()})});
+if(CFG.showAsymmetric)ASYM_CUSTOM_HOLES.forEach(h=>{const pts=this.getCustomHoleWorldAsym(h);ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle=strokeColor;ctx.lineWidth=1.5/scale;ctx.stroke()});
+// Draw shapes
+if(CFG.showAsymmetric)ASYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{
+const pts=s.points.map(p=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sc,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y}});
+ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
+ctx.strokeStyle=strokeColor;ctx.lineWidth=1.5/scale;ctx.stroke();
+});
+// Restore original state
+if(layerState){
+NODES=savedNODES;EDGE_RANGES=savedEDGE_RANGES;MERGED_EDGE_RANGES=savedMERGED_EDGE_RANGES;
+EDGE_STITCHES=savedEDGE_STITCHES;SYM_HOLES=savedSYM_HOLES;SYM_CUSTOM_HOLES=savedSYM_CUSTOM_HOLES;
+ASYM_HOLES=savedASYM_HOLES;ASYM_CUSTOM_HOLES=savedASYM_CUSTOM_HOLES;ASYM_SHAPES=savedASYM_SHAPES;
+}
+return b;
 }
 drawPatternLayer(ctx,layerState,scale,strokeColor='#000',labelText=''){
 // Temporarily swap to layer state if provided
