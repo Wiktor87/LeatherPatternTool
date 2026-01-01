@@ -2493,7 +2493,7 @@ ctx.fillText(`Pattern Size: ${totalW.toFixed(0)}×${totalH.toFixed(0)}mm`,canvas
 // Position and scale for pattern
 ctx.save();
 ctx.translate(sideMargin*scale,headerH*scale);
-ctx.translate(-b.minx*scale,-b.miny*scale);
+ctx.translate(-b.minX*scale,-b.minY*scale);
 ctx.scale(scale,scale);
 // Draw patterns
 if(isTwoLayer&&layout==='side-by-side'&&layersToRender.length>=2){
@@ -2594,7 +2594,7 @@ bigCtx.clip();
 bigCtx.translate(marginPx,marginPx);
 bigCtx.translate(dragX*scale,dragY*scale);
 bigCtx.translate(-px*effectiveW*scale,-py*effectiveH*scale);
-bigCtx.translate(-b.minx*scale,-b.miny*scale);
+bigCtx.translate(-b.minX*scale,-b.minY*scale);
 bigCtx.scale(scale,scale);
 // Draw pattern outline
 bigCtx.beginPath();
@@ -2608,8 +2608,8 @@ bigCtx.strokeStyle='#000';
 bigCtx.lineWidth=0.3;
 bigCtx.setLineDash([3,2]);
 bigCtx.beginPath();
-bigCtx.moveTo(HOLSTER.x,b.miny-5);
-bigCtx.lineTo(HOLSTER.x,b.maxy+5);
+bigCtx.moveTo(HOLSTER.x,b.minY-5);
+bigCtx.lineTo(HOLSTER.x,b.maxY+5);
 bigCtx.stroke();
 bigCtx.setLineDash([]);
 // Draw edge stitches
@@ -2781,7 +2781,7 @@ ctx.clip();
 // Calculate pattern position - simple approach
 const marginPx = pageMargin * scale;
 // Each page shows a window into the pattern
-// Page (0,0) shows pattern starting at its top-left (b.minx, b.miny)
+// Page (0,0) shows pattern starting at its top-left (b.minX, b.minY)
 // Page (1,0) shows pattern offset by effectiveW mm to the left, etc.
 ctx.save();
 // Move to page's printable area
@@ -2790,8 +2790,8 @@ ctx.translate(pageX + marginPx, pageY + marginPx);
 ctx.translate(dragX * scale, dragY * scale);
 // Offset for which page we're on
 ctx.translate(-px * effectiveW * scale, -py * effectiveH * scale);
-// Offset so pattern's top-left corner (b.minx, b.miny) is at origin
-ctx.translate(-b.minx * scale, -b.miny * scale);
+// Offset so pattern's top-left corner (b.minX, b.minY) is at origin
+ctx.translate(-b.minX * scale, -b.minY * scale);
 // Scale pattern coordinates to screen
 ctx.scale(scale, scale);
 // Draw patterns based on layout
@@ -2977,7 +2977,7 @@ ctx.restore();
 // Draw pattern(s)
 ctx.save();
 ctx.translate(offsetX,offsetY);
-ctx.translate(-b.minx*scale,-b.miny*scale);
+ctx.translate(-b.minX*scale,-b.minY*scale);
 ctx.scale(scale,scale);
 // Draw patterns based on layout
 if(isTwoLayer&&layout==='side-by-side'&&layersToRender.length>=2){
@@ -3055,7 +3055,7 @@ if(labelText){
 ctx.save();
 ctx.fillStyle=strokeColor;ctx.font=`bold ${18/scale}px sans-serif`;
 ctx.textAlign='center';ctx.textBaseline='top';
-ctx.fillText(labelText,b.cx,b.miny-25/scale);
+ctx.fillText(labelText,b.cx,b.minY-25/scale);
 ctx.restore();
 }
 // Draw pattern outline - clean black line
@@ -3064,13 +3064,13 @@ ctx.strokeStyle=strokeColor;ctx.lineWidth=2/scale;ctx.stroke();
 // Draw fold line with dashed style
 if(CFG.showFoldLine){
 ctx.strokeStyle=strokeColor;ctx.lineWidth=1/scale;ctx.setLineDash([8/scale,4/scale]);
-ctx.beginPath();ctx.moveTo(HOLSTER.x,b.miny-10);ctx.lineTo(HOLSTER.x,b.maxy+10);ctx.stroke();
+ctx.beginPath();ctx.moveTo(HOLSTER.x,b.minY-10);ctx.lineTo(HOLSTER.x,b.maxY+10);ctx.stroke();
 ctx.setLineDash([]);
 // Add fold line label
 ctx.save();
 ctx.fillStyle=strokeColor;ctx.font=`${10/scale}px sans-serif`;
 ctx.textAlign='center';ctx.textBaseline='bottom';
-ctx.fillText('FOLD LINE',HOLSTER.x,b.miny-12/scale);
+ctx.fillText('FOLD LINE',HOLSTER.x,b.minY-12/scale);
 ctx.restore();
 }
 // Draw edge stitches with dotted style for professional look
@@ -3135,7 +3135,7 @@ if(labelText){
 ctx.save();
 ctx.fillStyle=strokeColor;ctx.font=`bold ${14/scale}px sans-serif`;
 ctx.textAlign='center';ctx.textBaseline='top';
-ctx.fillText(labelText,b.cx,b.miny-20/scale);
+ctx.fillText(labelText,b.cx,b.minY-20/scale);
 ctx.restore();
 }
 // Draw pattern outline
@@ -3143,7 +3143,7 @@ ctx.beginPath();pat.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y)
 ctx.strokeStyle=strokeColor;ctx.lineWidth=1.5/scale;ctx.stroke();
 // Draw fold line
 ctx.strokeStyle=strokeColor;ctx.lineWidth=0.5/scale;ctx.setLineDash([5/scale,3/scale]);
-ctx.beginPath();ctx.moveTo(HOLSTER.x,b.miny-10);ctx.lineTo(HOLSTER.x,b.maxy+10);ctx.stroke();
+ctx.beginPath();ctx.moveTo(HOLSTER.x,b.minY-10);ctx.lineTo(HOLSTER.x,b.maxY+10);ctx.stroke();
 ctx.setLineDash([]);
 // Draw edge stitches
 const rightHalfP=this.getRightHalfPath();
