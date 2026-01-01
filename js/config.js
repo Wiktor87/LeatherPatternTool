@@ -38,7 +38,8 @@ export const CFG = {
   syncOutline: true,
   publishLayout: 'side-by-side', // 'front-only', 'back-only', 'side-by-side', 'stacked', 'overlaid'
   showGhostLayer: true, // Show other layer as ghost/overlay in two-layer mode
-  ghostLayerOpacity: 0.25 // Opacity of ghost layer (0.1 - 0.5)
+  ghostLayerOpacity: 0.25, // Opacity of ghost layer (0.1 - 0.5)
+  asymmetricOutline: false // When true, nodes define full perimeter instead of right half only
 };
 
 export const HOVER_TOLERANCE = {
