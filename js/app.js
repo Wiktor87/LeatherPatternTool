@@ -2357,53 +2357,38 @@ ctx.translate(-px * effectiveW * scale, -py * effectiveH * scale);
 ctx.translate(-b.minx * scale, -b.miny * scale);
 // Scale pattern coordinates to screen
 ctx.scale(scale, scale);
-// Draw pattern outline
-ctx.beginPath();pat.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
-ctx.strokeStyle='#000';ctx.lineWidth=1.5/scale;ctx.stroke();
-// Draw fold line
-ctx.strokeStyle='#000';ctx.lineWidth=0.5/scale;ctx.setLineDash([5/scale,3/scale]);
-ctx.beginPath();ctx.moveTo(HOLSTER.x,b.miny-10);ctx.lineTo(HOLSTER.x,b.maxy+10);ctx.stroke();
-ctx.setLineDash([]);
-// Draw edge stitches
-const rightHalfP=this.getRightHalfPath();
-const rightWorldP=rightHalfP.map(p=>M.holsterToWorld(p));
-EDGE_STITCHES.forEach(es=>{
-const rng=EDGE_RANGES[es.rangeIdx];if(!rng)return;
-const esMargin=es.margin||CFG.stitchMargin;
-const stitchPath=this.offsetPathStable(rightWorldP,-esMargin);
-if(stitchPath.length<3)return;
-const stitchArc=M.buildArc(stitchPath);
-const stitchTot=stitchArc[stitchArc.length-1].d;
-const sd=stitchTot*rng.start,ed=stitchTot*rng.end;
-if(es.showHoles!==false){
-const spacing=es.spacing||CFG.stitchSpacing;
-ctx.fillStyle='#000';
-for(let d=sd;d<=ed;d+=spacing){
-const pt=M.ptAtDist(stitchArc,d);if(!pt)continue;
-ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();
-if(es.mirror!==false&&CFG.mirrorEdgeStitches){
-const mx=2*HOLSTER.x-pt.x;
-ctx.beginPath();ctx.arc(mx,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();
-}}}
+// Draw patterns based on layout
+if(isTwoLayer&&layout==='side-by-side'){
+// Draw front layer on left
+layersToRender[0].state&&this.drawPatternLayer(ctx,layersToRender[0].state,scale,layersToRender[0].color,layersToRender[0].label);
+// Draw back layer on right (offset by pattern width + gap)
+ctx.save();
+ctx.translate(b.w+20,0);
+layersToRender[1].state&&this.drawPatternLayer(ctx,layersToRender[1].state,scale,layersToRender[1].color,layersToRender[1].label);
+ctx.restore();
+}else if(isTwoLayer&&layout==='stacked'){
+// Draw front layer on top
+layersToRender[0].state&&this.drawPatternLayer(ctx,layersToRender[0].state,scale,layersToRender[0].color,layersToRender[0].label);
+// Draw back layer on bottom (offset by pattern height + gap)
+ctx.save();
+ctx.translate(0,b.h+20);
+layersToRender[1].state&&this.drawPatternLayer(ctx,layersToRender[1].state,scale,layersToRender[1].color,layersToRender[1].label);
+ctx.restore();
+}else if(isTwoLayer&&layout==='overlaid'){
+// Draw both layers overlaid with different colors
+layersToRender.forEach(lr=>{
+ctx.save();
+ctx.globalAlpha=0.7;
+lr.state&&this.drawPatternLayer(ctx,lr.state,scale,lr.color,lr.label);
+ctx.restore();
 });
-// Draw holes
-if(CFG.showSymmetric)SYM_HOLES.forEach(hole=>{[1,-1].forEach(side=>{const wh=this.getSymHoleWorld(hole,side);this.drawHole(ctx,wh.x,wh.y,wh.rotation,wh.width,wh.height,wh.shape);ctx.strokeStyle='#000';ctx.lineWidth=1/scale;ctx.stroke()})});
-if(CFG.showAsymmetric)ASYM_HOLES.forEach(hole=>{this.drawHole(ctx,hole.x,hole.y,hole.rotation||0,hole.width,hole.height,hole.shape);ctx.strokeStyle='#000';ctx.lineWidth=1/scale;ctx.stroke()});
-// Draw custom holes
-if(CFG.showSymmetric)SYM_CUSTOM_HOLES.forEach(h=>{[1,-1].forEach(side=>{const pts=this.getCustomHoleWorld(h,side);ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle='#000';ctx.lineWidth=1/scale;ctx.stroke()})});
-if(CFG.showAsymmetric)ASYM_CUSTOM_HOLES.forEach(h=>{const pts=this.getCustomHoleWorldAsym(h);ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle='#000';ctx.lineWidth=1/scale;ctx.stroke()});
-// Draw stitch borders
-if(CFG.showSymmetric){
-SYM_HOLES.forEach(hole=>{if(hole.stitchBorder){[1,-1].forEach(side=>{const wh=this.getSymHoleWorld(hole,side);const outline=M.getHoleOutline(wh.width,wh.height,wh.x,wh.y,wh.rotation,wh.shape);const sp=this.offsetPath(outline,hole.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d;ctx.fillStyle='#000';for(let d=0;d<tot;d+=hole.stitchSpacing||3){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}}})}});
-SYM_CUSTOM_HOLES.forEach(h=>{if(h.stitchBorder){[1,-1].forEach(side=>{const pts=this.getCustomHoleWorld(h,side);const sp=this.offsetPath(pts,h.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d;ctx.fillStyle='#000';for(let d=0;d<tot;d+=h.stitchSpacing||3){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}}})}});
+}else{
+// Single layer or front-only/back-only
+const lr=layersToRender[0];
+lr.state?this.drawPatternLayer(ctx,lr.state,scale,lr.color,lr.label):this.drawPatternLayer(ctx,null,scale,'#000','');
 }
-if(CFG.showAsymmetric)ASYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{
-const pts=s.points.map(p=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sc,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y}});
-ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
-ctx.strokeStyle='#000';ctx.lineWidth=1/scale;ctx.stroke();
-if(s.stitchBorder){const sp=this.offsetPath(pts,s.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d;ctx.fillStyle='#000';for(let d=0;d<tot;d+=s.stitchSpacing||3){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}}}
-});
-// Draw text
+// Draw text annotations (only for current layer in non-overlaid modes)
+if(!isTwoLayer||layout==='front-only'||layout==='back-only'){
 TEXT_ANNOTATIONS.forEach(t=>{
 if(!t.text)return;
 const fs=t.fontSize||12;
@@ -2411,6 +2396,7 @@ ctx.font=`${t.italic?'italic ':''}${t.bold?'bold ':''}${fs}px sans-serif`;
 ctx.fillStyle='#000';ctx.textAlign='left';ctx.textBaseline='top';
 ctx.fillText(t.text,t.x,t.y);
 });
+}
 ctx.restore(); // pattern transform
 // Draw margin and overlap guide lines
 const margPx=pageMargin*scale;
@@ -2473,7 +2459,8 @@ ctx.fillStyle='#fff';ctx.font='bold 16px sans-serif';ctx.textAlign='center';
 ctx.fillText(document.getElementById('pattern-title').value||'Holster Pattern',w/2,20);
 // Info
 ctx.font='12px sans-serif';ctx.fillStyle='#ccc';
-ctx.fillText(`${b.w.toFixed(0)}×${b.h.toFixed(0)}mm · ${pagesX}×${pagesY} pages · ${overlap}mm overlap · Drag to position, scroll to zoom`,w/2,h-15);
+const layoutInfo=isTwoLayer?` · ${layout.replace(/-/g,' ')} layout`:'';
+ctx.fillText(`${b.w.toFixed(0)}×${b.h.toFixed(0)}mm · ${pagesX}×${pagesY} pages${layoutInfo} · ${overlap}mm overlap · Drag to position, scroll to zoom`,w/2,h-15);
 }
 drawPatternLayer(ctx,layerState,scale,strokeColor='#000',labelText=''){
 // Temporarily swap to layer state if provided
