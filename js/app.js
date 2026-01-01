@@ -1765,7 +1765,7 @@ ctx.strokeRect(wp.x-nodeSize/2,wp.y-nodeSize/2,nodeSize,nodeSize);
 drawGhostLayer(ctx,layerState,tintColor){
 // Save current state
 ctx.save();
-ctx.globalAlpha=CFG.ghostLayerOpacity||0.25;
+ctx.globalAlpha=CFG.ghostLayerOpacity;
 // Temporarily store current state
 const savedNODES=NODES;
 const savedEDGE_RANGES=EDGE_RANGES;
@@ -2346,11 +2346,12 @@ pat=this.getMergedPatternPath();
 b=M.getBounds(pat);
 }
 // Adjust bounds for side-by-side or stacked layouts
+const layerGap=20; // mm gap between layers in multi-layer layouts
 let totalW=b.w,totalH=b.h;
 if(isTwoLayer&&layout==='side-by-side'){
-totalW=b.w*2+20; // 20mm gap between layers
+totalW=b.w*2+layerGap;
 }else if(isTwoLayer&&layout==='stacked'){
-totalH=b.h*2+20; // 20mm gap between layers
+totalH=b.h*2+layerGap;
 }
 // Fixed page count based on pattern size only
 const pagesX=Math.max(1,Math.ceil(totalW/effectiveW));
@@ -2401,20 +2402,20 @@ ctx.translate(-b.minx * scale, -b.miny * scale);
 // Scale pattern coordinates to screen
 ctx.scale(scale, scale);
 // Draw patterns based on layout
-if(isTwoLayer&&layout==='side-by-side'){
+if(isTwoLayer&&layout==='side-by-side'&&layersToRender.length>=2){
 // Draw front layer on left
 layersToRender[0].state&&this.drawPatternLayer(ctx,layersToRender[0].state,scale,layersToRender[0].color,layersToRender[0].label);
 // Draw back layer on right (offset by pattern width + gap)
 ctx.save();
-ctx.translate(b.w+20,0);
+ctx.translate(b.w+layerGap,0);
 layersToRender[1].state&&this.drawPatternLayer(ctx,layersToRender[1].state,scale,layersToRender[1].color,layersToRender[1].label);
 ctx.restore();
-}else if(isTwoLayer&&layout==='stacked'){
+}else if(isTwoLayer&&layout==='stacked'&&layersToRender.length>=2){
 // Draw front layer on top
 layersToRender[0].state&&this.drawPatternLayer(ctx,layersToRender[0].state,scale,layersToRender[0].color,layersToRender[0].label);
 // Draw back layer on bottom (offset by pattern height + gap)
 ctx.save();
-ctx.translate(0,b.h+20);
+ctx.translate(0,b.h+layerGap);
 layersToRender[1].state&&this.drawPatternLayer(ctx,layersToRender[1].state,scale,layersToRender[1].color,layersToRender[1].label);
 ctx.restore();
 }else if(isTwoLayer&&layout==='overlaid'){
