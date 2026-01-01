@@ -2087,11 +2087,54 @@ break}
 this.draw();
 }
 onUp(){if(DRAG.active&&DRAG.type&&DRAG.type!=='publishPan'){this.saveState()}DRAG.active=false;if(PUBLISH_MODE){this.canvas.style.cursor='grab'}else if(!isPanning){this.canvas.style.cursor='default'}}
+getStitchCount(layerState){
+// Count stitches in a layer (edge stitches only for now)
+let count=0;
+const savedNODES=NODES;
+const savedEDGE_RANGES=EDGE_RANGES;
+const savedEDGE_STITCHES=EDGE_STITCHES;
+if(layerState){
+NODES=layerState.NODES;
+EDGE_RANGES=layerState.EDGE_RANGES;
+EDGE_STITCHES=layerState.EDGE_STITCHES;
+}
+const rightHalfP=this.getRightHalfPath();
+const rightWorldP=rightHalfP.map(p=>M.holsterToWorld(p));
+EDGE_STITCHES.forEach(es=>{
+const rng=EDGE_RANGES[es.rangeIdx];if(!rng)return;
+const stitchPath=this.offsetPathStable(rightWorldP,-(es.margin||CFG.stitchMargin));
+if(stitchPath.length<3)return;
+const stitchArc=M.buildArc(stitchPath);
+const tot=stitchArc[stitchArc.length-1].d;
+const sd=tot*rng.start,ed=tot*rng.end;
+if(es.showHoles!==false){
+const spacing=es.spacing||CFG.stitchSpacing;
+const stitchesInRange=Math.floor((ed-sd)/spacing)+1;
+count+=stitchesInRange;
+if(es.mirror!==false&&CFG.mirrorEdgeStitches){
+count+=stitchesInRange;
+}}
+});
+if(layerState){
+NODES=savedNODES;
+EDGE_RANGES=savedEDGE_RANGES;
+EDGE_STITCHES=savedEDGE_STITCHES;
+}
+return count;
+}
 togglePublish(){
 PUBLISH_MODE=!PUBLISH_MODE;
 document.body.classList.toggle('publish-mode',PUBLISH_MODE);
 if(PUBLISH_MODE){
 SELECTED=null;this.updateInfo();
+// Check stitch count mismatch for two-layer mode
+if(CFG.projectType==='two-layer'&&FRONT_LAYER&&BACK_LAYER){
+const frontCount=this.getStitchCount(FRONT_LAYER);
+const backCount=this.getStitchCount(BACK_LAYER);
+if(frontCount!==backCount){
+this.showToast(`⚠ Stitch count mismatch! Front: ${frontCount} | Back: ${backCount}`,'warning');
+}
+}
 // Reset publish view - scale so pages fit nicely on screen
 // A4 is 210x300mm, we want it to be roughly 300px wide initially
 PUBLISH_VIEW={x:0,y:0,scale:1.5};
@@ -2460,7 +2503,14 @@ ctx.fillText(document.getElementById('pattern-title').value||'Holster Pattern',w
 // Info
 ctx.font='12px sans-serif';ctx.fillStyle='#ccc';
 const layoutInfo=isTwoLayer?` · ${layout.replace(/-/g,' ')} layout`:'';
-ctx.fillText(`${b.w.toFixed(0)}×${b.h.toFixed(0)}mm · ${pagesX}×${pagesY} pages${layoutInfo} · ${overlap}mm overlap · Drag to position, scroll to zoom`,w/2,h-15);
+let stitchInfo='';
+if(isTwoLayer&&FRONT_LAYER&&BACK_LAYER){
+const frontCount=this.getStitchCount(FRONT_LAYER);
+const backCount=this.getStitchCount(BACK_LAYER);
+const match=frontCount===backCount;
+stitchInfo=` · Front: ${frontCount} | Back: ${backCount} ${match?'✓':'⚠'}`;
+}
+ctx.fillText(`${b.w.toFixed(0)}×${b.h.toFixed(0)}mm · ${pagesX}×${pagesY} pages${layoutInfo}${stitchInfo} · ${overlap}mm overlap · Drag to position, scroll to zoom`,w/2,h-15);
 }
 drawPatternLayer(ctx,layerState,scale,strokeColor='#000',labelText=''){
 // Temporarily swap to layer state if provided
