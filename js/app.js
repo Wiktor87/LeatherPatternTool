@@ -2142,3 +2142,4 @@ ctx.fillText(`${b.w.toFixed(0)}×${b.h.toFixed(0)}mm · ${pagesX}×${pagesY} pag
 }
 }
 const app=new App();
+window.app = app;
