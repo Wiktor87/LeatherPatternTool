@@ -32,7 +32,15 @@
 <button class="layer-btn sym active" onclick="app.setLayer('symmetric')">Mirrored</button>
 <button class="layer-btn asym" onclick="app.setLayer('asymmetric')">Single</button>
 </div>
+<div id="two-layer-toggle" style="display:none">
+<button class="layer-btn front active" onclick="app.switchLayer('front')">Front</button>
+<button class="layer-btn back" onclick="app.switchLayer('back')">Back</button>
+</div>
 <span class="spacer"></span>
+<div id="two-layer-actions" style="display:none;gap:8px;">
+<button class="hdr-btn secondary" onclick="app.duplicateLayer('toBack')" title="Duplicate Front to Back">Copy to Back</button>
+<button class="hdr-btn secondary" onclick="app.duplicateLayer('toFront')" title="Duplicate Back to Front">Copy to Front</button>
+</div>
 <button class="hdr-btn secondary" onclick="app.selectHolster()">Select Pattern</button>
 <button class="hdr-btn secondary" onclick="app.toggleFileMenu()">💾 File</button>
 <button class="hdr-btn primary" onclick="app.togglePublish()">📐 Publish</button>
@@ -67,6 +75,14 @@
 <!-- Settings Panel -->
 <div id="settings-panel">
 <button class="close-btn" onclick="app.toggleSettings()">✕</button>
+<div class="settings-section"><h3>Project</h3>
+<div class="setting-row"><label>Type</label><select id="cfg-projectType" onchange="app.updateCfg('projectType',this.value)"><option value="fold-over">Fold-Over</option><option value="two-layer">Two-Layer</option></select></div>
+</div>
+<div class="settings-section" id="two-layer-sync" style="display:none"><h3>Layer Sync</h3>
+<div class="setting-row"><label>Sync Outline</label><input type="checkbox" id="cfg-syncOutline" checked onchange="app.updateCfg('syncOutline',this.checked)"></div>
+<div class="setting-row"><label>Sync Edge Stitches</label><input type="checkbox" id="cfg-syncEdgeStitches" checked onchange="app.updateCfg('syncEdgeStitches',this.checked)"></div>
+<div class="setting-row"><button style="flex:1;padding:6px;background:#444;border:1px solid #555;color:#fff;border-radius:4px;cursor:pointer;font-size:11px" onclick="app.resetToMaster()">↻ Reset Back to Master</button></div>
+</div>
 <div class="settings-section"><h3>Material</h3>
 <div class="setting-row"><label>Thickness</label><input type="number" id="cfg-thickness" value="3" min="1.5" max="8" step="0.5" onchange="app.updateCfg('thickness',this.value)"></div>
 <div class="setting-row"><label>Color</label><input type="color" id="cfg-color" value="#b4783c" onchange="app.updateCfg('leatherColor',this.value)"></div>
@@ -189,6 +205,11 @@
 <span class="title">📐 Publish Mode</span>
 <input type="text" id="pattern-title" placeholder="Pattern name..." value="Holster Pattern">
 <span class="info">Print at 100% scale</span>
+<select id="publish-layout" style="padding:6px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;font-size:12px;display:none">
+<option value="side-by-side">Side by Side</option>
+<option value="overlaid">Overlaid</option>
+<option value="separate-pages">Separate Pages</option>
+</select>
 <select id="export-format" style="padding:6px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;font-size:12px">
 <option value="png">PNG</option>
 <option value="jpg">JPG</option>

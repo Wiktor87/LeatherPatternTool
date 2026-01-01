@@ -32,7 +32,11 @@ export const CFG = {
   gridSize: 5,
   snapFold: false,
   showRefImage: true,
-  refImageOpacity: 0.3
+  refImageOpacity: 0.3,
+  projectType: 'fold-over', // 'fold-over' or 'two-layer'
+  syncEdgeStitches: true,
+  syncOutline: true,
+  publishLayout: 'side-by-side' // 'side-by-side', 'overlaid', 'separate-pages'
 };
 
 export const HOVER_TOLERANCE = {

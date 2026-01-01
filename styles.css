@@ -56,10 +56,20 @@ html,body{margin:0;padding:0;overflow:hidden;background:var(--bg);font-family:-a
 
 /* Layer Toggle */
 #layer-toggle{display:flex;background:#333;border-radius:6px;overflow:hidden}
+#two-layer-toggle{display:flex;background:#333;border-radius:6px;overflow:hidden}
 .layer-btn{padding:6px 14px;border:none;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;background:transparent;color:var(--dim)}
 .layer-btn.active{color:#fff}
 .layer-btn.sym.active{background:var(--accent)}
 .layer-btn.asym.active{background:var(--orange)}
+.layer-btn.front.active{background:#007AFF}
+.layer-btn.back.active{background:#FF9500}
+
+/* Two-Layer Actions */
+#two-layer-actions{display:flex}
+
+/* Canvas Layer Tint */
+#c.layer-front{background:rgba(0,122,255,0.02)}
+#c.layer-back{background:rgba(255,149,0,0.02)}
 
 /* Mode Indicator */
 #mode-indicator{position:fixed;top:52px;left:50%;transform:translateX(-50%);background:var(--accent);color:#fff;padding:8px 16px;border-radius:20px;font-size:12px;font-weight:600;display:none;align-items:center;gap:10px;z-index:200}

@@ -34,6 +34,11 @@ let MERGED_EDGE_RANGES=[]; // Ranges on full merged perimeter (including extensi
 let EDGE_STITCHES=[]; // New: stitches bound to edge ranges
 let SYM_HOLES=[],SYM_STITCHES=[],ASYM_SHAPES=[],ASYM_HOLES=[],ASYM_STITCHES=[],SYM_CUSTOM_HOLES=[],ASYM_CUSTOM_HOLES=[],TEXT_ANNOTATIONS=[];
 
+// Two-Layer Mode: State for front and back layers
+let CURRENT_LAYER='front'; // 'front' or 'back'
+let FRONT_LAYER=null; // Will store front layer state
+let BACK_LAYER=null; // Will store back layer state
+
 // Snap helper functions
 function snapWorld(pt){
 let x=pt.x,y=pt.y;
@@ -69,7 +74,15 @@ return{x,y};
 }
 class App{
 constructor(){this.canvas=document.getElementById('c');this.ctx=this.canvas.getContext('2d');this.dpr=devicePixelRatio||1;this.off=document.createElement('canvas');this.offCtx=this.off.getContext('2d');this.init()}
-init(){this.setupEvents();this.resize();this.settingsOpen=false;this.outlinerOpen=false;this.saveState()}
+init(){
+this.setupEvents();
+this.resize();
+this.settingsOpen=false;
+this.outlinerOpen=false;
+// Initialize UI based on default project type
+this.onProjectTypeChange(CFG.projectType);
+this.saveState();
+}
 showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
@@ -191,7 +204,7 @@ saveProject(){
 document.getElementById('file-menu').classList.remove('open');
 const projectName=document.getElementById('project-title').textContent||'Leather Pattern';
 const project={
-version:1,
+version:2, // Increment version for two-layer support
 name:projectName,
 NODES:NODES,
 HOLSTER:HOLSTER,
@@ -208,6 +221,18 @@ ASYM_SHAPES:ASYM_SHAPES,
 TEXT_ANNOTATIONS:TEXT_ANNOTATIONS,
 CFG:CFG
 };
+// Add two-layer data if in two-layer mode
+if(CFG.projectType==='two-layer'){
+// Save current layer before exporting
+if(CURRENT_LAYER==='front'){
+FRONT_LAYER=this.captureLayerState();
+}else{
+BACK_LAYER=this.captureLayerState();
+}
+project.CURRENT_LAYER=CURRENT_LAYER;
+project.FRONT_LAYER=FRONT_LAYER;
+project.BACK_LAYER=BACK_LAYER;
+}
 const json=JSON.stringify(project,null,2);
 const blob=new Blob([json],{type:'application/json'});
 const url=URL.createObjectURL(blob);
@@ -260,6 +285,29 @@ if(project.CFG){
 Object.keys(project.CFG).forEach(k=>{
 if(CFG.hasOwnProperty(k))CFG[k]=project.CFG[k];
 });
+}
+// Load two-layer data if present
+if(project.FRONT_LAYER&&project.BACK_LAYER){
+FRONT_LAYER=project.FRONT_LAYER;
+BACK_LAYER=project.BACK_LAYER;
+CURRENT_LAYER=project.CURRENT_LAYER||'front';
+// Restore the current layer
+const targetState=CURRENT_LAYER==='front'?FRONT_LAYER:BACK_LAYER;
+this.restoreLayerState(targetState);
+// Update project type in UI
+document.getElementById('cfg-projectType').value='two-layer';
+this.onProjectTypeChange('two-layer');
+}else{
+// Legacy file or fold-over mode
+FRONT_LAYER=null;
+BACK_LAYER=null;
+CURRENT_LAYER='front';
+// Ensure project type is set to fold-over
+if(!project.CFG||!project.CFG.projectType){
+CFG.projectType='fold-over';
+document.getElementById('cfg-projectType').value='fold-over';
+this.onProjectTypeChange('fold-over');
+}
 }
 // Update pattern title
 if(project.name){
@@ -524,7 +572,16 @@ if(type==='edgeRange')return EDGE_RANGES[idx];
 if(type==='edgeStitch')return EDGE_STITCHES[idx];
 return null;
 }
-updateCfg(key,val){if(typeof CFG[key]==='number')CFG[key]=parseFloat(val);else if(typeof CFG[key]==='boolean')CFG[key]=!!val;else CFG[key]=val;this.draw()}
+updateCfg(key,val){
+if(typeof CFG[key]==='number')CFG[key]=parseFloat(val);
+else if(typeof CFG[key]==='boolean')CFG[key]=!!val;
+else CFG[key]=val;
+// Handle project type change
+if(key==='projectType'){
+this.onProjectTypeChange(val);
+}
+this.draw();
+}
 setupEvents(){
 window.addEventListener('resize',()=>this.resize());
 this.canvas.addEventListener('wheel',e=>{e.preventDefault();if(PUBLISH_MODE){PUBLISH_VIEW.scale*=e.deltaY>0?.9:1.1;PUBLISH_VIEW.scale=Math.max(.3,Math.min(3,PUBLISH_VIEW.scale))}else{VIEW.zoom*=e.deltaY>0?.9:1.1;VIEW.zoom=Math.max(.2,Math.min(4,VIEW.zoom));this.updateZoomIndicator()}this.draw()},{passive:false});
@@ -582,6 +639,144 @@ window.addEventListener('keyup',e=>{if(e.code==='Space'){isPanning=false;this.ca
 resize(){const w=innerWidth,h=innerHeight;this.canvas.width=w*this.dpr;this.canvas.height=h*this.dpr;this.canvas.style.width=w+'px';this.canvas.style.height=h+'px';this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);this.off.width=this.canvas.width;this.off.height=this.canvas.height;VIEW.x=w/2;VIEW.y=h/2;this.draw()}
 resetView(){VIEW.zoom=1;VIEW.x=innerWidth/2;VIEW.y=innerHeight/2;this.updateZoomIndicator();this.draw()}
 setLayer(l){LAYER=l;document.querySelector('.layer-btn.sym').classList.toggle('active',l==='symmetric');document.querySelector('.layer-btn.asym').classList.toggle('active',l==='asymmetric');CFG.showSymmetric=true;CFG.showAsymmetric=true;this.draw()}
+// Two-Layer Mode functions
+onProjectTypeChange(type){
+// Toggle UI elements based on project type
+const isTwoLayer=type==='two-layer';
+document.getElementById('layer-toggle').style.display=isTwoLayer?'none':'flex';
+document.getElementById('two-layer-toggle').style.display=isTwoLayer?'flex':'none';
+document.getElementById('two-layer-sync').style.display=isTwoLayer?'block':'none';
+document.getElementById('two-layer-actions').style.display=isTwoLayer?'flex':'none';
+document.getElementById('publish-layout').style.display=isTwoLayer?'inline-block':'none';
+// Initialize layers if switching to two-layer mode
+if(isTwoLayer&&!FRONT_LAYER){
+this.initializeLayers();
+CURRENT_LAYER='front';
+this.updateLayerUI();
+}
+// Show notification
+this.showToast(isTwoLayer?'Switched to Two-Layer Mode':'Switched to Fold-Over Mode','info');
+}
+initializeLayers(){
+// Save current state as front layer
+FRONT_LAYER=this.captureLayerState();
+// Initialize back layer as copy of front
+BACK_LAYER=JSON.parse(JSON.stringify(FRONT_LAYER));
+}
+captureLayerState(){
+return{
+NODES:JSON.parse(JSON.stringify(NODES)),
+EDGE_RANGES:JSON.parse(JSON.stringify(EDGE_RANGES)),
+MERGED_EDGE_RANGES:JSON.parse(JSON.stringify(MERGED_EDGE_RANGES)),
+EDGE_STITCHES:JSON.parse(JSON.stringify(EDGE_STITCHES)),
+SYM_HOLES:JSON.parse(JSON.stringify(SYM_HOLES)),
+SYM_STITCHES:JSON.parse(JSON.stringify(SYM_STITCHES)),
+SYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(SYM_CUSTOM_HOLES)),
+ASYM_HOLES:JSON.parse(JSON.stringify(ASYM_HOLES)),
+ASYM_STITCHES:JSON.parse(JSON.stringify(ASYM_STITCHES)),
+ASYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(ASYM_CUSTOM_HOLES)),
+ASYM_SHAPES:JSON.parse(JSON.stringify(ASYM_SHAPES)),
+TEXT_ANNOTATIONS:JSON.parse(JSON.stringify(TEXT_ANNOTATIONS))
+};
+}
+restoreLayerState(state){
+NODES=JSON.parse(JSON.stringify(state.NODES));
+EDGE_RANGES=JSON.parse(JSON.stringify(state.EDGE_RANGES));
+MERGED_EDGE_RANGES=JSON.parse(JSON.stringify(state.MERGED_EDGE_RANGES));
+EDGE_STITCHES=JSON.parse(JSON.stringify(state.EDGE_STITCHES));
+SYM_HOLES=JSON.parse(JSON.stringify(state.SYM_HOLES));
+SYM_STITCHES=JSON.parse(JSON.stringify(state.SYM_STITCHES));
+SYM_CUSTOM_HOLES=JSON.parse(JSON.stringify(state.SYM_CUSTOM_HOLES));
+ASYM_HOLES=JSON.parse(JSON.stringify(state.ASYM_HOLES));
+ASYM_STITCHES=JSON.parse(JSON.stringify(state.ASYM_STITCHES));
+ASYM_CUSTOM_HOLES=JSON.parse(JSON.stringify(state.ASYM_CUSTOM_HOLES));
+ASYM_SHAPES=JSON.parse(JSON.stringify(state.ASYM_SHAPES));
+TEXT_ANNOTATIONS=JSON.parse(JSON.stringify(state.TEXT_ANNOTATIONS));
+}
+switchLayer(layer){
+if(CFG.projectType!=='two-layer')return;
+// Save current layer state
+if(CURRENT_LAYER==='front'){
+FRONT_LAYER=this.captureLayerState();
+}else{
+BACK_LAYER=this.captureLayerState();
+}
+// Switch to new layer
+CURRENT_LAYER=layer;
+const targetState=layer==='front'?FRONT_LAYER:BACK_LAYER;
+this.restoreLayerState(targetState);
+// Update UI
+this.updateLayerUI();
+SELECTED=null;
+this.updateInfo();
+this.updateOutliner();
+this.draw();
+this.showToast(`Editing ${layer==='front'?'Front':'Back'} Layer`,layer==='front'?'info':'success');
+}
+updateLayerUI(){
+// Update toggle buttons
+document.querySelector('.layer-btn.front')?.classList.toggle('active',CURRENT_LAYER==='front');
+document.querySelector('.layer-btn.back')?.classList.toggle('active',CURRENT_LAYER==='back');
+// Update canvas background tint
+this.canvas.classList.remove('layer-front','layer-back');
+if(CFG.projectType==='two-layer'){
+this.canvas.classList.add('layer-'+CURRENT_LAYER);
+}
+// Update properties bar prefix
+const selTitle=document.getElementById('sel-type');
+if(selTitle&&CFG.projectType==='two-layer'){
+const prefix=CURRENT_LAYER==='front'?'[Front] ':'[Back] ';
+const baseText=selTitle.textContent.replace(/^\[(Front|Back)\] /,'');
+selTitle.textContent=prefix+baseText;
+}
+}
+duplicateLayer(direction){
+if(CFG.projectType!=='two-layer')return;
+const msg=direction==='toBack'?
+'Copy all Front layer data to Back layer? This will overwrite the Back layer.':
+'Copy all Back layer data to Front layer? This will overwrite the Front layer.';
+if(!confirm(msg))return;
+if(direction==='toBack'){
+// Save current front state and copy to back
+if(CURRENT_LAYER==='front'){
+FRONT_LAYER=this.captureLayerState();
+}
+BACK_LAYER=JSON.parse(JSON.stringify(FRONT_LAYER));
+if(CURRENT_LAYER==='back'){
+this.restoreLayerState(BACK_LAYER);
+}
+this.showToast('Front layer copied to Back','success');
+}else{
+// Save current back state and copy to front
+if(CURRENT_LAYER==='back'){
+BACK_LAYER=this.captureLayerState();
+}
+FRONT_LAYER=JSON.parse(JSON.stringify(BACK_LAYER));
+if(CURRENT_LAYER==='front'){
+this.restoreLayerState(FRONT_LAYER);
+}
+this.showToast('Back layer copied to Front','success');
+}
+this.updateInfo();
+this.updateOutliner();
+this.draw();
+this.saveState();
+}
+resetToMaster(){
+if(CFG.projectType!=='two-layer')return;
+if(!confirm('Reset Back layer to match Front layer? This will overwrite all Back layer data.'))return;
+// Copy front to back
+BACK_LAYER=JSON.parse(JSON.stringify(FRONT_LAYER));
+// If currently on back layer, restore it
+if(CURRENT_LAYER==='back'){
+this.restoreLayerState(BACK_LAYER);
+this.updateInfo();
+this.updateOutliner();
+this.draw();
+}
+this.showToast('Back layer reset to master','success');
+this.saveState();
+}
 selectHolster(){SELECTED={type:'holster'};this.updateInfo();this.draw()}
 setMode(m){MODE=m;TEMP_STITCH=null;TEMP_SHAPE=null;TEMP_CUSTOMHOLE=null;
 document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active','orange','purple'));
