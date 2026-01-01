@@ -783,6 +783,27 @@ this.draw();
 this.showToast('Back layer reset to master','success');
 this.saveState();
 }
+// Sync functions for two-layer mode
+syncOutlineToBack(){
+if(CFG.projectType!=='two-layer'||!CFG.syncOutline||CURRENT_LAYER!=='front')return;
+// Save current front layer
+FRONT_LAYER=this.captureLayerState();
+// Update back layer's outline
+if(BACK_LAYER){
+BACK_LAYER.NODES=JSON.parse(JSON.stringify(FRONT_LAYER.NODES));
+BACK_LAYER.EDGE_RANGES=JSON.parse(JSON.stringify(FRONT_LAYER.EDGE_RANGES));
+BACK_LAYER.MERGED_EDGE_RANGES=JSON.parse(JSON.stringify(FRONT_LAYER.MERGED_EDGE_RANGES));
+}
+}
+syncEdgeStitchesToBack(){
+if(CFG.projectType!=='two-layer'||!CFG.syncEdgeStitches||CURRENT_LAYER!=='front')return;
+// Save current front layer
+FRONT_LAYER=this.captureLayerState();
+// Update back layer's edge stitches
+if(BACK_LAYER){
+BACK_LAYER.EDGE_STITCHES=JSON.parse(JSON.stringify(FRONT_LAYER.EDGE_STITCHES));
+}
+}
 selectHolster(){SELECTED={type:'holster'};this.updateInfo();this.draw()}
 setMode(m){MODE=m;TEMP_STITCH=null;TEMP_SHAPE=null;TEMP_CUSTOMHOLE=null;
 document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active','orange','purple'));
