@@ -318,12 +318,12 @@ if(project.name){
 document.getElementById('project-title').textContent=project.name;
 const titleInput=document.getElementById('pattern-title');
 if(titleInput)titleInput.value=project.name;
-}
-SELECTED=null;
 // Sync UI checkboxes with loaded CFG values
 document.getElementById('cfg-asymmetricOutline').checked=CFG.asymmetricOutline||false;
 document.getElementById('cfg-syncOutline').checked=CFG.syncOutline!==false;
 document.getElementById('cfg-syncEdgeStitches').checked=CFG.syncEdgeStitches!==false;
+}
+SELECTED=null;
 this.updateInfo();
 this.updateOutliner();
 this.draw();
@@ -692,13 +692,13 @@ fullPerimeter.push({x:-p.x,y:p.y});
 }
 // Convert to nodes with handles
 const newNodes=[];
-const step=Math.max(1,Math.floor(fullPerimeter.length/NODES.length)); // Sample to keep reasonable node count
+const step=Math.max(1,Math.floor(fullPerimeter.length/(NODES.length||10))); // Sample to keep reasonable node count
 for(let i=0;i<fullPerimeter.length;i+=step){
 const p=fullPerimeter[i];
 newNodes.push({x:p.x,y:p.y,h1:{x:0,y:0},h2:{x:0,y:0}});
 }
-// Ensure we have at least the last point
-if(newNodes.length>0&&(newNodes[newNodes.length-1].x!==fullPerimeter[fullPerimeter.length-1].x||newNodes[newNodes.length-1].y!==fullPerimeter[fullPerimeter.length-1].y)){
+// Ensure we have at least the last point (use tolerance for floating-point comparison)
+if(newNodes.length>0&&(Math.abs(newNodes[newNodes.length-1].x-fullPerimeter[fullPerimeter.length-1].x)>0.001||Math.abs(newNodes[newNodes.length-1].y-fullPerimeter[fullPerimeter.length-1].y)>0.001)){
 const p=fullPerimeter[fullPerimeter.length-1];
 newNodes.push({x:p.x,y:p.y,h1:{x:0,y:0},h2:{x:0,y:0}});
 }
