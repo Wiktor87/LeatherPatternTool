@@ -1,0 +1,22 @@
+// Math utilities and geometric operations
+
+export const M={
+dist:(a,b)=>Math.hypot(b.x-a.x,b.y-a.y),
+bezier:(p0,p1,p2,p3,t)=>{const i=1-t;return{x:i*i*i*p0.x+3*i*i*t*p1.x+3*i*t*t*p2.x+t*t*t*p3.x,y:i*i*i*p0.y+3*i*i*t*p1.y+3*i*t*t*p2.y+t*t*t*p3.y}},
+rotate:(p,a)=>{const c=Math.cos(a),s=Math.sin(a);return{x:p.x*c-p.y*s,y:p.x*s+p.y*c}},
+localToWorld:(l,p)=>{const s={x:l.x*(p.scaleX||1),y:l.y*(p.scaleY||1)};const r=M.rotate(s,p.rotation||0);return{x:r.x+p.x,y:r.y+p.y}},
+worldToLocal:(w,p)=>{const t={x:w.x-p.x,y:w.y-p.y};const r=M.rotate(t,-(p.rotation||0));return{x:r.x/(p.scaleX||1),y:r.y/(p.scaleY||1)}},
+holsterToWorld:(l,holster)=>M.localToWorld(l,holster),
+worldToHolster:(w,holster)=>M.worldToLocal(w,holster),
+insideShape:(pt,h)=>{const dx=pt.x-h.x,dy=pt.y-h.y,r=M.rotate({x:dx,y:dy},-(h.rotation||0)),hw=h.width/2,hh=h.height/2;if(h.shape==='rectangle')return Math.abs(r.x)<=hw&&Math.abs(r.y)<=hh;if(h.shape==='pill'){const rad=Math.min(hw,hh);if(hw>=hh){const len=hw-rad;if(Math.abs(r.x)<=len)return Math.abs(r.y)<=rad;return M.dist(r,{x:r.x>0?len:-len,y:0})<=rad}else{const len=hh-rad;if(Math.abs(r.y)<=len)return Math.abs(r.x)<=rad;return M.dist(r,{x:0,y:r.y>0?len:-len})<=rad}}return(r.x*r.x)/(hw*hw)+(r.y*r.y)/(hh*hh)<=1},
+insidePoly:(pt,poly)=>{let inside=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const xi=poly[i].x,yi=poly[i].y,xj=poly[j].x,yj=poly[j].y;if(((yi>pt.y)!==(yj>pt.y))&&(pt.x<(xj-xi)*(pt.y-yi)/(yj-yi)+xi))inside=!inside}return inside},
+buildArc:p=>{if(!p||!p.length)return[];let a=0;const t=[{d:0,p:p[0]}];for(let i=0;i<p.length-1;i++){a+=M.dist(p[i],p[i+1]);t.push({d:a,p:p[i+1]})}return t},
+buildArcClosed:p=>{if(!p||!p.length)return[];let a=0;const t=[{d:0,p:p[0]}];for(let i=0;i<p.length;i++){const n=p[(i+1)%p.length];a+=M.dist(p[i],n);t.push({d:a,p:n})}return t},
+ptAtDist:(arc,d)=>{if(!arc||!arc.length)return{x:0,y:0};const t=arc[arc.length-1].d;d=Math.max(0,Math.min(d,t));for(let i=1;i<arc.length;i++){if(arc[i].d>=d-.001){const p=arc[i-1],s=arc[i].d-p.d,r=s<.001?0:(d-p.d)/s;return{x:p.p.x+(arc[i].p.x-p.p.x)*r,y:p.p.y+(arc[i].p.y-p.p.y)*r}}}return arc[arc.length-1].p},
+projectToPath:(path,arc,pt)=>{let bestD=0,minD=Infinity;const total=arc[arc.length-1].d;for(let i=0;i<path.length;i++){const a=path[i],b=path[(i+1)%path.length],sl=(b.x-a.x)**2+(b.y-a.y)**2;if(sl===0)continue;let t=((pt.x-a.x)*(b.x-a.x)+(pt.y-a.y)*(b.y-a.y))/sl;t=Math.max(0,Math.min(1,t));const pr={x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y)},d=M.dist(pt,pr);if(d<minD){minD=d;bestD=arc[i].d+t*Math.sqrt(sl)}}return bestD/total},
+sampleBezier:(nodes,steps=20)=>{if(nodes.length<2)return[];const pts=[];for(let i=0;i<nodes.length-1;i++){const c=nodes[i],n=nodes[i+1];for(let k=0;k<=(i===nodes.length-2?steps:steps-1);k++)pts.push(M.bezier({x:c.x,y:c.y},{x:c.x+(c.h2?.x||0),y:c.y+(c.h2?.y||0)},{x:n.x+(n.h1?.x||0),y:n.y+(n.h1?.y||0)},{x:n.x,y:n.y},k/steps))}return pts},
+getHoleOutline:(w,h,cx,cy,rot,shape,n=48)=>{const pts=[],hw=w/2,hh=h/2;if(shape==='rectangle'){[{x:-hw,y:-hh},{x:hw,y:-hh},{x:hw,y:hh},{x:-hw,y:hh}].forEach(c=>{const r=M.rotate(c,rot);pts.push({x:cx+r.x,y:cy+r.y})})}else if(shape==='pill'){const rad=Math.min(hw,hh);for(let i=0;i<n;i++){const a=(i/n)*Math.PI*2;let x,y;if(hw>=hh){const len=hw-rad;x=(Math.cos(a)>=0?len:-len)+rad*Math.cos(a);y=rad*Math.sin(a)}else{const len=hh-rad;x=rad*Math.cos(a);y=(Math.sin(a)>=0?len:-len)+rad*Math.sin(a)}const r=M.rotate({x,y},rot);pts.push({x:cx+r.x,y:cy+r.y})}}else{for(let i=0;i<n;i++){const a=(i/n)*Math.PI*2;const r=M.rotate({x:hw*Math.cos(a),y:hh*Math.sin(a)},rot);pts.push({x:cx+r.x,y:cy+r.y})}}return pts},
+getBounds:pts=>{let minX=Infinity,maxX=-Infinity,minY=Infinity,maxY=-Infinity;pts.forEach(p=>{minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minY=Math.min(minY,p.y);maxY=Math.max(maxY,p.y)});return{minX,maxX,minY,maxY,cx:(minX+maxX)/2,cy:(minY+maxY)/2,w:maxX-minX,h:maxY-minY}},
+ptOnBezier:(pts,pt,tol=8)=>{for(let i=0;i<pts.length-1;i++){const a=pts[i],b=pts[i+1],sl=(b.x-a.x)**2+(b.y-a.y)**2;if(sl===0)continue;let t=((pt.x-a.x)*(b.x-a.x)+(pt.y-a.y)*(b.y-a.y))/sl;t=Math.max(0,Math.min(1,t));const pr={x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y)};if(M.dist(pt,pr)<tol)return true}return false},
+hoverEq:(a,b)=>{if(!a&&!b)return true;if(!a||!b)return false;return a.type===b.type&&a.idx===b.idx&&a.ptIdx===b.ptIdx&&a.gizmoType===b.gizmoType}
+};
