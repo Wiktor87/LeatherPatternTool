@@ -38,6 +38,7 @@ let SYM_HOLES=[],SYM_STITCHES=[],ASYM_SHAPES=[],ASYM_HOLES=[],ASYM_STITCHES=[],S
 let CURRENT_LAYER='front'; // 'front' or 'back'
 let FRONT_LAYER=null; // Will store front layer state
 let BACK_LAYER=null; // Will store back layer state
+let GHOST_OFFSET={x:0,y:0}; // Offset for positioning the ghost layer
 
 // Snap helper functions
 function snapWorld(pt){
@@ -232,6 +233,7 @@ BACK_LAYER=this.captureLayerState();
 project.CURRENT_LAYER=CURRENT_LAYER;
 project.FRONT_LAYER=FRONT_LAYER;
 project.BACK_LAYER=BACK_LAYER;
+project.GHOST_OFFSET=GHOST_OFFSET;
 }
 const json=JSON.stringify(project,null,2);
 const blob=new Blob([json],{type:'application/json'});
@@ -291,6 +293,7 @@ if(project.FRONT_LAYER&&project.BACK_LAYER){
 FRONT_LAYER=project.FRONT_LAYER;
 BACK_LAYER=project.BACK_LAYER;
 CURRENT_LAYER=project.CURRENT_LAYER||'front';
+GHOST_OFFSET=project.GHOST_OFFSET||{x:0,y:0};
 // Restore the current layer
 const targetState=CURRENT_LAYER==='front'?FRONT_LAYER:BACK_LAYER;
 this.restoreLayerState(targetState);
@@ -302,6 +305,7 @@ this.onProjectTypeChange('two-layer');
 FRONT_LAYER=null;
 BACK_LAYER=null;
 CURRENT_LAYER='front';
+GHOST_OFFSET={x:0,y:0};
 // Ensure project type is set to fold-over
 if(!project.CFG||!project.CFG.projectType){
 CFG.projectType='fold-over';
@@ -783,6 +787,13 @@ this.draw();
 }
 this.showToast('Back layer reset to master','success');
 this.saveState();
+}
+resetGhostPosition(){
+if(CFG.projectType!=='two-layer')return;
+GHOST_OFFSET.x=0;
+GHOST_OFFSET.y=0;
+this.draw();
+this.showToast('Ghost layer position reset','info');
 }
 // Sync functions for two-layer mode
 syncOutlineToBack(){
@@ -1766,6 +1777,8 @@ drawGhostLayer(ctx,layerState,tintColor){
 // Save current state
 ctx.save();
 ctx.globalAlpha=CFG.ghostLayerOpacity;
+// Apply ghost layer offset
+ctx.translate(GHOST_OFFSET.x,GHOST_OFFSET.y);
 // Temporarily store current state
 const savedNODES=NODES;
 const savedEDGE_RANGES=EDGE_RANGES;
@@ -1824,6 +1837,25 @@ const pts=s.points.map(p=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};co
 ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
 ctx.strokeStyle=tintColor;ctx.lineWidth=1/VIEW.zoom;ctx.stroke();
 });
+// Draw alignment guides when dragging ghost layer
+if(DRAG.active&&DRAG.type==='ghostLayer'){
+// Draw crosshairs at origin for alignment
+ctx.globalAlpha=1;
+ctx.strokeStyle='#00ff00';
+ctx.lineWidth=1/VIEW.zoom;
+ctx.setLineDash([5/VIEW.zoom,5/VIEW.zoom]);
+// Vertical line
+ctx.beginPath();
+ctx.moveTo(-GHOST_OFFSET.x,-1000);
+ctx.lineTo(-GHOST_OFFSET.x,1000);
+ctx.stroke();
+// Horizontal line
+ctx.beginPath();
+ctx.moveTo(-1000,-GHOST_OFFSET.y);
+ctx.lineTo(1000,-GHOST_OFFSET.y);
+ctx.stroke();
+ctx.setLineDash([]);
+}
 // Restore original state
 NODES=savedNODES;
 EDGE_RANGES=savedEDGE_RANGES;
@@ -1875,6 +1907,40 @@ return;
 if(MODE==='stitch'){if(!TEMP_STITCH)TEMP_STITCH={points:[{x:w.x,y:w.y}]};else TEMP_STITCH.points.push({x:w.x,y:w.y});document.getElementById('mode-indicator').querySelector('.mode-text').textContent=(LAYER==='asymmetric'?'◧':'〰')+' '+TEMP_STITCH.points.length+' pts';this.draw();return}
 if(MODE==='shape'){if(!TEMP_SHAPE)TEMP_SHAPE={points:[{x:w.x,y:w.y}]};else TEMP_SHAPE.points.push({x:w.x,y:w.y});document.getElementById('mode-indicator').querySelector('.mode-text').textContent='◧ '+TEMP_SHAPE.points.length+' pts';this.draw();return}
 if(MODE==='customhole'){if(!TEMP_CUSTOMHOLE)TEMP_CUSTOMHOLE={points:[{x:w.x,y:w.y}]};else TEMP_CUSTOMHOLE.points.push({x:w.x,y:w.y});document.getElementById('mode-indicator').querySelector('.mode-text').textContent='✏ '+TEMP_CUSTOMHOLE.points.length+' pts';this.draw();return}
+// Check for ghost layer drag in two-layer mode
+if(MODE==='select'&&CFG.projectType==='two-layer'&&CFG.showGhostLayer){
+const ghostState=CURRENT_LAYER==='front'?BACK_LAYER:FRONT_LAYER;
+if(ghostState){
+// Temporarily apply ghost layer state to get its outline
+const savedNODES=NODES;
+NODES=ghostState.NODES;
+const ghostPat=this.getMergedPatternPath();
+NODES=savedNODES;
+// Check if click is near the ghost layer outline (with offset applied)
+const ghostPatOffset=ghostPat.map(p=>({x:p.x+GHOST_OFFSET.x,y:p.y+GHOST_OFFSET.y}));
+// Check if click is on or near the ghost outline using distance to edge segments
+let onGhostOutline=false;
+const threshold=10/VIEW.zoom;
+for(let i=0;i<ghostPatOffset.length;i++){
+const a=ghostPatOffset[i];
+const b=ghostPatOffset[(i+1)%ghostPatOffset.length];
+const sl=(b.x-a.x)**2+(b.y-a.y)**2;
+if(sl===0)continue;
+let t=((w.x-a.x)*(b.x-a.x)+(w.y-a.y)*(b.y-a.y))/sl;
+t=Math.max(0,Math.min(1,t));
+const pr={x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y)};
+if(M.dist(w,pr)<threshold){
+onGhostOutline=true;
+break;
+}
+}
+if(onGhostOutline){
+DRAG={active:true,type:'ghostLayer',sx:w.x,sy:w.y,gox:GHOST_OFFSET.x,goy:GHOST_OFFSET.y};
+this.canvas.style.cursor='move';
+return;
+}
+}
+}
 // Gizmo checks
 if(SELECTED?.type==='holster'&&!HOLSTER.locked){const gizmo=this.getGizmos(HOLSTER,'holster');for(const g of gizmo.handles){if(M.dist(w,g)<15/VIEW.zoom){DRAG={active:true,type:'holsterGizmo',gizmoType:g.type,sx:w.x,sy:w.y,shx:HOLSTER.x,shy:HOLSTER.y,ssx:HOLSTER.scaleX,ssy:HOLSTER.scaleY,sr:HOLSTER.rotation};if(g.type==='rotate'){this.canvas.style.cursor='crosshair'}else if(g.type==='scale'||g.type.includes('e')||g.type.includes('w')||g.type.includes('n')||g.type.includes('s')){this.canvas.style.cursor='nwse-resize'}else{this.canvas.style.cursor='move'}return}}}
 if(SELECTED?.type==='symHole'){const hole=SYM_HOLES[SELECTED.idx];if(!hole.locked){const wh=this.getSymHoleWorld(hole,1),gizmo=this.getGizmos(wh,'hole');for(const g of gizmo.handles){if(M.dist(w,g)<12/VIEW.zoom){DRAG={active:true,type:'symHoleGizmo',gizmoType:g.type,idx:SELECTED.idx,sx:w.x,sy:w.y,shx:hole.x,shy:hole.y,sw:hole.width,sh:hole.height,sr:hole.rotation||0};if(g.type==='rotate'){this.canvas.style.cursor='crosshair'}else if(g.type==='scale'||g.type.includes('e')||g.type.includes('w')||g.type.includes('n')||g.type.includes('s')){this.canvas.style.cursor='nwse-resize'}else{this.canvas.style.cursor='move'}return}}}}
@@ -2010,6 +2076,31 @@ if(M.dist(w,g)<HOVER_TOLERANCE.gizmo/VIEW.zoom){HOVER={type:'gizmo',gizmoType:g.
 }
 }
 }
+// Check ghost layer hover in two-layer mode
+if(!HOVER&&CFG.projectType==='two-layer'&&CFG.showGhostLayer){
+const ghostState=CURRENT_LAYER==='front'?BACK_LAYER:FRONT_LAYER;
+if(ghostState){
+const savedNODES=NODES;
+NODES=ghostState.NODES;
+const ghostPat=this.getMergedPatternPath();
+NODES=savedNODES;
+const ghostPatOffset=ghostPat.map(p=>({x:p.x+GHOST_OFFSET.x,y:p.y+GHOST_OFFSET.y}));
+const threshold=10/VIEW.zoom;
+for(let i=0;i<ghostPatOffset.length;i++){
+const a=ghostPatOffset[i];
+const b=ghostPatOffset[(i+1)%ghostPatOffset.length];
+const sl=(b.x-a.x)**2+(b.y-a.y)**2;
+if(sl===0)continue;
+let t=((w.x-a.x)*(b.x-a.x)+(w.y-a.y)*(b.y-a.y))/sl;
+t=Math.max(0,Math.min(1,t));
+const pr={x:a.x+t*(b.x-a.x),y:a.y+t*(b.y-a.y)};
+if(M.dist(w,pr)<threshold){
+HOVER={type:'ghostLayer'};
+break;
+}
+}
+}
+}
 // Update cursor based on hover state
 if(HOVER){
   if(HOVER.type === 'node' || HOVER.type === 'h1' || HOVER.type === 'h2') {
@@ -2024,6 +2115,8 @@ if(HOVER){
     }
   } else if(HOVER.type === 'rangeStart' || HOVER.type === 'rangeEnd') {
     this.canvas.style.cursor = 'ew-resize';
+  } else if(HOVER.type === 'ghostLayer') {
+    this.canvas.style.cursor = 'move';
   } else {
     this.canvas.style.cursor = 'pointer';
   }
@@ -2047,6 +2140,25 @@ PUBLISH_VIEW.y=DRAG.vy+dy;
 break;
 }
 case'pan':VIEW.x=DRAG.vx+(e.clientX-DRAG.sx);VIEW.y=DRAG.vy+(e.clientY-DRAG.sy);break;
+case'ghostLayer':{
+// Update ghost offset with drag delta
+const newOffsetX=DRAG.gox+(w.x-DRAG.sx);
+const newOffsetY=DRAG.goy+(w.y-DRAG.sy);
+// Snap to alignment when close to (0, 0) - within 10mm threshold
+const snapThreshold=10;
+if(Math.abs(newOffsetX)<snapThreshold&&Math.abs(newOffsetY)<snapThreshold){
+GHOST_OFFSET.x=0;
+GHOST_OFFSET.y=0;
+// Show snap feedback
+if(Math.abs(newOffsetX)>=snapThreshold-0.5||Math.abs(newOffsetY)>=snapThreshold-0.5){
+this.showToast('✓ Snapped to alignment','success');
+}
+}else{
+GHOST_OFFSET.x=newOffsetX;
+GHOST_OFFSET.y=newOffsetY;
+}
+break;
+}
 case'refImage':REF_IMAGE.x=DRAG.ox+(w.x-DRAG.sx);REF_IMAGE.y=DRAG.oy+(w.y-DRAG.sy);break;
 case'holsterGizmo':if(DRAG.gizmoType==='move'){HOLSTER.x=DRAG.shx+(w.x-DRAG.sx);HOLSTER.y=DRAG.shy+(w.y-DRAG.sy)}else if(DRAG.gizmoType==='rotate'){HOLSTER.rotation=Math.atan2(w.y-HOLSTER.y,w.x-HOLSTER.x)+Math.PI/4}else{const ds=Math.hypot(DRAG.sx-HOLSTER.x,DRAG.sy-HOLSTER.y),dn=Math.hypot(w.x-HOLSTER.x,w.y-HOLSTER.y),sf=dn/ds;if(SHIFT_HELD){const lw=M.worldToLocal(w,{x:HOLSTER.x,y:HOLSTER.y,rotation:HOLSTER.rotation,scaleX:1,scaleY:1}),b=M.getBounds(this.getPatternLocalPath());if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))HOLSTER.scaleX=Math.max(.1,Math.abs(lw.x)/(b.w/2+20));if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))HOLSTER.scaleY=Math.max(.1,Math.abs(lw.y)/(b.h/2+20))}else{HOLSTER.scaleX=Math.max(.1,DRAG.ssx*sf);HOLSTER.scaleY=Math.max(.1,DRAG.ssy*sf)}}this.updateInfo();break;
 case'symHoleGizmo':{const hole=SYM_HOLES[DRAG.idx],lw=M.worldToHolster(w);if(DRAG.gizmoType==='move'){const s=snapLocal({x:Math.abs(lw.x),y:lw.y});hole.x=s.x;hole.y=s.y}else if(DRAG.gizmoType==='rotate'){const wh=this.getSymHoleWorld(hole,1);hole.rotation=Math.atan2(w.y-wh.y,w.x-wh.x)-(CFG.lockFoldLine?0:(HOLSTER.rotation||0))+Math.PI/4}else{const wh=this.getSymHoleWorld(hole,1),ds=Math.hypot(DRAG.sx-wh.x,DRAG.sy-wh.y),dn=Math.hypot(w.x-wh.x,w.y-wh.y),sf=dn/ds;if(SHIFT_HELD){const rot=(CFG.lockFoldLine?0:(HOLSTER.rotation||0))+(hole.rotation||0),lh=M.worldToLocal(w,{x:wh.x,y:wh.y,rotation:rot,scaleX:1,scaleY:1});if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))hole.width=Math.max(1,Math.abs(lh.x)*2/HOLSTER.scaleX);if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))hole.height=Math.max(1,Math.abs(lh.y)*2/HOLSTER.scaleY)}else{hole.width=Math.max(1,DRAG.sw*sf);hole.height=Math.max(1,DRAG.sh*sf)}}this.updateInfo();break}
