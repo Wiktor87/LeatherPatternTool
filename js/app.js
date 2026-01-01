@@ -2320,6 +2320,80 @@ EDGE_STITCHES=savedEDGE_STITCHES;
 }
 return count;
 }
+centerPublishView(){
+// Calculate pattern bounds
+const isTwoLayer=CFG.projectType==='two-layer';
+const layout=isTwoLayer?CFG.publishLayout:'front-only';
+let pat,b;
+if(isTwoLayer&&FRONT_LAYER){
+const savedNODES=NODES;
+NODES=FRONT_LAYER.NODES;
+pat=this.getMergedPatternPath();
+b=M.getBounds(pat);
+NODES=savedNODES;
+}else{
+pat=this.getMergedPatternPath();
+b=M.getBounds(pat);
+}
+// Adjust bounds for side-by-side or stacked layouts
+const layerGap=20; // mm gap between layers in multi-layer layouts
+let totalW=b.w,totalH=b.h;
+if(isTwoLayer&&layout==='side-by-side'){
+totalW=b.w*2+layerGap;
+}else if(isTwoLayer&&layout==='stacked'){
+totalH=b.h*2+layerGap;
+}
+// Canvas dimensions in screen pixels
+const w=this.canvas.width/this.dpr;
+const h=this.canvas.height/this.dpr;
+if(CFG.publishViewMode==='full-pattern'){
+// Full Pattern mode: Center the pattern with appropriate zoom to fit
+const headerH=120; // Header space in pixels
+const footerH=80; // Footer space in pixels
+const margin=60; // Side margins in pixels
+const availW=w-margin*2;
+const availH=h-headerH-footerH;
+// Calculate scale to fit pattern with padding
+const scaleX=availW/(totalW*1.2); // 20% padding
+const scaleY=availH/(totalH*1.2);
+const scale=Math.min(scaleX,scaleY,3); // Cap at 3x
+// The pattern rendering in drawPublishFullPattern centers it automatically
+// But we still need to set up PUBLISH_VIEW for panning/zooming
+PUBLISH_VIEW={x:0,y:0,scale:scale};
+}else{
+// A4 Pages mode: Center the page grid
+const A4W=210,A4H=300;
+const pageMargin=parseFloat(CFG.pageMargin)||10;
+const overlap=parseFloat(CFG.pageOverlap)||15;
+const effectiveW=A4W-pageMargin*2-overlap;
+const effectiveH=A4H-pageMargin*2-overlap;
+const pagesX=Math.max(1,Math.ceil(totalW/effectiveW));
+const pagesY=Math.max(1,Math.ceil(totalH/effectiveH));
+// Calculate scale to fit grid on screen with margin
+const gridMargin=40; // pixels margin around grid
+const availW=w-gridMargin*2;
+const availH=h-gridMargin*2-40; // Extra space for title
+// Grid dimensions at scale=1
+const gap=8; // gap between pages in pixels (at scale=1)
+const gridW1=pagesX*A4W+(pagesX-1)*gap;
+const gridH1=pagesY*A4H+(pagesY-1)*gap;
+// Calculate scale to fit grid
+const scaleX=availW/gridW1;
+const scaleY=availH/gridH1;
+const scale=Math.min(scaleX,scaleY,2); // Cap at 2x
+// Calculate offset to center the pattern within the page grid
+// The pattern's center should be at the center of the grid
+const patternCenterX=(b.minx+b.maxx)/2;
+const patternCenterY=(b.miny+b.maxy)/2;
+// Grid center in pattern coordinates
+const gridCenterX=totalW/2;
+const gridCenterY=totalH/2;
+// Offset needed to center pattern in grid
+const offsetX=gridCenterX-patternCenterX;
+const offsetY=gridCenterY-patternCenterY;
+PUBLISH_VIEW={x:offsetX,y:offsetY,scale:scale};
+}
+}
 togglePublish(){
 PUBLISH_MODE=!PUBLISH_MODE;
 document.body.classList.toggle('publish-mode',PUBLISH_MODE);
@@ -2335,9 +2409,6 @@ if(frontCount!==backCount){
 this.showToast(`⚠ Stitch count mismatch! Front: ${frontCount} | Back: ${backCount}`,'warning');
 }
 }
-// Reset publish view - scale so pages fit nicely on screen
-// A4 is 210x300mm, we want it to be roughly 300px wide initially
-PUBLISH_VIEW={x:0,y:0,scale:1.5};
 // Use full window for tiled page preview
 this.publishDpr=this.dpr;
 this.canvas.width=window.innerWidth*this.dpr;
@@ -2348,6 +2419,8 @@ this.canvas.style.margin='0';
 this.canvas.style.display='block';
 this.canvas.style.boxShadow='none';
 this.canvas.style.cursor='grab';
+// Center the pattern in the view
+this.centerPublishView();
 }else{
 // Restore normal canvas size
 this.resize();
@@ -2839,7 +2912,9 @@ const backCount=this.getStitchCount(BACK_LAYER);
 const match=frontCount===backCount;
 stitchInfo=` · Front: ${frontCount} | Back: ${backCount} ${match?'✓':'⚠'}`;
 }
-ctx.fillText(`${b.w.toFixed(0)}×${b.h.toFixed(0)}mm · ${pagesX}×${pagesY} pages${layoutInfo}${stitchInfo} · ${overlap}mm overlap · Drag to position, scroll to zoom`,w/2,h-15);
+const viewZoomPercent=Math.round(scale*100);
+ctx.fillText(`Pattern Size: ${b.w.toFixed(0)}×${b.h.toFixed(0)}mm · ${pagesX}×${pagesY} pages${layoutInfo}${stitchInfo} · ${overlap}mm overlap`,w/2,h-30);
+ctx.fillText(`View: ${viewZoomPercent}% · Drag to reposition · Scroll to zoom · Print at 100% scale`,w/2,h-15);
 }
 drawPublishFullPattern(){
 const dpr=this.dpr;
@@ -2965,8 +3040,9 @@ const backCount=this.getStitchCount(BACK_LAYER);
 const match=frontCount===backCount;
 stitchInfo=` · Front: ${frontCount} | Back: ${backCount} ${match?'✓':'⚠'}`;
 }
-ctx.fillText(`Full Pattern View${layoutInfo}${stitchInfo}`,w/2,h-50);
-ctx.fillText('Scroll to zoom · Drag to pan',w/2,h-30);
+const viewZoomPercent=Math.round(scale*100);
+ctx.fillText(`Pattern Size: ${b.w.toFixed(0)}×${b.h.toFixed(0)}mm${layoutInfo}${stitchInfo}`,w/2,h-50);
+ctx.fillText(`View: ${viewZoomPercent}% · Scroll to zoom · Drag to pan · Print at 100% scale`,w/2,h-30);
 }
 drawPatternLayerFullPattern(ctx,layerState,scale,strokeColor='#000',labelText=''){
 // Similar to drawPatternLayer but with professional styling for full pattern view
