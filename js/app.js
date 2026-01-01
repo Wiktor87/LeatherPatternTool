@@ -125,6 +125,11 @@ HISTORY.shift();
 HISTORY_IDX++;
 }
 this.updateUndoRedoButtons();
+// Sync to back layer if in two-layer mode and on front layer
+if(CFG.projectType==='two-layer'&&CURRENT_LAYER==='front'){
+this.syncOutlineToBack();
+this.syncEdgeStitchesToBack();
+}
 }
 restoreState(state){
 NODES=JSON.parse(JSON.stringify(state.NODES));
