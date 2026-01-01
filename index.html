@@ -244,11 +244,11 @@ if (typeof ClipperLib === 'undefined') {
 <span class="title">📐 Publish Mode</span>
 <input type="text" id="pattern-title" placeholder="Pattern name..." value="Holster Pattern">
 <span class="info">Print at 100% scale</span>
-<select id="publish-view-mode" style="padding:6px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;font-size:12px" onchange="app.updateCfg('publishViewMode',this.value);app.draw()">
+<select id="publish-view-mode" style="padding:6px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;font-size:12px" onchange="app.updateCfg('publishViewMode',this.value);app.centerPublishView();app.draw()">
 <option value="a4-pages">A4 Pages</option>
 <option value="full-pattern">Full Pattern</option>
 </select>
-<select id="publish-layout" style="padding:6px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;font-size:12px;display:none" onchange="app.updateCfg('publishLayout',this.value)">
+<select id="publish-layout" style="padding:6px 10px;border-radius:4px;border:1px solid #555;background:#333;color:#fff;font-size:12px;display:none" onchange="app.updateCfg('publishLayout',this.value);app.centerPublishView();app.draw()">
 <option value="front-only">Front Only</option>
 <option value="back-only">Back Only</option>
 <option value="side-by-side">Side by Side</option>
