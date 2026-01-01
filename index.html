@@ -79,6 +79,7 @@
 <div class="setting-row"><label>Type</label><select id="cfg-projectType" onchange="app.updateCfg('projectType',this.value)"><option value="fold-over">Fold-Over</option><option value="two-layer">Two-Layer</option></select></div>
 </div>
 <div class="settings-section" id="two-layer-sync" style="display:none"><h3>Layer Sync</h3>
+<div class="setting-row"><label>Asymmetric Outline</label><input type="checkbox" id="cfg-asymmetricOutline" onchange="app.updateCfg('asymmetricOutline',this.checked)"></div>
 <div class="setting-row"><label>Sync Outline</label><input type="checkbox" id="cfg-syncOutline" checked onchange="app.updateCfg('syncOutline',this.checked)"></div>
 <div class="setting-row"><label>Sync Edge Stitches</label><input type="checkbox" id="cfg-syncEdgeStitches" checked onchange="app.updateCfg('syncEdgeStitches',this.checked)"></div>
 <div class="setting-row"><button style="flex:1;padding:6px;background:#444;border:1px solid #555;color:#fff;border-radius:4px;cursor:pointer;font-size:11px" onclick="app.resetToMaster()">↻ Reset Back to Master</button></div>

@@ -319,6 +319,10 @@ document.getElementById('project-title').textContent=project.name;
 const titleInput=document.getElementById('pattern-title');
 if(titleInput)titleInput.value=project.name;
 }
+// Sync UI checkboxes with loaded CFG values
+document.getElementById('cfg-asymmetricOutline').checked=CFG.asymmetricOutline||false;
+document.getElementById('cfg-syncOutline').checked=CFG.syncOutline!==false;
+document.getElementById('cfg-syncEdgeStitches').checked=CFG.syncEdgeStitches!==false;
 SELECTED=null;
 this.updateInfo();
 this.updateOutliner();
@@ -590,6 +594,10 @@ else CFG[key]=val;
 if(key==='projectType'){
 this.onProjectTypeChange(val);
 }
+// Handle asymmetric outline toggle
+if(key==='asymmetricOutline'){
+this.onAsymmetricOutlineChange(val);
+}
 this.draw();
 }
 setupEvents(){
@@ -667,6 +675,48 @@ this.updateLayerUI();
 }
 // Show notification
 this.showToast(isTwoLayer?'Switched to Two-Layer Mode':'Switched to Fold-Over Mode','info');
+}
+onAsymmetricOutlineChange(enabled){
+// When enabling asymmetric mode, convert current mirrored outline to full perimeter
+if(enabled){
+// Get the current mirrored pattern path
+const rightPath=this.getRightHalfPath(false);
+// Create full perimeter by combining right side and mirrored left side
+const fullPerimeter=[];
+// Add right side nodes (top to bottom)
+rightPath.forEach(p=>fullPerimeter.push({x:p.x,y:p.y}));
+// Add mirrored left side nodes (bottom to top, reversed)
+for(let i=rightPath.length-1;i>=0;i--){
+const p=rightPath[i];
+fullPerimeter.push({x:-p.x,y:p.y});
+}
+// Convert to nodes with handles
+const newNodes=[];
+const step=Math.max(1,Math.floor(fullPerimeter.length/NODES.length)); // Sample to keep reasonable node count
+for(let i=0;i<fullPerimeter.length;i+=step){
+const p=fullPerimeter[i];
+newNodes.push({x:p.x,y:p.y,h1:{x:0,y:0},h2:{x:0,y:0}});
+}
+// Ensure we have at least the last point
+if(newNodes.length>0&&newNodes[newNodes.length-1].y!==fullPerimeter[fullPerimeter.length-1].y){
+const p=fullPerimeter[fullPerimeter.length-1];
+newNodes.push({x:p.x,y:p.y,h1:{x:0,y:0},h2:{x:0,y:0}});
+}
+NODES=newNodes;
+this.smoothHandlesClosed(NODES);
+this.showToast('Asymmetric Outline enabled - nodes now define full perimeter','info');
+}else{
+// When disabling, convert back to right-half only
+// Keep only nodes with x >= 0, and ensure first/last are on fold line
+NODES=NODES.filter(n=>n.x>=0);
+if(NODES.length>0){
+NODES[0].x=0;
+NODES[NODES.length-1].x=0;
+}
+this.showToast('Asymmetric Outline disabled - nodes define right half only','info');
+}
+this.saveState();
+this.draw();
 }
 initializeLayers(){
 // Save current state as front layer
@@ -1100,6 +1150,17 @@ btn.style.background='#007AFF'; // Blue for "link" action
 else{document.getElementById('sel-type').textContent=layerPrefix+SELECTED.type}}
 getPatternLocalPath(){const pts=[],steps=20;for(let i=0;i<NODES.length;i++){const c=NODES[i],nx=NODES[(i+1)%NODES.length];for(let k=0;k<steps;k++){const pt=M.bezier({x:c.x,y:c.y},{x:c.x+c.h2.x,y:c.y+c.h2.y},{x:nx.x+nx.h1.x,y:nx.y+nx.h1.y},{x:nx.x,y:nx.y},k/steps);pt.segIdx=i;pts.push(pt)}}return pts}
 getRightHalfPath(includeFoldSegments=true){
+// In asymmetric mode, return full perimeter
+if(CFG.asymmetricOutline){
+const pts=[],steps=20;
+for(let i=0;i<NODES.length;i++){
+const c=NODES[i],nx=NODES[(i+1)%NODES.length];
+for(let k=0;k<steps;k++){
+const pt=M.bezier({x:c.x,y:c.y},{x:c.x+c.h2.x,y:c.y+c.h2.y},{x:nx.x+nx.h1.x,y:nx.y+nx.h1.y},{x:nx.x,y:nx.y},k/steps);
+pt.segIdx=i;pts.push(pt);
+}}
+return pts;
+}
 // Get just the right half (from top fold point down to bottom fold point)
 const pts=[],steps=20;
 // Add top fold segment (from fold line x=0 to first node)
@@ -1131,6 +1192,11 @@ return pts;
 }
 getPatternPath(){
 const right=this.getRightHalfPath(false),pts=[];
+// In asymmetric mode, just transform the full perimeter to world coords
+if(CFG.asymmetricOutline){
+right.forEach(p=>{const wp=M.holsterToWorld(p);wp.segIdx=p.segIdx;pts.push(wp)});
+return pts;
+}
 // Right side: top to bottom (as-is)
 right.forEach(p=>{const wp=M.holsterToWorld(p);wp.segIdx=p.segIdx;pts.push(wp)});
 // Left side: bottom to top (mirrored x, reverse order)
@@ -1415,7 +1481,7 @@ ctx.drawImage(this.off,0,0,w,h);
 ctx.save();ctx.translate(VIEW.x,VIEW.y);ctx.scale(VIEW.zoom,VIEW.zoom);
 const b=M.getBounds(pat);document.getElementById('patternSize').textContent=b.w.toFixed(0)+'×'+b.h.toFixed(0)+'mm';document.getElementById('maxInterior').textContent=Math.max(0,b.w-(CFG.stitchMargin+CFG.thickness*2)*2).toFixed(1)+'mm';
 // Fold line - when locked, draw vertical at origin regardless of holster transforms
-if(CFG.showFoldLine){
+if(CFG.showFoldLine&&!CFG.asymmetricOutline){
 ctx.strokeStyle='#888';ctx.lineWidth=1/VIEW.zoom;
 ctx.setLineDash([8/VIEW.zoom,4/VIEW.zoom]);
 ctx.beginPath();
@@ -1430,6 +1496,21 @@ ctx.moveTo(top.x,top.y);ctx.lineTo(bot.x,bot.y);
 ctx.stroke();ctx.setLineDash([]);
 ctx.fillStyle='#888';ctx.font=(10/VIEW.zoom)+'px sans-serif';ctx.textAlign='center';
 if(CFG.lockFoldLine){ctx.fillText('FOLD',0,-280)}else{const lbl=M.holsterToWorld({x:0,y:-280});ctx.fillText('FOLD',lbl.x,lbl.y)}
+}
+// Center reference line for asymmetric mode
+if(CFG.showFoldLine&&CFG.asymmetricOutline){
+ctx.strokeStyle='#666';ctx.lineWidth=1/VIEW.zoom;
+ctx.setLineDash([4/VIEW.zoom,4/VIEW.zoom]);
+ctx.beginPath();
+if(CFG.lockFoldLine){
+ctx.moveTo(0,-300);ctx.lineTo(0,300);
+}else{
+const top=M.holsterToWorld({x:0,y:-300}),bot=M.holsterToWorld({x:0,y:300});
+ctx.moveTo(top.x,top.y);ctx.lineTo(bot.x,bot.y);
+}
+ctx.stroke();ctx.setLineDash([]);
+ctx.fillStyle='#666';ctx.font=(10/VIEW.zoom)+'px sans-serif';ctx.textAlign='center';
+if(CFG.lockFoldLine){ctx.fillText('CENTER',0,-280)}else{const lbl=M.holsterToWorld({x:0,y:-280});ctx.fillText('CENTER',lbl.x,lbl.y)}
 }
 if(CFG.showCavity&&cav.length){ctx.beginPath();cav.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.fillStyle='rgba(100,200,255,.12)';ctx.fill();ctx.strokeStyle='rgba(0,150,200,.35)';ctx.lineWidth=1.5/VIEW.zoom;ctx.setLineDash([3/VIEW.zoom,3/VIEW.zoom]);ctx.stroke();ctx.setLineDash([])}
 if(CFG.showOutline){ctx.beginPath();pat.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle='#333';ctx.lineWidth=2/VIEW.zoom;ctx.stroke()}
@@ -1634,7 +1715,7 @@ const pt=M.ptAtDist(stitchArc,d);
 if(pt){if(!started){ctx.moveTo(pt.x,pt.y);started=true}else{ctx.lineTo(pt.x,pt.y)}}
 }
 ctx.stroke();
-if(es.mirror!==false&&CFG.mirrorEdgeStitches){
+if(es.mirror!==false&&CFG.mirrorEdgeStitches&&!CFG.asymmetricOutline){
 ctx.beginPath();started=false;
 for(let d=sd;d<=ed;d+=1){
 const pt=M.ptAtDist(stitchArc,d);
@@ -1650,7 +1731,7 @@ for(let d=sd;d<=ed;d+=spacing){
 const pt=M.ptAtDist(stitchArc,d);
 if(!pt)continue;
 ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();ec++;
-if(es.mirror!==false&&CFG.mirrorEdgeStitches){
+if(es.mirror!==false&&CFG.mirrorEdgeStitches&&!CFG.asymmetricOutline){
 const mx=2*HOLSTER.x-pt.x;
 ctx.beginPath();ctx.arc(mx,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();ec++;
 }}
@@ -1820,7 +1901,7 @@ ctx.fillStyle=tintColor;
 for(let d=sd;d<=ed;d+=spacing){
 const pt=M.ptAtDist(stitchArc,d);if(!pt)continue;
 ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();
-if(es.mirror!==false&&CFG.mirrorEdgeStitches){
+if(es.mirror!==false&&CFG.mirrorEdgeStitches&&!CFG.asymmetricOutline){
 const mx=2*HOLSTER.x-pt.x;
 ctx.beginPath();ctx.arc(mx,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();
 }}}
@@ -1877,7 +1958,7 @@ if(w.x>=t.x&&w.x<=t.x+tw+20&&w.y>=t.y&&w.y<=t.y+fs+10){
 const newText=prompt('Edit text:',t.text);if(newText!==null)t.text=newText;
 }else{t.arrowTo={x:w.x,y:w.y}}
 this.updateInfo();this.draw();return}
-if(MODE==='select'&&!HOLSTER.locked){const local=this.getPatternLocalPath(),lw=M.worldToHolster(w);let minD=Infinity,ins=-1;for(const p of local){const d=M.dist(lw,p);if(d<minD&&p.segIdx>=0){minD=d;ins=p.segIdx}}if(minD<30/(VIEW.zoom*Math.min(HOLSTER.scaleX||1,HOLSTER.scaleY||1))&&ins>=0){NODES.splice(ins+1,0,{x:Math.max(0,lw.x),y:lw.y,h1:{x:0,y:0},h2:{x:0,y:0}});this.draw()}}}
+if(MODE==='select'&&!HOLSTER.locked){const local=this.getPatternLocalPath(),lw=M.worldToHolster(w);let minD=Infinity,ins=-1;for(const p of local){const d=M.dist(lw,p);if(d<minD&&p.segIdx>=0){minD=d;ins=p.segIdx}}if(minD<30/(VIEW.zoom*Math.min(HOLSTER.scaleX||1,HOLSTER.scaleY||1))&&ins>=0){NODES.splice(ins+1,0,{x:CFG.asymmetricOutline?lw.x:Math.max(0,lw.x),y:lw.y,h1:{x:0,y:0},h2:{x:0,y:0}});this.draw()}}}
 onDown(e){e.preventDefault();
 // Clear hover state when starting any interaction
 HOVER=null;
@@ -2186,7 +2267,7 @@ case'mergedRangeStart':MERGED_EDGE_RANGES[DRAG.idx].start=Math.max(0,Math.min(ME
 case'mergedRangeEnd':MERGED_EDGE_RANGES[DRAG.idx].end=Math.max(MERGED_EDGE_RANGES[DRAG.idx].start+.01,Math.min(1,M.projectToPath(DRAG.path,DRAG.arc,w)));break;
 case'textMove':{const t=TEXT_ANNOTATIONS[DRAG.idx];const s=snapWorld({x:w.x-DRAG.ox,y:w.y-DRAG.oy});t.x=s.x;t.y=s.y;break}
 case'textArrow':{const t=TEXT_ANNOTATIONS[DRAG.idx];t.arrowTo={x:w.x,y:w.y};break}
-case'node':{const lw=M.worldToHolster(w);const s=snapLocal({x:Math.max(0,lw.x),y:lw.y});NODES[DRAG.idx].x=s.x;NODES[DRAG.idx].y=s.y;break}
+case'node':{const lw=M.worldToHolster(w);const s=CFG.asymmetricOutline?snapLocal({x:lw.x,y:lw.y}):snapLocal({x:Math.max(0,lw.x),y:lw.y});NODES[DRAG.idx].x=s.x;NODES[DRAG.idx].y=s.y;break}
 case'h1':{const lw=M.worldToHolster(w);const n=NODES[DRAG.idx];n.h1={x:lw.x-n.x,y:lw.y-n.y};
 // When dragging h1, update h2 if linked OR if Shift is held
 if(n.linked||SHIFT_HELD){n.h2={x:-n.h1.x,y:-n.h1.y}}
@@ -2223,7 +2304,7 @@ if(es.showHoles!==false){
 const spacing=es.spacing||CFG.stitchSpacing;
 const stitchesInRange=Math.floor((ed-sd)/spacing)+1;
 count+=stitchesInRange;
-if(es.mirror!==false&&CFG.mirrorEdgeStitches){
+if(es.mirror!==false&&CFG.mirrorEdgeStitches&&!CFG.asymmetricOutline){
 count+=stitchesInRange;
 }}
 });
@@ -2354,7 +2435,7 @@ bigCtx.fillStyle='#000';
 for(let d=sd;d<=ed;d+=(es.spacing||CFG.stitchSpacing)){
 const pt=M.ptAtDist(stitchArc,d);if(!pt)continue;
 bigCtx.beginPath();bigCtx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);bigCtx.fill();
-if(es.mirror!==false&&CFG.mirrorEdgeStitches){
+if(es.mirror!==false&&CFG.mirrorEdgeStitches&&!CFG.asymmetricOutline){
 bigCtx.beginPath();bigCtx.arc(2*HOLSTER.x-pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);bigCtx.fill();
 }}}
 });
@@ -2671,7 +2752,7 @@ ctx.fillStyle=strokeColor;
 for(let d=sd;d<=ed;d+=spacing){
 const pt=M.ptAtDist(stitchArc,d);if(!pt)continue;
 ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();
-if(es.mirror!==false&&CFG.mirrorEdgeStitches){
+if(es.mirror!==false&&CFG.mirrorEdgeStitches&&!CFG.asymmetricOutline){
 const mx=2*HOLSTER.x-pt.x;
 ctx.beginPath();ctx.arc(mx,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();
 }}}
