@@ -2278,12 +2278,40 @@ const printH=A4H-pageMargin*2;
 // Effective unique area per page (excluding overlap)
 const effectiveW=printW-overlap;
 const effectiveH=printH-overlap;
-// Get pattern bounds
-const pat=this.getMergedPatternPath();
-const b=M.getBounds(pat);
+// Determine which layers to render for two-layer mode
+const isTwoLayer=CFG.projectType==='two-layer';
+const layout=isTwoLayer?CFG.publishLayout:'front-only';
+let layersToRender=[];
+if(isTwoLayer){
+if(layout==='front-only'){layersToRender=[{state:FRONT_LAYER,label:'FRONT',color:'#000'}]}
+else if(layout==='back-only'){layersToRender=[{state:BACK_LAYER,label:'BACK',color:'#000'}]}
+else if(layout==='overlaid'){layersToRender=[{state:FRONT_LAYER,label:'FRONT',color:'#007AFF'},{state:BACK_LAYER,label:'BACK',color:'#FF6600'}]}
+else{layersToRender=[{state:FRONT_LAYER,label:'FRONT',color:'#000'},{state:BACK_LAYER,label:'BACK',color:'#000'}]}
+}else{
+layersToRender=[{state:null,label:'',color:'#000'}];
+}
+// Get pattern bounds (use front layer for sizing in two-layer mode)
+let pat,b;
+if(isTwoLayer&&FRONT_LAYER){
+const savedNODES=NODES;
+NODES=FRONT_LAYER.NODES;
+pat=this.getMergedPatternPath();
+b=M.getBounds(pat);
+NODES=savedNODES;
+}else{
+pat=this.getMergedPatternPath();
+b=M.getBounds(pat);
+}
+// Adjust bounds for side-by-side or stacked layouts
+let totalW=b.w,totalH=b.h;
+if(isTwoLayer&&layout==='side-by-side'){
+totalW=b.w*2+20; // 20mm gap between layers
+}else if(isTwoLayer&&layout==='stacked'){
+totalH=b.h*2+20; // 20mm gap between layers
+}
 // Fixed page count based on pattern size only
-const pagesX=Math.max(1,Math.ceil(b.w/effectiveW));
-const pagesY=Math.max(1,Math.ceil(b.h/effectiveH));
+const pagesX=Math.max(1,Math.ceil(totalW/effectiveW));
+const pagesY=Math.max(1,Math.ceil(totalH/effectiveH));
 // Scale for display
 const scale=PUBLISH_VIEW.scale;
 const pageW=A4W*scale;
@@ -2446,6 +2474,77 @@ ctx.fillText(document.getElementById('pattern-title').value||'Holster Pattern',w
 // Info
 ctx.font='12px sans-serif';ctx.fillStyle='#ccc';
 ctx.fillText(`${b.w.toFixed(0)}×${b.h.toFixed(0)}mm · ${pagesX}×${pagesY} pages · ${overlap}mm overlap · Drag to position, scroll to zoom`,w/2,h-15);
+}
+drawPatternLayer(ctx,layerState,scale,strokeColor='#000',labelText=''){
+// Temporarily swap to layer state if provided
+let savedNODES,savedEDGE_RANGES,savedMERGED_EDGE_RANGES,savedEDGE_STITCHES;
+let savedSYM_HOLES,savedSYM_CUSTOM_HOLES,savedASYM_HOLES,savedASYM_CUSTOM_HOLES,savedASYM_SHAPES;
+if(layerState){
+savedNODES=NODES;savedEDGE_RANGES=EDGE_RANGES;savedMERGED_EDGE_RANGES=MERGED_EDGE_RANGES;
+savedEDGE_STITCHES=EDGE_STITCHES;savedSYM_HOLES=SYM_HOLES;savedSYM_CUSTOM_HOLES=SYM_CUSTOM_HOLES;
+savedASYM_HOLES=ASYM_HOLES;savedASYM_CUSTOM_HOLES=ASYM_CUSTOM_HOLES;savedASYM_SHAPES=ASYM_SHAPES;
+NODES=layerState.NODES;EDGE_RANGES=layerState.EDGE_RANGES;MERGED_EDGE_RANGES=layerState.MERGED_EDGE_RANGES;
+EDGE_STITCHES=layerState.EDGE_STITCHES;SYM_HOLES=layerState.SYM_HOLES;SYM_CUSTOM_HOLES=layerState.SYM_CUSTOM_HOLES;
+ASYM_HOLES=layerState.ASYM_HOLES;ASYM_CUSTOM_HOLES=layerState.ASYM_CUSTOM_HOLES;ASYM_SHAPES=layerState.ASYM_SHAPES;
+}
+const pat=this.getMergedPatternPath();
+const b=M.getBounds(pat);
+// Draw label if provided
+if(labelText){
+ctx.save();
+ctx.fillStyle=strokeColor;ctx.font=`bold ${14/scale}px sans-serif`;
+ctx.textAlign='center';ctx.textBaseline='top';
+ctx.fillText(labelText,b.cx,b.miny-20/scale);
+ctx.restore();
+}
+// Draw pattern outline
+ctx.beginPath();pat.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
+ctx.strokeStyle=strokeColor;ctx.lineWidth=1.5/scale;ctx.stroke();
+// Draw fold line
+ctx.strokeStyle=strokeColor;ctx.lineWidth=0.5/scale;ctx.setLineDash([5/scale,3/scale]);
+ctx.beginPath();ctx.moveTo(HOLSTER.x,b.miny-10);ctx.lineTo(HOLSTER.x,b.maxy+10);ctx.stroke();
+ctx.setLineDash([]);
+// Draw edge stitches
+const rightHalfP=this.getRightHalfPath();
+const rightWorldP=rightHalfP.map(p=>M.holsterToWorld(p));
+EDGE_STITCHES.forEach(es=>{
+const rng=EDGE_RANGES[es.rangeIdx];if(!rng)return;
+const esMargin=es.margin||CFG.stitchMargin;
+const stitchPath=this.offsetPathStable(rightWorldP,-esMargin);
+if(stitchPath.length<3)return;
+const stitchArc=M.buildArc(stitchPath);
+const stitchTot=stitchArc[stitchArc.length-1].d;
+const sd=stitchTot*rng.start,ed=stitchTot*rng.end;
+if(es.showHoles!==false){
+const spacing=es.spacing||CFG.stitchSpacing;
+ctx.fillStyle=strokeColor;
+for(let d=sd;d<=ed;d+=spacing){
+const pt=M.ptAtDist(stitchArc,d);if(!pt)continue;
+ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();
+if(es.mirror!==false&&CFG.mirrorEdgeStitches){
+const mx=2*HOLSTER.x-pt.x;
+ctx.beginPath();ctx.arc(mx,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();
+}}}
+});
+// Draw holes
+if(CFG.showSymmetric)SYM_HOLES.forEach(hole=>{[1,-1].forEach(side=>{const wh=this.getSymHoleWorld(hole,side);this.drawHole(ctx,wh.x,wh.y,wh.rotation,wh.width,wh.height,wh.shape);ctx.strokeStyle=strokeColor;ctx.lineWidth=1/scale;ctx.stroke()})});
+if(CFG.showAsymmetric)ASYM_HOLES.forEach(hole=>{this.drawHole(ctx,hole.x,hole.y,hole.rotation||0,hole.width,hole.height,hole.shape);ctx.strokeStyle=strokeColor;ctx.lineWidth=1/scale;ctx.stroke()});
+// Draw custom holes
+if(CFG.showSymmetric)SYM_CUSTOM_HOLES.forEach(h=>{[1,-1].forEach(side=>{const pts=this.getCustomHoleWorld(h,side);ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle=strokeColor;ctx.lineWidth=1/scale;ctx.stroke()})});
+if(CFG.showAsymmetric)ASYM_CUSTOM_HOLES.forEach(h=>{const pts=this.getCustomHoleWorldAsym(h);ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle=strokeColor;ctx.lineWidth=1/scale;ctx.stroke()});
+// Draw shapes
+if(CFG.showAsymmetric)ASYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{
+const pts=s.points.map(p=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sc,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y}});
+ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
+ctx.strokeStyle=strokeColor;ctx.lineWidth=1/scale;ctx.stroke();
+});
+// Restore original state
+if(layerState){
+NODES=savedNODES;EDGE_RANGES=savedEDGE_RANGES;MERGED_EDGE_RANGES=savedMERGED_EDGE_RANGES;
+EDGE_STITCHES=savedEDGE_STITCHES;SYM_HOLES=savedSYM_HOLES;SYM_CUSTOM_HOLES=savedSYM_CUSTOM_HOLES;
+ASYM_HOLES=savedASYM_HOLES;ASYM_CUSTOM_HOLES=savedASYM_CUSTOM_HOLES;ASYM_SHAPES=savedASYM_SHAPES;
+}
+return b;
 }
 }
 const app=new App();
