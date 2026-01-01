@@ -86,7 +86,6 @@ html,body{margin:0;padding:0;overflow:hidden;background:var(--bg);font-family:-a
 #props-bar.active{display:flex}
 #props-bar .prop-group{display:flex;align-items:center;gap:5px}
 #props-bar label{color:var(--dim);font-size:11px;white-space:nowrap}
-#props-bar input[type="checkbox"]{cursor:pointer}
 #props-bar input[type="range"]{width:100px;cursor:pointer}
 #props-bar input[type="number"]{width:44px;background:#333;border:1px solid #444;color:var(--text);padding:3px 4px;border-radius:4px;font-size:10px}
 #props-bar select{background:#333;border:1px solid #444;color:var(--text);padding:3px 6px;border-radius:4px;font-size:10px;cursor:pointer}
@@ -118,7 +117,6 @@ html,body{margin:0;padding:0;overflow:hidden;background:var(--bg);font-family:-a
 .setting-row label{font-size:11px}
 .setting-row input[type="range"]{width:70px}
 .setting-row input[type="number"]{width:48px;background:#333;border:1px solid #444;color:var(--text);padding:2px 4px;border-radius:3px;font-size:10px;text-align:right}
-.setting-row input[type="checkbox"]{}
 .setting-row input[type="color"]{width:36px;height:22px;border:none;cursor:pointer;border-radius:3px}
 .setting-row select{background:#333;border:1px solid #444;color:var(--text);padding:2px 4px;border-radius:3px;font-size:10px}
 
