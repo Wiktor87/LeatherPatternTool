@@ -34,6 +34,11 @@ let MERGED_EDGE_RANGES=[]; // Ranges on full merged perimeter (including extensi
 let EDGE_STITCHES=[]; // New: stitches bound to edge ranges
 let SYM_HOLES=[],SYM_STITCHES=[],ASYM_SHAPES=[],ASYM_HOLES=[],ASYM_STITCHES=[],SYM_CUSTOM_HOLES=[],ASYM_CUSTOM_HOLES=[],TEXT_ANNOTATIONS=[];
 
+// Two-Layer Mode: State for front and back layers
+let CURRENT_LAYER='front'; // 'front' or 'back'
+let FRONT_LAYER=null; // Will store front layer state
+let BACK_LAYER=null; // Will store back layer state
+
 // Snap helper functions
 function snapWorld(pt){
 let x=pt.x,y=pt.y;
@@ -69,7 +74,15 @@ return{x,y};
 }
 class App{
 constructor(){this.canvas=document.getElementById('c');this.ctx=this.canvas.getContext('2d');this.dpr=devicePixelRatio||1;this.off=document.createElement('canvas');this.offCtx=this.off.getContext('2d');this.init()}
-init(){this.setupEvents();this.resize();this.settingsOpen=false;this.outlinerOpen=false;this.saveState()}
+init(){
+this.setupEvents();
+this.resize();
+this.settingsOpen=false;
+this.outlinerOpen=false;
+// Initialize UI based on default project type
+this.onProjectTypeChange(CFG.projectType);
+this.saveState();
+}
 showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
@@ -191,7 +204,7 @@ saveProject(){
 document.getElementById('file-menu').classList.remove('open');
 const projectName=document.getElementById('project-title').textContent||'Leather Pattern';
 const project={
-version:1,
+version:2, // Increment version for two-layer support
 name:projectName,
 NODES:NODES,
 HOLSTER:HOLSTER,
@@ -208,6 +221,18 @@ ASYM_SHAPES:ASYM_SHAPES,
 TEXT_ANNOTATIONS:TEXT_ANNOTATIONS,
 CFG:CFG
 };
+// Add two-layer data if in two-layer mode
+if(CFG.projectType==='two-layer'){
+// Save current layer before exporting
+if(CURRENT_LAYER==='front'){
+FRONT_LAYER=this.captureLayerState();
+}else{
+BACK_LAYER=this.captureLayerState();
+}
+project.CURRENT_LAYER=CURRENT_LAYER;
+project.FRONT_LAYER=FRONT_LAYER;
+project.BACK_LAYER=BACK_LAYER;
+}
 const json=JSON.stringify(project,null,2);
 const blob=new Blob([json],{type:'application/json'});
 const url=URL.createObjectURL(blob);
@@ -260,6 +285,29 @@ if(project.CFG){
 Object.keys(project.CFG).forEach(k=>{
 if(CFG.hasOwnProperty(k))CFG[k]=project.CFG[k];
 });
+}
+// Load two-layer data if present
+if(project.FRONT_LAYER&&project.BACK_LAYER){
+FRONT_LAYER=project.FRONT_LAYER;
+BACK_LAYER=project.BACK_LAYER;
+CURRENT_LAYER=project.CURRENT_LAYER||'front';
+// Restore the current layer
+const targetState=CURRENT_LAYER==='front'?FRONT_LAYER:BACK_LAYER;
+this.restoreLayerState(targetState);
+// Update project type in UI
+document.getElementById('cfg-projectType').value='two-layer';
+this.onProjectTypeChange('two-layer');
+}else{
+// Legacy file or fold-over mode
+FRONT_LAYER=null;
+BACK_LAYER=null;
+CURRENT_LAYER='front';
+// Ensure project type is set to fold-over
+if(!project.CFG||!project.CFG.projectType){
+CFG.projectType='fold-over';
+document.getElementById('cfg-projectType').value='fold-over';
+this.onProjectTypeChange('fold-over');
+}
 }
 // Update pattern title
 if(project.name){
@@ -386,7 +434,13 @@ const hidden=item?.hidden;
 const locked=item?.locked;
 return '<div class="outliner-item'+(sel?' selected':'')+(hidden?' hidden-item':'')+(locked?' locked-item':'')+'" draggable="true" data-type="'+type+'" data-idx="'+idx+'" onclick="app.selectOutlinerItem(\''+type+'\','+idx+')" ondblclick="event.stopPropagation();app.renameItem(\''+type+'\','+idx+')" ondragstart="app.outlinerDragStart(event)" ondragover="app.outlinerDragOver(event)" ondrop="app.outlinerDrop(event,\''+type+'\','+idx+')"><span class="vis-toggle" onclick="event.stopPropagation();app.toggleItemVis(\''+type+'\','+idx+')">'+(hidden?'○':'●')+'</span><span class="lock-toggle" onclick="event.stopPropagation();app.toggleItemLock(\''+type+'\','+idx+')">'+(locked?'🔒':'🔓')+'</span><span class="icon">'+icon+'</span><span class="name">'+name+'</span></div>';
 };
-let html='<h3>Pattern</h3>';
+let html='';
+// Show current layer info in two-layer mode
+if(CFG.projectType==='two-layer'){
+html+='<h3 style="color:'+(CURRENT_LAYER==='front'?'#007AFF':'#FF9500')+'">'+(CURRENT_LAYER==='front'?'Front':'Back')+' Layer</h3>';
+}else{
+html+='<h3>Pattern</h3>';
+}
 const holsterSel=SELECTED?.type==='holster';
 html+='<div class="outliner-item'+(holsterSel?' selected':'')+(HOLSTER.locked?' locked-item':'')+'" onclick="app.selectOutlinerItem(\'holster\',0)"><span class="lock-toggle" onclick="event.stopPropagation();app.toggleItemLock(\'holster\',0)">'+(HOLSTER.locked?'🔒':'🔓')+'</span><span class="icon">◇</span><span class="name">Main Shape</span></div>';
 if(EDGE_RANGES.length||MERGED_EDGE_RANGES.length){
@@ -524,7 +578,16 @@ if(type==='edgeRange')return EDGE_RANGES[idx];
 if(type==='edgeStitch')return EDGE_STITCHES[idx];
 return null;
 }
-updateCfg(key,val){if(typeof CFG[key]==='number')CFG[key]=parseFloat(val);else if(typeof CFG[key]==='boolean')CFG[key]=!!val;else CFG[key]=val;this.draw()}
+updateCfg(key,val){
+if(typeof CFG[key]==='number')CFG[key]=parseFloat(val);
+else if(typeof CFG[key]==='boolean')CFG[key]=!!val;
+else CFG[key]=val;
+// Handle project type change
+if(key==='projectType'){
+this.onProjectTypeChange(val);
+}
+this.draw();
+}
 setupEvents(){
 window.addEventListener('resize',()=>this.resize());
 this.canvas.addEventListener('wheel',e=>{e.preventDefault();if(PUBLISH_MODE){PUBLISH_VIEW.scale*=e.deltaY>0?.9:1.1;PUBLISH_VIEW.scale=Math.max(.3,Math.min(3,PUBLISH_VIEW.scale))}else{VIEW.zoom*=e.deltaY>0?.9:1.1;VIEW.zoom=Math.max(.2,Math.min(4,VIEW.zoom));this.updateZoomIndicator()}this.draw()},{passive:false});
@@ -582,6 +645,165 @@ window.addEventListener('keyup',e=>{if(e.code==='Space'){isPanning=false;this.ca
 resize(){const w=innerWidth,h=innerHeight;this.canvas.width=w*this.dpr;this.canvas.height=h*this.dpr;this.canvas.style.width=w+'px';this.canvas.style.height=h+'px';this.ctx.setTransform(this.dpr,0,0,this.dpr,0,0);this.off.width=this.canvas.width;this.off.height=this.canvas.height;VIEW.x=w/2;VIEW.y=h/2;this.draw()}
 resetView(){VIEW.zoom=1;VIEW.x=innerWidth/2;VIEW.y=innerHeight/2;this.updateZoomIndicator();this.draw()}
 setLayer(l){LAYER=l;document.querySelector('.layer-btn.sym').classList.toggle('active',l==='symmetric');document.querySelector('.layer-btn.asym').classList.toggle('active',l==='asymmetric');CFG.showSymmetric=true;CFG.showAsymmetric=true;this.draw()}
+// Two-Layer Mode functions
+onProjectTypeChange(type){
+// Toggle UI elements based on project type
+const isTwoLayer=type==='two-layer';
+document.getElementById('layer-toggle').style.display=isTwoLayer?'none':'flex';
+document.getElementById('two-layer-toggle').style.display=isTwoLayer?'flex':'none';
+document.getElementById('two-layer-sync').style.display=isTwoLayer?'block':'none';
+document.getElementById('two-layer-actions').style.display=isTwoLayer?'flex':'none';
+document.getElementById('publish-layout').style.display=isTwoLayer?'inline-block':'none';
+// Initialize layers if switching to two-layer mode
+if(isTwoLayer&&!FRONT_LAYER){
+this.initializeLayers();
+CURRENT_LAYER='front';
+this.updateLayerUI();
+}
+// Show notification
+this.showToast(isTwoLayer?'Switched to Two-Layer Mode':'Switched to Fold-Over Mode','info');
+}
+initializeLayers(){
+// Save current state as front layer
+FRONT_LAYER=this.captureLayerState();
+// Initialize back layer as copy of front
+BACK_LAYER=JSON.parse(JSON.stringify(FRONT_LAYER));
+}
+captureLayerState(){
+return{
+NODES:JSON.parse(JSON.stringify(NODES)),
+EDGE_RANGES:JSON.parse(JSON.stringify(EDGE_RANGES)),
+MERGED_EDGE_RANGES:JSON.parse(JSON.stringify(MERGED_EDGE_RANGES)),
+EDGE_STITCHES:JSON.parse(JSON.stringify(EDGE_STITCHES)),
+SYM_HOLES:JSON.parse(JSON.stringify(SYM_HOLES)),
+SYM_STITCHES:JSON.parse(JSON.stringify(SYM_STITCHES)),
+SYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(SYM_CUSTOM_HOLES)),
+ASYM_HOLES:JSON.parse(JSON.stringify(ASYM_HOLES)),
+ASYM_STITCHES:JSON.parse(JSON.stringify(ASYM_STITCHES)),
+ASYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(ASYM_CUSTOM_HOLES)),
+ASYM_SHAPES:JSON.parse(JSON.stringify(ASYM_SHAPES)),
+TEXT_ANNOTATIONS:JSON.parse(JSON.stringify(TEXT_ANNOTATIONS))
+};
+}
+restoreLayerState(state){
+NODES=JSON.parse(JSON.stringify(state.NODES));
+EDGE_RANGES=JSON.parse(JSON.stringify(state.EDGE_RANGES));
+MERGED_EDGE_RANGES=JSON.parse(JSON.stringify(state.MERGED_EDGE_RANGES));
+EDGE_STITCHES=JSON.parse(JSON.stringify(state.EDGE_STITCHES));
+SYM_HOLES=JSON.parse(JSON.stringify(state.SYM_HOLES));
+SYM_STITCHES=JSON.parse(JSON.stringify(state.SYM_STITCHES));
+SYM_CUSTOM_HOLES=JSON.parse(JSON.stringify(state.SYM_CUSTOM_HOLES));
+ASYM_HOLES=JSON.parse(JSON.stringify(state.ASYM_HOLES));
+ASYM_STITCHES=JSON.parse(JSON.stringify(state.ASYM_STITCHES));
+ASYM_CUSTOM_HOLES=JSON.parse(JSON.stringify(state.ASYM_CUSTOM_HOLES));
+ASYM_SHAPES=JSON.parse(JSON.stringify(state.ASYM_SHAPES));
+TEXT_ANNOTATIONS=JSON.parse(JSON.stringify(state.TEXT_ANNOTATIONS));
+}
+switchLayer(layer){
+if(CFG.projectType!=='two-layer')return;
+// Save current layer state
+if(CURRENT_LAYER==='front'){
+FRONT_LAYER=this.captureLayerState();
+}else{
+BACK_LAYER=this.captureLayerState();
+}
+// Switch to new layer
+CURRENT_LAYER=layer;
+const targetState=layer==='front'?FRONT_LAYER:BACK_LAYER;
+this.restoreLayerState(targetState);
+// Update UI
+this.updateLayerUI();
+SELECTED=null;
+this.updateInfo();
+this.updateOutliner();
+this.draw();
+this.showToast(`Editing ${layer==='front'?'Front':'Back'} Layer`,layer==='front'?'info':'success');
+}
+updateLayerUI(){
+// Update toggle buttons
+document.querySelector('.layer-btn.front')?.classList.toggle('active',CURRENT_LAYER==='front');
+document.querySelector('.layer-btn.back')?.classList.toggle('active',CURRENT_LAYER==='back');
+// Update canvas background tint
+this.canvas.classList.remove('layer-front','layer-back');
+if(CFG.projectType==='two-layer'){
+this.canvas.classList.add('layer-'+CURRENT_LAYER);
+}
+// Update properties bar prefix
+const selTitle=document.getElementById('sel-type');
+if(selTitle&&CFG.projectType==='two-layer'){
+const prefix=CURRENT_LAYER==='front'?'[Front] ':'[Back] ';
+const baseText=selTitle.textContent.replace(/^\[(Front|Back)\] /,'');
+selTitle.textContent=prefix+baseText;
+}
+}
+duplicateLayer(direction){
+if(CFG.projectType!=='two-layer')return;
+const msg=direction==='toBack'?
+'Copy all Front layer data to Back layer? This will overwrite the Back layer.':
+'Copy all Back layer data to Front layer? This will overwrite the Front layer.';
+if(!confirm(msg))return;
+if(direction==='toBack'){
+// Save current front state and copy to back
+if(CURRENT_LAYER==='front'){
+FRONT_LAYER=this.captureLayerState();
+}
+BACK_LAYER=JSON.parse(JSON.stringify(FRONT_LAYER));
+if(CURRENT_LAYER==='back'){
+this.restoreLayerState(BACK_LAYER);
+}
+this.showToast('Front layer copied to Back','success');
+}else{
+// Save current back state and copy to front
+if(CURRENT_LAYER==='back'){
+BACK_LAYER=this.captureLayerState();
+}
+FRONT_LAYER=JSON.parse(JSON.stringify(BACK_LAYER));
+if(CURRENT_LAYER==='front'){
+this.restoreLayerState(FRONT_LAYER);
+}
+this.showToast('Back layer copied to Front','success');
+}
+this.updateInfo();
+this.updateOutliner();
+this.draw();
+this.saveState();
+}
+resetToMaster(){
+if(CFG.projectType!=='two-layer')return;
+if(!confirm('Reset Back layer to match Front layer? This will overwrite all Back layer data.'))return;
+// Copy front to back
+BACK_LAYER=JSON.parse(JSON.stringify(FRONT_LAYER));
+// If currently on back layer, restore it
+if(CURRENT_LAYER==='back'){
+this.restoreLayerState(BACK_LAYER);
+this.updateInfo();
+this.updateOutliner();
+this.draw();
+}
+this.showToast('Back layer reset to master','success');
+this.saveState();
+}
+// Sync functions for two-layer mode
+syncOutlineToBack(){
+if(CFG.projectType!=='two-layer'||!CFG.syncOutline||CURRENT_LAYER!=='front')return;
+// Save current front layer
+FRONT_LAYER=this.captureLayerState();
+// Update back layer's outline
+if(BACK_LAYER){
+BACK_LAYER.NODES=JSON.parse(JSON.stringify(FRONT_LAYER.NODES));
+BACK_LAYER.EDGE_RANGES=JSON.parse(JSON.stringify(FRONT_LAYER.EDGE_RANGES));
+BACK_LAYER.MERGED_EDGE_RANGES=JSON.parse(JSON.stringify(FRONT_LAYER.MERGED_EDGE_RANGES));
+}
+}
+syncEdgeStitchesToBack(){
+if(CFG.projectType!=='two-layer'||!CFG.syncEdgeStitches||CURRENT_LAYER!=='front')return;
+// Save current front layer
+FRONT_LAYER=this.captureLayerState();
+// Update back layer's edge stitches
+if(BACK_LAYER){
+BACK_LAYER.EDGE_STITCHES=JSON.parse(JSON.stringify(FRONT_LAYER.EDGE_STITCHES));
+}
+}
 selectHolster(){SELECTED={type:'holster'};this.updateInfo();this.draw()}
 setMode(m){MODE=m;TEMP_STITCH=null;TEMP_SHAPE=null;TEMP_CUSTOMHOLE=null;
 document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active','orange','purple'));
@@ -841,16 +1063,18 @@ if(!SELECTED){bar.classList.remove('active');stats.classList.remove('hidden');re
 bar.classList.add('active');stats.classList.add('hidden');
 const propShape=document.getElementById('prop-shape'),propWidth=document.getElementById('prop-width'),propHeight=document.getElementById('prop-height'),propSize=document.getElementById('prop-size'),propText=document.getElementById('prop-text'),propFontsize=document.getElementById('prop-fontsize'),propFontstyle=document.getElementById('prop-fontstyle'),propStitch=document.getElementById('prop-stitch'),propMargin=document.getElementById('prop-margin'),propSpacing=document.getElementById('prop-spacing'),propCreateStitch=document.getElementById('prop-create-stitch'),propEsLine=document.getElementById('prop-es-line'),propEsHoles=document.getElementById('prop-es-holes'),propEsMirror=document.getElementById('prop-es-mirror'),propExtension=document.getElementById('prop-extension'),propLinkHandles=document.getElementById('prop-link-handles');
 [propShape,propWidth,propHeight,propSize,propText,propFontsize,propFontstyle,propStitch,propMargin,propSpacing,propCreateStitch,propEsLine,propEsHoles,propEsMirror,propExtension,propLinkHandles].forEach(p=>p.style.display='none');
-if(SELECTED.type==='holster'){document.getElementById('sel-type').textContent='Main Pattern';propSize.style.display='flex';document.getElementById('sel-size').textContent=HOLSTER.scaleX.toFixed(2)+' × '+HOLSTER.scaleY.toFixed(2)}
-else if(SELECTED.type==='symHole'||SELECTED.type==='asymHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symHole'?'Sym Hole':'Asym Hole';propShape.style.display='flex';propWidth.style.display='flex';propHeight.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-shape').value=h.shape||'ellipse';document.getElementById('sel-width').value=h.width;document.getElementById('sel-width-slider').value=h.width;document.getElementById('sel-height').value=h.height;document.getElementById('sel-height-slider').value=h.height;document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
-else if(SELECTED.type==='asymShape'){const s=this.getSelectedObj();document.getElementById('sel-type').textContent=s.isExtension?'Extension Shape':s.isLinkedCircle?'Linked Circle':'Asym Shape';propSize.style.display='flex';propStitch.style.display='flex';propExtension.style.display='flex';document.getElementById('sel-size').textContent=(s.scaleX||1).toFixed(2)+' × '+(s.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=s.stitchBorder||false;document.getElementById('sel-extension').checked=s.isExtension||false;if(s.stitchBorder&&!s.isExtension){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=s.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=s.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=s.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=s.stitchSpacing||3}}
-else if(SELECTED.type==='symStitch'||SELECTED.type==='asymStitch'){const st=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symStitch'?'Sym Stitch':'Asym Stitch';propSpacing.style.display='flex';document.getElementById('sel-stitch-spacing').value=st.spacing||4;document.getElementById('sel-stitch-spacing-slider').value=st.spacing||4}
-else if(SELECTED.type==='symCustomHole'||SELECTED.type==='asymCustomHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=SELECTED.type==='symCustomHole'?'Sym Custom':'Asym Custom';propSize.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-size').textContent=(h.scaleX||1).toFixed(2)+' × '+(h.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
-else if(SELECTED.type==='textAnnotation'){const t=TEXT_ANNOTATIONS[SELECTED.idx];document.getElementById('sel-type').textContent='Text';propText.style.display='flex';propFontsize.style.display='flex';propFontstyle.style.display='flex';document.getElementById('sel-text').value=t.text;document.getElementById('sel-fontsize').value=t.fontSize||12;document.getElementById('btn-bold').style.background=t.bold?'var(--accent)':'#333';document.getElementById('btn-italic').style.background=t.italic?'var(--accent)':'#333'}
-else if(SELECTED.type==='edgeRange'){document.getElementById('sel-type').textContent='Edge Range #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
-else if(SELECTED.type==='mergedEdgeRange'){document.getElementById('sel-type').textContent='Perimeter #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=MERGED_EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
-else if(SELECTED.type==='edgeStitch'){const es=EDGE_STITCHES[SELECTED.idx];document.getElementById('sel-type').textContent=es.isMerged?'Perim Stitch #'+(SELECTED.idx+1):'Edge Stitch #'+(SELECTED.idx+1);propMargin.style.display='flex';propSpacing.style.display='flex';propEsLine.style.display='flex';propEsHoles.style.display='flex';if(!es.isMerged)propEsMirror.style.display='flex';document.getElementById('sel-stitch-margin').value=es.margin||CFG.stitchMargin;document.getElementById('sel-stitch-margin-slider').value=es.margin||CFG.stitchMargin;document.getElementById('sel-stitch-spacing').value=es.spacing||CFG.stitchSpacing;document.getElementById('sel-stitch-spacing-slider').value=es.spacing||CFG.stitchSpacing;document.getElementById('sel-es-line').checked=es.showLine!==false;document.getElementById('sel-es-holes').checked=es.showHoles!==false;document.getElementById('sel-es-mirror').checked=es.mirror!==false}
-else if(SELECTED.type==='node'){const n=NODES[SELECTED.idx];document.getElementById('sel-type').textContent='Node #'+(SELECTED.idx+1);propLinkHandles.style.display='flex';
+// Layer prefix for two-layer mode
+const layerPrefix=CFG.projectType==='two-layer'?(CURRENT_LAYER==='front'?'[Front] ':'[Back] '):'';
+if(SELECTED.type==='holster'){document.getElementById('sel-type').textContent=layerPrefix+'Main Pattern';propSize.style.display='flex';document.getElementById('sel-size').textContent=HOLSTER.scaleX.toFixed(2)+' × '+HOLSTER.scaleY.toFixed(2)}
+else if(SELECTED.type==='symHole'||SELECTED.type==='asymHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symHole'?'Sym Hole':'Asym Hole');propShape.style.display='flex';propWidth.style.display='flex';propHeight.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-shape').value=h.shape||'ellipse';document.getElementById('sel-width').value=h.width;document.getElementById('sel-width-slider').value=h.width;document.getElementById('sel-height').value=h.height;document.getElementById('sel-height-slider').value=h.height;document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
+else if(SELECTED.type==='asymShape'){const s=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(s.isExtension?'Extension Shape':s.isLinkedCircle?'Linked Circle':'Asym Shape');propSize.style.display='flex';propStitch.style.display='flex';propExtension.style.display='flex';document.getElementById('sel-size').textContent=(s.scaleX||1).toFixed(2)+' × '+(s.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=s.stitchBorder||false;document.getElementById('sel-extension').checked=s.isExtension||false;if(s.stitchBorder&&!s.isExtension){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=s.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=s.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=s.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=s.stitchSpacing||3}}
+else if(SELECTED.type==='symStitch'||SELECTED.type==='asymStitch'){const st=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symStitch'?'Sym Stitch':'Asym Stitch');propSpacing.style.display='flex';document.getElementById('sel-stitch-spacing').value=st.spacing||4;document.getElementById('sel-stitch-spacing-slider').value=st.spacing||4}
+else if(SELECTED.type==='symCustomHole'||SELECTED.type==='asymCustomHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symCustomHole'?'Sym Custom':'Asym Custom');propSize.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-size').textContent=(h.scaleX||1).toFixed(2)+' × '+(h.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
+else if(SELECTED.type==='textAnnotation'){const t=TEXT_ANNOTATIONS[SELECTED.idx];document.getElementById('sel-type').textContent=layerPrefix+'Text';propText.style.display='flex';propFontsize.style.display='flex';propFontstyle.style.display='flex';document.getElementById('sel-text').value=t.text;document.getElementById('sel-fontsize').value=t.fontSize||12;document.getElementById('btn-bold').style.background=t.bold?'var(--accent)':'#333';document.getElementById('btn-italic').style.background=t.italic?'var(--accent)':'#333'}
+else if(SELECTED.type==='edgeRange'){document.getElementById('sel-type').textContent=layerPrefix+'Edge Range #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
+else if(SELECTED.type==='mergedEdgeRange'){document.getElementById('sel-type').textContent=layerPrefix+'Perimeter #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=MERGED_EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
+else if(SELECTED.type==='edgeStitch'){const es=EDGE_STITCHES[SELECTED.idx];document.getElementById('sel-type').textContent=layerPrefix+(es.isMerged?'Perim Stitch #'+(SELECTED.idx+1):'Edge Stitch #'+(SELECTED.idx+1));propMargin.style.display='flex';propSpacing.style.display='flex';propEsLine.style.display='flex';propEsHoles.style.display='flex';if(!es.isMerged)propEsMirror.style.display='flex';document.getElementById('sel-stitch-margin').value=es.margin||CFG.stitchMargin;document.getElementById('sel-stitch-margin-slider').value=es.margin||CFG.stitchMargin;document.getElementById('sel-stitch-spacing').value=es.spacing||CFG.stitchSpacing;document.getElementById('sel-stitch-spacing-slider').value=es.spacing||CFG.stitchSpacing;document.getElementById('sel-es-line').checked=es.showLine!==false;document.getElementById('sel-es-holes').checked=es.showHoles!==false;document.getElementById('sel-es-mirror').checked=es.mirror!==false}
+else if(SELECTED.type==='node'){const n=NODES[SELECTED.idx];document.getElementById('sel-type').textContent=layerPrefix+'Node #'+(SELECTED.idx+1);propLinkHandles.style.display='flex';
 // Update button text based on linked state
 const btn=document.getElementById('btn-link-handles');
 if(n.linked){
@@ -861,7 +1085,7 @@ btn.textContent='Link Handles';
 btn.style.background='#007AFF'; // Blue for "link" action
 }
 }
-else{document.getElementById('sel-type').textContent=SELECTED.type}}
+else{document.getElementById('sel-type').textContent=layerPrefix+SELECTED.type}}
 getPatternLocalPath(){const pts=[],steps=20;for(let i=0;i<NODES.length;i++){const c=NODES[i],nx=NODES[(i+1)%NODES.length];for(let k=0;k<steps;k++){const pt=M.bezier({x:c.x,y:c.y},{x:c.x+c.h2.x,y:c.y+c.h2.y},{x:nx.x+nx.h1.x,y:nx.y+nx.h1.y},{x:nx.x,y:nx.y},k/steps);pt.segIdx=i;pts.push(pt)}}return pts}
 getRightHalfPath(includeFoldSegments=true){
 // Get just the right half (from top fold point down to bottom fold point)

@@ -1,6 +1,6 @@
 # Leather Pattern Tool
 
-**Version 0.1**
+**Version 0.2**
 
 A web-based design tool for creating leather patterns, specifically designed for holster and leathercraft projects. This tool provides an intuitive interface for designing patterns with precise measurements, stitch lines, holes, and annotations.
 
@@ -15,10 +15,11 @@ A web-based design tool for creating leather patterns, specifically designed for
 - **Text Tool** - Add text annotations and labels
 
 ### Pattern Design
+- **Two-Layer Mode** - NEW! Design separate front and back pieces with master/inheritance system (see [TWO_LAYER_MODE.md](TWO_LAYER_MODE.md))
 - **Symmetric & Asymmetric Layers** - Design on two separate layers for precise pattern creation
 - **Bezier Curve Editing** - Smooth, customizable pattern outlines
 - **Edge Range Management** - Define and manage edge stitch ranges
-- **Fold Line Support** - Visual fold line with locking capability
+- **Fold Line Support** - Visual fold line with locking capability (Fold-Over mode)
 - **Reference Images** - Import and calibrate reference images for tracing
 
 ### Customization Options
@@ -65,9 +66,19 @@ A web-based design tool for creating leather patterns, specifically designed for
 1. **Select a Pattern** - Click "Select Pattern" to choose a template
 2. **Add Elements** - Use the tools to add holes, stitches, shapes, or text
 3. **Customize** - Adjust properties in the settings panel (gear icon)
-4. **Switch Layers** - Toggle between Symmetric and Asymmetric layers
+4. **Switch Layers** - Toggle between Symmetric and Asymmetric layers (Fold-Over mode) or Front/Back (Two-Layer mode)
 5. **Save** - Use the File menu (💾) to save your project
 6. **Publish** - Click "📐 Publish" to prepare for printing or export
+
+### Two-Layer Mode
+For patterns with separate front and back pieces:
+1. Open Settings (⚙) and change **Project Type** to "Two-Layer"
+2. Design on the Front layer (blue) which serves as the master
+3. Switch to Back layer (orange) to add back-specific features
+4. Use "Copy to Back/Front" buttons to duplicate layers
+5. Keep sync options enabled for perfect stitch hole alignment
+
+📖 **See [TWO_LAYER_MODE.md](TWO_LAYER_MODE.md) for detailed guide**
 
 ### Keyboard Shortcuts
 - **V** - Select mode
