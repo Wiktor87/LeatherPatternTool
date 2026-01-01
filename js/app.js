@@ -2381,17 +2381,9 @@ const gridH1=pagesY*A4H+(pagesY-1)*gap;
 const scaleX=availW/gridW1;
 const scaleY=availH/gridH1;
 const scale=Math.min(scaleX,scaleY,2); // Cap at 2x
-// Calculate offset to center the pattern within the page grid
-// The pattern's center should be at the center of the grid
-const patternCenterX=(b.minx+b.maxx)/2;
-const patternCenterY=(b.miny+b.maxy)/2;
-// Grid center in pattern coordinates
-const gridCenterX=totalW/2;
-const gridCenterY=totalH/2;
-// Offset needed to center pattern in grid
-const offsetX=gridCenterX-patternCenterX;
-const offsetY=gridCenterY-patternCenterY;
-PUBLISH_VIEW={x:offsetX,y:offsetY,scale:scale};
+// Keep x,y at 0,0 - the drawPublish transforms already handle pattern positioning
+// User can drag to adjust if needed
+PUBLISH_VIEW={x:0,y:0,scale:scale};
 }
 }
 togglePublish(){
