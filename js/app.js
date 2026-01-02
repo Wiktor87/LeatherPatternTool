@@ -1331,28 +1331,16 @@ result.push({x:curr.x+nx*delta,y:curr.y+ny*delta});
 }
 return result;
 }
-// Stable offset for closed paths - maintains point order
+// Stable offset for closed paths - uses ClipperLib for proper topology handling
 offsetPathStableClosed(path,delta){
-if(path.length<3)return path;
-const result=[];
-const n=path.length;
-const cx=HOLSTER.x,cy=HOLSTER.y;
-for(let i=0;i<n;i++){
-const curr=path[i];
-const prev=path[(i-1+n)%n];
-const next=path[(i+1)%n];
-const dx=next.x-prev.x;
-const dy=next.y-prev.y;
-const len=Math.hypot(dx,dy)||1;
-const nx1=dy/len,ny1=-dx/len;
-const nx2=-dy/len,ny2=dx/len;
-const d1=Math.hypot((curr.x+nx1)-cx,(curr.y+ny1)-cy);
-const d2=Math.hypot((curr.x+nx2)-cx,(curr.y+ny2)-cy);
-const nx=d1>d2?nx1:nx2;
-const ny=d1>d2?ny1:ny2;
-result.push({x:curr.x+nx*delta,y:curr.y+ny*delta});
-}
-return result;
+if(!ClipperLib||path.length<3)return path;
+const co=new ClipperLib.ClipperOffset();
+const cp=path.map(p=>({X:Math.round(p.x*SCALE),Y:Math.round(p.y*SCALE)}));
+co.AddPaths([cp],ClipperLib.JoinType.jtRound,ClipperLib.EndType.etClosedPolygon);
+const sol=[];
+co.Execute(sol,delta*SCALE);
+if(!sol.length)return path;
+return sol[0].map(p=>({x:p.X/SCALE,y:p.Y/SCALE}));
 }
 getSymHoleWorld(hole,side){
 const lx=hole.x*side,wp=M.holsterToWorld({x:lx,y:hole.y}),rot=(HOLSTER.rotation||0)+(hole.rotation||0)*side,w=hole.width*HOLSTER.scaleX,h=hole.height*HOLSTER.scaleY;
