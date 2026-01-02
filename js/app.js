@@ -1225,12 +1225,22 @@ const basePoly=basePath.map(p=>({X:Math.round(p.x*SCALE),Y:Math.round(p.y*SCALE)
 cl.AddPath(basePoly,ClipperLib.PolyType.ptSubject,true);
 // Add each extension shape
 extensions.forEach(s=>{
-const pts=s.points.map(p=>{
+// Transform shape points to world coordinates with bezier handles
+const ptsWithHandles=s.points.map(p=>{
 const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};
 const r=M.rotate(sc,s.rotation||0);
-return{X:Math.round((r.x+s.x)*SCALE),Y:Math.round((r.y+s.y)*SCALE)};
+// Transform bezier handles
+const sh1={x:(p.h1?.x||0)*(s.scaleX||1),y:(p.h1?.y||0)*(s.scaleY||1)};
+const sh2={x:(p.h2?.x||0)*(s.scaleX||1),y:(p.h2?.y||0)*(s.scaleY||1)};
+const rh1=M.rotate(sh1,s.rotation||0);
+const rh2=M.rotate(sh2,s.rotation||0);
+return{x:r.x+s.x,y:r.y+s.y,h1:rh1,h2:rh2};
 });
-cl.AddPath(pts,ClipperLib.PolyType.ptClip,true);
+// Sample the bezier curve to get linear segments
+const sampledPts=M.sampleBezierClosed(ptsWithHandles,20);
+// Convert to Clipper format
+const clipperPts=sampledPts.map(p=>({X:Math.round(p.x*SCALE),Y:Math.round(p.y*SCALE)}));
+cl.AddPath(clipperPts,ClipperLib.PolyType.ptClip,true);
 });
 // Union all shapes
 const solution=[];
