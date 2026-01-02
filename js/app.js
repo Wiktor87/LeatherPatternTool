@@ -291,7 +291,7 @@ ASYM_SHAPES=project.ASYM_SHAPES||[];
 TEXT_ANNOTATIONS=project.TEXT_ANNOTATIONS||[];
 // Migrate old text format to new lines format
 TEXT_ANNOTATIONS=TEXT_ANNOTATIONS.map(t=>{
-if(t.text!==undefined&&!t.lines){
+if(t.hasOwnProperty('text')&&!t.lines){
 // Old format: single text with style properties
 return{
 x:t.x,
@@ -2567,7 +2567,7 @@ else if(line.listType==='numbered'){prefix=`${listIdx}. `}
 else if(line.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
 textToShow=prefix+textToShow;
 }
-const tw=this.ctx.measureText(textToShow).width*VIEW.zoom;
+const tw=this.ctx.measureText(textToShow).width;
 const fh=fs*lineHeight;
 const lineY=t.y+yOffset;
 if(w.x>=t.x&&w.x<=t.x+tw+20&&w.y>=lineY&&w.y<=lineY+fh){
@@ -2764,7 +2764,7 @@ case'rangeStart':EDGE_RANGES[DRAG.idx].start=Math.max(0,Math.min(EDGE_RANGES[DRA
 case'rangeEnd':EDGE_RANGES[DRAG.idx].end=Math.max(EDGE_RANGES[DRAG.idx].start+.01,Math.min(1,M.projectToPath(DRAG.path,DRAG.arc,w)));break;
 case'mergedRangeStart':MERGED_EDGE_RANGES[DRAG.idx].start=Math.max(0,Math.min(MERGED_EDGE_RANGES[DRAG.idx].end-.01,M.projectToPath(DRAG.path,DRAG.arc,w)));break;
 case'mergedRangeEnd':MERGED_EDGE_RANGES[DRAG.idx].end=Math.max(MERGED_EDGE_RANGES[DRAG.idx].start+.01,Math.min(1,M.projectToPath(DRAG.path,DRAG.arc,w)));break;
-case'textMove':{const t=TEXT_ANNOTATIONS[DRAG.idx];const oldX=t.x,oldY=t.y;const s=snapWorld({x:w.x-DRAG.ox,y:w.y-DRAG.oy});t.x=s.x;t.y=s.y;const dx=t.x-oldX,dy=t.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('textAnnotation',DRAG.idx,dx,dy)};break}
+case'textMove':{const t=TEXT_ANNOTATIONS[DRAG.idx];const oldX=t.x,oldY=t.y;const s=snapWorld({x:w.x-DRAG.ox,y:w.y-DRAG.oy});t.x=s.x;t.y=s.y;const dx=t.x-oldX,dy=t.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('textAnnotation',DRAG.idx,dx,dy)}break}
 case'textArrow':{const t=TEXT_ANNOTATIONS[DRAG.idx];t.arrowTo={x:w.x,y:w.y};break}
 case'node':{const lw=M.worldToHolster(w);const s=CFG.asymmetricOutline?snapLocal({x:lw.x,y:lw.y}):snapLocal({x:Math.max(0,lw.x),y:lw.y});NODES[DRAG.idx].x=s.x;NODES[DRAG.idx].y=s.y;break}
 case'h1':{const lw=M.worldToHolster(w);const n=NODES[DRAG.idx];n.h1={x:lw.x-n.x,y:lw.y-n.y};
