@@ -289,6 +289,28 @@ ASYM_STITCHES=project.ASYM_STITCHES||[];
 ASYM_CUSTOM_HOLES=project.ASYM_CUSTOM_HOLES||[];
 ASYM_SHAPES=project.ASYM_SHAPES||[];
 TEXT_ANNOTATIONS=project.TEXT_ANNOTATIONS||[];
+// Migrate old text format to new lines format
+TEXT_ANNOTATIONS=TEXT_ANNOTATIONS.map(t=>{
+if(t.text!==undefined&&!t.lines){
+// Old format: single text with style properties
+return{
+x:t.x,
+y:t.y,
+name:t.name,
+hidden:t.hidden,
+locked:t.locked,
+parent:t.parent,
+arrowTo:t.arrowTo,
+lines:[{
+text:t.text||'',
+style:t.textStyle||'normal',
+listType:t.listType||'none',
+listIndex:t.listIndex
+}]
+};
+}
+return t; // Already new format
+});
 // Restore CFG if present
 if(project.CFG){
 Object.keys(project.CFG).forEach(k=>{
@@ -500,7 +522,11 @@ EDGE_STITCHES.forEach((s,i)=>{const icon=s.isMerged?'⊡':'⊢';const name=s.nam
 SYM_STITCHES.forEach((s,i)=>{allItems.push({type:'symStitch',idx:i,icon:'┅',name:s.name||'Sym Stitch '+(i+1),item:s,category:'Stitch Lines'})});
 ASYM_STITCHES.forEach((s,i)=>{allItems.push({type:'asymStitch',idx:i,icon:'┅',name:s.name||'Asym Stitch '+(i+1),item:s,category:'Stitch Lines'})});
 ASYM_SHAPES.forEach((s,i)=>{const icon=s.isExtension?'⊕':s.isLinkedCircle?'◎':'◇';const name=s.name||(s.isExtension?'Extension':s.isLinkedCircle?'Linked Circle':'Shape')+' '+(i+1);allItems.push({type:'asymShape',idx:i,icon:icon,name:name,item:s,category:'Shapes'})});
-TEXT_ANNOTATIONS.forEach((t,i)=>{allItems.push({type:'textAnnotation',idx:i,icon:'T',name:t.name||t.text||'(empty)',item:t,category:'Text'})});
+TEXT_ANNOTATIONS.forEach((t,i)=>{
+const firstLine=t.lines?t.lines[0]?.text:(t.text||'');
+const displayName=t.name||firstLine||(t.lines&&t.lines.length>1?`(${t.lines.length} lines)`:'(empty)');
+allItems.push({type:'textAnnotation',idx:i,icon:'T',name:displayName,item:t,category:'Text'});
+});
 // Helper to render item with children recursively
 const renderItemWithChildren=(item,depth=0,renderedItems)=>{
 const key=`${item.type}_${item.idx}`;
@@ -1045,24 +1071,94 @@ startTextEdit(idx){
 const t=TEXT_ANNOTATIONS[idx];
 const ed=document.getElementById('text-editor');
 const inp=document.getElementById('text-input');
+const styleSelect=document.getElementById('text-line-style');
+const listSelect=document.getElementById('text-line-list');
 // Position editor at text location
 const sx=VIEW.x+t.x*VIEW.zoom,sy=VIEW.y+t.y*VIEW.zoom;
 ed.style.left=sx+'px';ed.style.top=sy+'px';
-inp.style.fontSize=(t.fontSize*VIEW.zoom)+'px';
-inp.style.fontWeight=t.bold?'bold':'normal';
-inp.style.fontStyle=t.italic?'italic':'normal';
-inp.value=t.text;
+// Set current text (join all lines with newlines)
+const lines=t.lines||[{text:'',style:'normal',listType:'none'}];
+inp.value=lines.map(l=>l.text).join('\n');
 ed.classList.add('active');
 inp.focus();
+inp.select();
 this.editingTextIdx=idx;
+this.editingLineIdx=0; // Track current line being edited
+// Update controls for first line
+styleSelect.value=lines[0]?.style||'normal';
+listSelect.value=lines[0]?.listType||'none';
+// Set up control handlers
+document.getElementById('text-apply-btn').onclick=()=>this.stopTextEdit();
+// Style change handler
+styleSelect.onchange=()=>{
+const cursorPos=inp.selectionStart;
+const textBefore=inp.value.substring(0,cursorPos);
+const lineIdx=textBefore.split('\n').length-1;
+if(t.lines&&t.lines[lineIdx]){
+t.lines[lineIdx].style=styleSelect.value;
+this.draw();
+}
+};
+// List type change handler
+listSelect.onchange=()=>{
+const cursorPos=inp.selectionStart;
+const textBefore=inp.value.substring(0,cursorPos);
+const lineIdx=textBefore.split('\n').length-1;
+if(t.lines&&t.lines[lineIdx]){
+t.lines[lineIdx].listType=listSelect.value;
+if(listSelect.value!=='none'&&!t.lines[lineIdx].listIndex){
+t.lines[lineIdx].listIndex=lineIdx+1;
+}
+this.draw();
+}
+};
+// Update controls when cursor moves between lines
+const updateControlsForCursorLine=()=>{
+const cursorPos=inp.selectionStart;
+const textBefore=inp.value.substring(0,cursorPos);
+const lineIdx=textBefore.split('\n').length-1;
+if(t.lines&&t.lines[lineIdx]){
+styleSelect.value=t.lines[lineIdx].style||'normal';
+listSelect.value=t.lines[lineIdx].listType||'none';
+}
+};
+inp.onclick=updateControlsForCursorLine;
+inp.onkeyup=updateControlsForCursorLine;
+// Auto-resize textarea
+inp.style.height='auto';
+inp.style.height=inp.scrollHeight+'px';
+inp.oninput=(e)=>{
+e.target.style.height='auto';
+e.target.style.height=e.target.scrollHeight+'px';
+this.onTextInput(e);
+updateControlsForCursorLine();
+};
+inp.onkeydown=(e)=>this.onTextKey(e);
 this.draw();
 }
 stopTextEdit(){
 const ed=document.getElementById('text-editor');
+const inp=document.getElementById('text-input');
 ed.classList.remove('active');
 if(this.editingTextIdx!==undefined){
 const t=TEXT_ANNOTATIONS[this.editingTextIdx];
-if(t&&t.text===''){TEXT_ANNOTATIONS.splice(this.editingTextIdx,1);SELECTED=null}
+// Parse lines from textarea
+const textLines=inp.value.split('\n');
+t.lines=textLines.map((text,idx)=>{
+// Preserve existing line properties if available
+const existingLine=t.lines&&t.lines[idx];
+return{
+text:text,
+style:existingLine?.style||'normal',
+listType:existingLine?.listType||'none',
+listIndex:existingLine?.listIndex||(idx+1)
+};
+});
+// Remove empty text if all lines are empty
+if(t.lines.every(l=>!l.text.trim())){
+TEXT_ANNOTATIONS.splice(this.editingTextIdx,1);
+SELECTED=null;
+}
 }
 this.editingTextIdx=undefined;
 this.setMode('select');
@@ -1072,12 +1168,24 @@ this.saveState();
 }
 onTextInput(e){
 if(this.editingTextIdx!==undefined){
-TEXT_ANNOTATIONS[this.editingTextIdx].text=e.target.value;
+const t=TEXT_ANNOTATIONS[this.editingTextIdx];
+const textLines=e.target.value.split('\n');
+// Update lines dynamically
+t.lines=textLines.map((text,idx)=>{
+const existingLine=t.lines&&t.lines[idx];
+return{
+text:text,
+style:existingLine?.style||'normal',
+listType:existingLine?.listType||'none',
+listIndex:existingLine?.listIndex||(idx+1)
+};
+});
 this.draw();
 }
 }
 onTextKey(e){
-if(e.key==='Enter'||e.key==='Escape'){e.preventDefault();this.stopTextEdit()}
+if(e.key==='Escape'){e.preventDefault();this.stopTextEdit()}
+// Allow Enter for new lines, don't stop editing
 }
 changeText(v){
 if(SELECTED?.type==='textAnnotation'){
@@ -2086,32 +2194,36 @@ if(TEMP_CUSTOMHOLE&&TEMP_CUSTOMHOLE.points.length){ctx.beginPath();ctx.moveTo(TE
 if(CFG.showText)TEXT_ANNOTATIONS.forEach((t,idx)=>{
 if(t.hidden)return;
 const sel=SELECTED?.type==='textAnnotation'&&SELECTED?.idx===idx;
-let fs=(t.fontSize||12)/VIEW.zoom;
-// Apply text style overrides
-if(t.textStyle==='header'){fs=24/VIEW.zoom}
-else if(t.textStyle==='subheader'){fs=18/VIEW.zoom}
-const fontWeight=(t.bold||t.textStyle==='header'||t.textStyle==='subheader')?'bold ':'';
-const fontStyle=(t.italic?'italic ':'');
-ctx.font=`${fontStyle}${fontWeight}${fs}px "Segoe UI", sans-serif`;
+// Handle both old and new format
+const lines=t.lines||[{text:t.text||'',style:t.textStyle||'normal',listType:t.listType||'none',listIndex:t.listIndex}];
+let yOffset=0;
+const lineHeight=1.3; // Line height multiplier
+lines.forEach((line,lineIdx)=>{
+// Calculate font size based on style
+let fs=12/VIEW.zoom;
+if(line.style==='header'){fs=24/VIEW.zoom}
+else if(line.style==='subheader'){fs=18/VIEW.zoom}
+const fontWeight=(line.style==='header'||line.style==='subheader')?'bold ':'';
+ctx.font=`${fontWeight}${fs}px "Segoe UI", sans-serif`;
 ctx.fillStyle=sel?'#007AFF':'#333';
 ctx.textAlign='left';ctx.textBaseline='top';
 // Add list prefix if list type is set
-let textToShow=t.text||'';
-if(t.listType&&t.listType!=='none'){
-const listIdx=t.listIndex||1;
+let textToShow=line.text||'';
+if(line.listType&&line.listType!=='none'){
+const listIdx=line.listIndex||lineIdx+1;
 let prefix='';
-if(t.listType==='bullet'){prefix='• '}
-else if(t.listType==='numbered'){prefix=`${listIdx}. `}
-else if(t.listType==='lettered'){
-const letter=String.fromCharCode(97+listIdx-1); // a, b, c...
-prefix=`${letter}. `;
-}
+if(line.listType==='bullet'){prefix='• '}
+else if(line.listType==='numbered'){prefix=`${listIdx}. `}
+else if(line.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
 textToShow=prefix+textToShow;
 }
-if(textToShow)ctx.fillText(textToShow,t.x,t.y);
+if(textToShow)ctx.fillText(textToShow,t.x,t.y+yOffset);
+yOffset+=fs*lineHeight;
+});
 // Draw arrow if present
 if(t.arrowTo){
 ctx.strokeStyle=sel?'#007AFF':'#333';ctx.lineWidth=1.5/VIEW.zoom;
+const fs=12/VIEW.zoom;
 ctx.beginPath();ctx.moveTo(t.x,t.y+fs/2);ctx.lineTo(t.arrowTo.x,t.arrowTo.y);ctx.stroke();
 // Arrowhead
 const ang=Math.atan2(t.arrowTo.y-(t.y+fs/2),t.arrowTo.x-t.x);
@@ -2300,8 +2412,12 @@ const w=this.getWorld(e);
 if(e.button===1||e.button===2||isPanning){DRAG={active:true,type:'pan',sx:e.clientX,sy:e.clientY,vx:VIEW.x,vy:VIEW.y};this.canvas.style.cursor='grabbing';return}
 if(MODE==='hole'){const lw=M.worldToHolster(w);const nh={x:LAYER==='asymmetric'?w.x:Math.abs(lw.x),y:LAYER==='asymmetric'?w.y:lw.y,width:CFG.defaultHoleWidth,height:CFG.defaultHoleShape==='circle'?CFG.defaultHoleWidth:CFG.defaultHoleHeight,rotation:0,shape:CFG.defaultHoleShape,stitchBorder:CFG.defaultHoleStitchBorder,stitchMargin:CFG.defaultHoleStitchMargin,stitchSpacing:CFG.defaultHoleStitchSpacing};if(LAYER==='asymmetric'){ASYM_HOLES.push(nh);SELECTED={type:'asymHole',idx:ASYM_HOLES.length-1}}else{SYM_HOLES.push(nh);SELECTED={type:'symHole',idx:SYM_HOLES.length-1}}this.updateInfo();this.draw();this.saveState();return}
 if(MODE==='text'){
-// Create new text annotation with inline editing
-TEXT_ANNOTATIONS.push({x:w.x,y:w.y,text:'',fontSize:12,bold:false,italic:false});
+// Create new text annotation with lines-based structure
+TEXT_ANNOTATIONS.push({
+x:w.x,
+y:w.y,
+lines:[{text:'',style:'normal',listType:'none'}]
+});
 SELECTED={type:'textAnnotation',idx:TEXT_ANNOTATIONS.length-1};
 this.updateInfo();
 this.startTextEdit(TEXT_ANNOTATIONS.length-1);
@@ -2427,27 +2543,39 @@ for(let i=ASYM_STITCHES.length-1;i>=0;i--){const sl=ASYM_STITCHES[i];const smp=M
 for(let i=TEXT_ANNOTATIONS.length-1;i>=0;i--){
 const t=TEXT_ANNOTATIONS[i];
 if(t.hidden)continue;
-// Calculate correct font size based on text style
-let fs=t.fontSize||12;
-if(t.textStyle==='header'){fs=24}
-else if(t.textStyle==='subheader'){fs=18}
+// Handle both old and new format
+const lines=t.lines||[{text:t.text||'',style:t.textStyle||'normal',listType:t.listType||'none',listIndex:t.listIndex}];
+let yOffset=0;
+const lineHeight=1.3;
+let hitDetected=false;
+// Check each line for hit
+lines.forEach((line,lineIdx)=>{
+if(hitDetected)return;
+// Calculate font size based on style
+let fs=12;
+if(line.style==='header'){fs=24}
+else if(line.style==='subheader'){fs=18}
 // Set the correct font for measuring
-const fontWeight=(t.bold||t.textStyle==='header'||t.textStyle==='subheader')?'bold ':'';
-const fontStyle=(t.italic?'italic ':'');
-this.ctx.font=`${fontStyle}${fontWeight}${fs/VIEW.zoom}px "Segoe UI", sans-serif`;
+this.ctx.font=`${(line.style==='header'||line.style==='subheader')?'bold ':''}${fs/VIEW.zoom}px "Segoe UI", sans-serif`;
 // Measure text with list prefix if present
-let textToShow=t.text||'';
-if(t.listType&&t.listType!=='none'){
-const listIdx=t.listIndex||1;
+let textToShow=line.text||'';
+if(line.listType&&line.listType!=='none'){
+const listIdx=line.listIndex||lineIdx+1;
 let prefix='';
-if(t.listType==='bullet'){prefix='• '}
-else if(t.listType==='numbered'){prefix=`${listIdx}. `}
-else if(t.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
+if(line.listType==='bullet'){prefix='• '}
+else if(line.listType==='numbered'){prefix=`${listIdx}. `}
+else if(line.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
 textToShow=prefix+textToShow;
 }
 const tw=this.ctx.measureText(textToShow).width*VIEW.zoom;
-const fh=fs+10;
-if(w.x>=t.x&&w.x<=t.x+tw+20&&w.y>=t.y&&w.y<=t.y+fh){
+const fh=fs*lineHeight;
+const lineY=t.y+yOffset;
+if(w.x>=t.x&&w.x<=t.x+tw+20&&w.y>=lineY&&w.y<=lineY+fh){
+hitDetected=true;
+}
+yOffset+=fh;
+});
+if(hitDetected){
 SELECTED={type:'textAnnotation',idx:i};
 if(!t.locked){DRAG={active:true,type:'textMove',idx:i,ox:w.x-t.x,oy:w.y-t.y}}
 this.updateInfo();this.draw();return
