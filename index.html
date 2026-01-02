@@ -38,9 +38,6 @@ if (typeof ClipperLib === 'undefined') {
   ClipperLib.JS = { Clone: function(obj) { return JSON.parse(JSON.stringify(obj)); } };
 }
 </script>
-<!-- Quill.js for rich text editing -->
-<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
-<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
 <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -64,14 +61,6 @@ if (typeof ClipperLib === 'undefined') {
 <!-- Top Header -->
 <div id="header">
 <span class="title" id="project-title" onclick="app.renameProject()" title="Click to rename">Leather Pattern</span>
-<div id="layer-toggle">
-<button class="layer-btn sym active" onclick="app.setLayer('symmetric')">Mirrored</button>
-<button class="layer-btn asym" onclick="app.setLayer('asymmetric')">Single</button>
-</div>
-<div id="two-layer-toggle" style="display:none">
-<button class="layer-btn front active" onclick="app.switchLayer('front')">Front</button>
-<button class="layer-btn back" onclick="app.switchLayer('back')">Back</button>
-</div>
 <span class="spacer"></span>
 <div id="two-layer-actions" style="display:none;gap:8px;">
 <button class="hdr-btn secondary" onclick="app.duplicateLayer('toBack')" title="Duplicate Front to Back">Copy to Back</button>
@@ -80,6 +69,18 @@ if (typeof ClipperLib === 'undefined') {
 <button class="hdr-btn secondary" onclick="app.selectHolster()">Select Pattern</button>
 <button class="hdr-btn secondary" onclick="app.toggleFileMenu()">💾 File</button>
 <button class="hdr-btn primary" onclick="app.togglePublish()">📐 Publish</button>
+</div>
+
+<!-- Floating Layer Toggle Buttons -->
+<div id="floating-layer-toggle" style="display:flex;">
+<div id="layer-toggle" style="display:flex;">
+<button class="layer-btn sym active" onclick="app.setLayer('symmetric')">Mirrored</button>
+<button class="layer-btn asym" onclick="app.setLayer('asymmetric')">Single</button>
+</div>
+<div id="two-layer-toggle" style="display:none;">
+<button class="layer-btn front active" onclick="app.switchLayer('front')">Front</button>
+<button class="layer-btn back" onclick="app.switchLayer('back')">Back</button>
+</div>
 </div>
 
 <!-- File Menu Dropdown -->
@@ -274,14 +275,8 @@ if (typeof ClipperLib === 'undefined') {
 <button class="delete-btn" onclick="app.deleteSelected()">🗑</button>
 </div>
 
-<!-- Text Editor (Quill.js rich text editor) -->
-<div id="text-editor" style="display:none;">
-<div id="quill-editor-container" style="background:#fff;"></div>
-<div id="text-editor-controls" style="display:flex;gap:8px;margin-top:8px;padding:8px;background:rgba(30,30,30,0.95);border-radius:4px">
-<button id="text-apply-btn" style="font-size:11px;padding:6px 12px;background:#007AFF;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500" title="Apply and close">✓ Apply</button>
-<button id="text-cancel-btn" style="font-size:11px;padding:6px 12px;background:#666;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:500" title="Cancel">✕ Cancel</button>
-</div>
-</div>
+<!-- Inline Text Editor (contenteditable) -->
+<div id="inline-text-editor" style="display:none;position:fixed;z-index:300;background:#fff;color:#000;padding:8px 12px;border:2px solid #007AFF;border-radius:4px;box-shadow:0 4px 12px rgba(0,0,0,0.3);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;min-width:100px;max-width:400px;outline:none;" contenteditable="true"></div>
 
 <!-- Stats Bar -->
 <div id="stats">
