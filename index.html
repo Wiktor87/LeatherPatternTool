@@ -272,7 +272,23 @@ if (typeof ClipperLib === 'undefined') {
 </div>
 
 <!-- Text Editor (inline) -->
-<div id="text-editor"><input type="text" id="text-input" placeholder="Type here..." onkeydown="app.onTextKey(event)" oninput="app.onTextInput(event)"></div>
+<div id="text-editor">
+<textarea id="text-input" placeholder="Type here... (Enter for new line)" rows="1" style="resize:vertical;min-height:24px;max-height:200px"></textarea>
+<div id="text-editor-controls" style="display:flex;gap:4px;margin-top:4px;flex-wrap:wrap">
+<select id="text-line-style" title="Text Style" style="font-size:10px;padding:2px 4px">
+<option value="normal">Normal</option>
+<option value="subheader">Subheader</option>
+<option value="header">Header</option>
+</select>
+<select id="text-line-list" title="List Type" style="font-size:10px;padding:2px 4px">
+<option value="none">No List</option>
+<option value="bullet">• Bullet</option>
+<option value="numbered">1. Numbered</option>
+<option value="lettered">a. Lettered</option>
+</select>
+<button id="text-apply-btn" style="font-size:10px;padding:2px 6px;background:#007AFF;color:#fff;border:none;border-radius:3px;cursor:pointer" title="Apply and close">✓ Apply</button>
+</div>
+</div>
 
 <!-- Stats Bar -->
 <div id="stats">
