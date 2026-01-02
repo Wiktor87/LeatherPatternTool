@@ -3,26 +3,37 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>Leather Pattern Tool - Pre-Apha V0.2</title>
+<title>Leather Pattern Tool - Pre-Alpha v0.3</title>
 <script src="https://cdn.jsdelivr.net/npm/clipper-lib@6.4.2/clipper.js"></script>
 <script>
 // Fallback ClipperLib stub if CDN fails
 if (typeof ClipperLib === 'undefined') {
-  console.warn('ClipperLib CDN failed, using minimal stub - some features may not work');
+  console.error('ClipperLib CDN failed to load');
+  
+  // Show user warning on app init
+  window.addEventListener('DOMContentLoaded', () => {
+    const toast = document.createElement('div');
+    toast.className = 'toast error';
+    toast.innerHTML = '⚠️ Geometry library failed to load. Some features (path offsets, boolean operations) will not work. Please refresh the page or check your internet connection.';
+    toast.style.cssText = 'position:fixed;top:50px;left:50%;transform:translateX(-50%);z-index:9999;max-width:500px;padding:12px 20px;';
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 10000);
+  });
+  
+  // Minimal stub that clearly fails
   window.ClipperLib = {
     Clipper: function() {
-      this.AddPath = function() {};
-      this.Execute = function(clipType, solution) { 
-        // Return empty solution array
-        solution.length = 0;
-        return true; 
+      this.AddPath = () => console.warn('ClipperLib not loaded - AddPath unavailable');
+      this.Execute = () => { 
+        console.warn('ClipperLib not loaded - Execute unavailable'); 
+        return false; 
       };
     },
     ClipperOffset: function() {
-      this.AddPath = function() {};
-      this.AddPaths = function() {};
-      this.Execute = function(solution) {
-        // Return empty solution array
+      this.AddPath = () => console.warn('ClipperLib not loaded - AddPath unavailable');
+      this.AddPaths = () => console.warn('ClipperLib not loaded - AddPaths unavailable');
+      this.Execute = (solution) => {
+        console.warn('ClipperLib not loaded - Execute unavailable');
         solution.length = 0;
       };
     },
@@ -32,10 +43,10 @@ if (typeof ClipperLib === 'undefined') {
     JoinType: { jtSquare: 0, jtRound: 1, jtMiter: 2 },
     EndType: { etClosedPolygon: 0, etClosedLine: 1, etOpenButt: 2, etOpenSquare: 3, etOpenRound: 4 }
   };
-  ClipperLib.Clipper.Area = function() { return 1000; };
-  ClipperLib.Clipper.Orientation = function() { return true; };
-  ClipperLib.Clipper.SimplifyPolygon = function(path, fillType) { return [path]; };
-  ClipperLib.JS = { Clone: function(obj) { return JSON.parse(JSON.stringify(obj)); } };
+  ClipperLib.Clipper.Area = () => { console.warn('ClipperLib not loaded'); return 1000; };
+  ClipperLib.Clipper.Orientation = () => { console.warn('ClipperLib not loaded'); return true; };
+  ClipperLib.Clipper.SimplifyPolygon = (path) => { console.warn('ClipperLib not loaded'); return [path]; };
+  ClipperLib.JS = { Clone: (obj) => JSON.parse(JSON.stringify(obj)) };
 }
 </script>
 <link rel="stylesheet" href="styles.css">
@@ -52,8 +63,8 @@ if (typeof ClipperLib === 'undefined') {
 <button class="tool-btn" id="tool-text" onclick="app.setMode('text')" title="Add Text (T)"><span class="icon">T</span><span>Text</span></button>
 <div class="tool-sep"></div>
 <button class="tool-btn" onclick="app.generateMatchingCircle()" title="Circle from Edge"><span class="icon">◎</span><span>Circle</span></button>
-<button class="tool-btn" onclick="app.addEdgeRange()" title="Add Edge Range (symmetric)"><span class="icon">⊢</span><span>Edge</span></button>
-<button class="tool-btn" onclick="app.addMergedEdgeRange()" title="Add Full Perimeter Range"><span class="icon">⊡</span><span>Perim</span></button>
+<button class="tool-btn" onclick="app.addEdgeRange()" title="Add Edge Stitch Range - Places stitches along a section of the pattern edge"><span class="icon">⊢</span><span>Edge Stitch</span></button>
+<button class="tool-btn" onclick="app.addMergedEdgeRange()" title="Add Full Border Stitch - Places stitches around the entire pattern perimeter"><span class="icon">⊡</span><span>Full Border</span></button>
 <div style="flex:1"></div>
 <button class="tool-btn" onclick="app.resetView()" title="Reset View"><span class="icon">⊙</span><span>Reset</span></button>
 </div>
@@ -74,8 +85,8 @@ if (typeof ClipperLib === 'undefined') {
 <!-- Floating Layer Toggle Buttons -->
 <div id="floating-layer-toggle" style="display:flex;">
 <div id="layer-toggle" style="display:flex;">
-<button class="layer-btn sym active" onclick="app.setLayer('symmetric')">Mirrored</button>
-<button class="layer-btn asym" onclick="app.setLayer('asymmetric')">Single</button>
+<button class="layer-btn sym active" onclick="app.setLayer('symmetric')" title="Elements are mirrored across the fold line">Symmetric</button>
+<button class="layer-btn asym" onclick="app.setLayer('asymmetric')" title="Elements appear only where placed">Asymmetric</button>
 </div>
 <div id="two-layer-toggle" style="display:none;">
 <button class="layer-btn front active" onclick="app.switchLayer('front')">Front</button>
@@ -110,6 +121,16 @@ if (typeof ClipperLib === 'undefined') {
 <div id="settings-panel">
 <button class="close-btn" onclick="app.toggleSettings()">✕</button>
 
+<!-- Settings Presets -->
+<div class="settings-presets" style="padding:15px 15px 10px;border-bottom:1px solid #333">
+<label style="display:block;margin-bottom:8px;font-size:12px;color:#aaa">Quick Presets:</label>
+<div class="preset-buttons" style="display:flex;gap:8px">
+<button data-preset="holster" onclick="app.applyPreset('holster')" title="Settings optimized for holster patterns" style="flex:1;padding:8px;background:#444;border:1px solid #555;color:#fff;border-radius:4px;cursor:pointer;font-size:11px">Holster</button>
+<button data-preset="wallet" onclick="app.applyPreset('wallet')" title="Settings optimized for wallet patterns" style="flex:1;padding:8px;background:#444;border:1px solid #555;color:#fff;border-radius:4px;cursor:pointer;font-size:11px">Wallet</button>
+<button data-preset="belt" onclick="app.applyPreset('belt')" title="Settings optimized for belt patterns" style="flex:1;padding:8px;background:#444;border:1px solid #555;color:#fff;border-radius:4px;cursor:pointer;font-size:11px">Belt</button>
+</div>
+</div>
+
 <!-- Accordion Section: Project -->
 <div class="accordion-section" data-section="project">
 <div class="accordion-header" onclick="app.toggleAccordion('project')">
@@ -120,7 +141,7 @@ if (typeof ClipperLib === 'undefined') {
 <div class="accordion-content">
 <div class="setting-row"><label>Type</label><select id="cfg-projectType" onchange="app.updateCfg('projectType',this.value)"><option value="fold-over">Fold-Over</option><option value="two-layer">Two-Layer</option></select></div>
 <div id="two-layer-sync" style="display:none">
-<div class="setting-row"><label>Asymmetric Outline</label><input type="checkbox" id="cfg-asymmetricOutline" onchange="app.updateCfg('asymmetricOutline',this.checked)"></div>
+<div class="setting-row"><label>Asymmetric Outline <span class="help-icon" title="When enabled, you define the full pattern outline instead of just the right half. Use this for non-symmetric patterns.">?</span></label><input type="checkbox" id="cfg-asymmetricOutline" onchange="app.updateCfg('asymmetricOutline',this.checked)"></div>
 <div class="setting-row"><label>Sync Outline</label><input type="checkbox" id="cfg-syncOutline" checked onchange="app.updateCfg('syncOutline',this.checked)"></div>
 <div class="setting-row"><label>Sync Edge Stitches</label><input type="checkbox" id="cfg-syncEdgeStitches" checked onchange="app.updateCfg('syncEdgeStitches',this.checked)"></div>
 <div class="setting-row"><button style="flex:1;padding:6px;background:#444;border:1px solid #555;color:#fff;border-radius:4px;cursor:pointer;font-size:11px" onclick="app.resetToMaster()">↻ Reset Back to Master</button></div>
@@ -341,6 +362,13 @@ if (typeof ClipperLib === 'undefined') {
 
 <div id="zoom-indicator" onclick="app.resetView()" title="Click to reset view">100%</div>
 <canvas id="c"></canvas>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.7);z-index:9999;align-items:center;justify-content:center;flex-direction:column">
+<div class="loading-spinner"></div>
+<span class="loading-text" style="color:#fff;margin-top:20px;font-size:16px">Loading...</span>
+</div>
+
 <div id="toast-container"></div>
 <script type="module" src="js/main.js"></script>
 </body>

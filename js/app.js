@@ -85,6 +85,10 @@ this.initAccordion();
 // Initialize UI based on default project type
 this.onProjectTypeChange(CFG.projectType);
 this.saveState();
+// Show onboarding for first-time users
+if(window.OnboardingUI){
+setTimeout(()=>window.OnboardingUI.show(),500);
+}
 }
 showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
@@ -765,6 +769,27 @@ this.onAsymmetricOutlineChange(val);
 }
 this.draw();
 }
+applyPreset(presetName){
+const presets={
+holster:{thickness:3,stitchMargin:5,stitchSpacing:4,holeSize:1.5,projectType:'fold-over'},
+wallet:{thickness:1.5,stitchMargin:3,stitchSpacing:3,holeSize:1.2,projectType:'two-layer'},
+belt:{thickness:4,stitchMargin:6,stitchSpacing:5,holeSize:2,projectType:'fold-over'}
+};
+const preset=presets[presetName];
+if(!preset){console.warn('Unknown preset:',presetName);return}
+// Apply preset values
+Object.entries(preset).forEach(([key,val])=>{
+this.updateCfg(key,val);
+// Update UI elements
+const el=document.getElementById('cfg-'+key);
+if(el){
+if(el.type==='checkbox')el.checked=val;
+else el.value=val;
+}
+});
+this.showToast(`Applied ${presetName} preset`,'success');
+this.draw();
+}
 setupEvents(){
 window.addEventListener('resize',()=>this.resize());
 this.canvas.addEventListener('wheel',e=>{e.preventDefault();if(PUBLISH_MODE){PUBLISH_VIEW.scale*=e.deltaY>0?.9:1.1;PUBLISH_VIEW.scale=Math.max(.3,Math.min(3,PUBLISH_VIEW.scale))}else{VIEW.zoom*=e.deltaY>0?.9:1.1;VIEW.zoom=Math.max(.2,Math.min(4,VIEW.zoom));this.updateZoomIndicator()}this.draw()},{passive:false});
@@ -1055,6 +1080,16 @@ addEdgeRange(){EDGE_RANGES.push({start:0.1,end:0.9});SELECTED={type:'edgeRange',
 addMergedEdgeRange(){MERGED_EDGE_RANGES.push({start:0.1,end:0.9});SELECTED={type:'mergedEdgeRange',idx:MERGED_EDGE_RANGES.length-1};this.updateInfo();this.draw();this.saveState()}
 generateMatchingCircle(){
 try{
+// Check if EDGE_RANGES exists and is not empty
+if(!EDGE_RANGES||EDGE_RANGES.length===0){
+console.warn('No edge ranges defined');
+if(window.ErrorHandler){
+window.ErrorHandler.handle(new Error('No edge ranges'), 'generateMatchingCircle', 'Could not create circle from edge. Please add an edge range first.');
+}else{
+this.showToast('Could not create circle from edge. Please add an edge range first.', 'error');
+}
+return;
+}
 // Get the selected edge range index (default to 0)
 let sourceRangeIdx=0;
 if(SELECTED?.type==='edgeRange'){
@@ -1072,10 +1107,21 @@ stitchMargin:CFG.stitchMargin
 SELECTED={type:'asymShape',idx:ASYM_SHAPES.length-1};
 this.updateInfo();
 this.draw();
-}catch(e){console.error('generateMatchingCircle error:',e);}
+this.saveState();
+}catch(e){
+console.error('generateMatchingCircle error:',e);
+if(window.ErrorHandler){
+window.ErrorHandler.handle(e,'generateMatchingCircle');
+}
+}
 }
 getLinkedCircleData(shape){
 try{
+// Check if EDGE_RANGES exists and is not empty
+if(!EDGE_RANGES||EDGE_RANGES.length===0){
+console.warn('No edge ranges defined');
+return null;
+}
 const rightHalf=this.getRightHalfPath();
 const rightWorld=rightHalf.map(p=>M.holsterToWorld(p));
 if(rightWorld.length<3)return null;
@@ -1083,8 +1129,12 @@ if(rightWorld.length<3)return null;
 const baseArc=M.buildArc(rightWorld);
 const baseTot=baseArc[baseArc.length-1].d;
 if(baseTot<=0)return null;
-const rng=EDGE_RANGES[shape.sourceRangeIdx]||EDGE_RANGES[0];
-if(!rng)return null;
+// Safely get edge range with bounds checking
+const rng=EDGE_RANGES[shape.sourceRangeIdx];
+if(!rng){
+console.warn(`Edge range ${shape.sourceRangeIdx} not found`);
+return null;
+}
 // Calculate length along the base path
 const baseLen=baseTot*(rng.end-rng.start);
 if(baseLen<=0)return null;
