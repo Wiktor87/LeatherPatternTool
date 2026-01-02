@@ -6,6 +6,7 @@ import { M } from './math.js';
 import { ToastManager } from './ui/ToastManager.js';
 import { HistoryManager } from './state/HistoryManager.js';
 import { FileManager } from './io/FileManager.js';
+import { RefImageManager } from './io/RefImageManager.js';
 
 // Make config available globally for backwards compatibility
 window.CFG = CFG;
@@ -103,6 +104,14 @@ class App{
       },
       validateProject: (project) => {
         return project && project.NODES && project.HOLSTER;
+      }
+    });
+    // Initialize reference image manager
+    this.refImageManager = new RefImageManager({
+      onUpdate: () => this.draw(),
+      getDistance: (p1, p2) => M.dist(p1, p2),
+      closeSettings: () => {
+        if (this.settingsOpen) this.toggleSettings();
       }
     });
     this.init();
@@ -393,99 +402,40 @@ section.classList.toggle('expanded',state[sectionName]);
 }
 });
 }
-loadRefImage(e){
-const file=e.target.files[0];
-if(!file)return;
-const reader=new FileReader();
-reader.onload=(ev)=>{
-const img=new Image();
-img.onload=()=>{
-// Convert to mm - assume 96 DPI for now, user can scale
-// Default: 1 pixel = 0.2645mm (at 96 DPI)
-const pxToMm=0.2645;
-REF_IMAGE.img=img;
-REF_IMAGE.width=img.width*pxToMm;
-REF_IMAGE.height=img.height*pxToMm;
-REF_IMAGE.x=0;
-REF_IMAGE.y=0;
-REF_IMAGE.scale=1;
-document.getElementById('cfg-refScale').value=1;
-document.getElementById('cfg-refScale-num').value=1;
-this.draw();
-};
-img.src=ev.target.result;
-};
-reader.readAsDataURL(file);
-e.target.value='';
+loadRefImage(e) {
+  this.refImageManager.loadRefImage(e);
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-updateRefScale(val){
-REF_IMAGE.scale=parseFloat(val)||1;
-document.getElementById('cfg-refScale').value=REF_IMAGE.scale;
-document.getElementById('cfg-refScale-num').value=REF_IMAGE.scale;
-this.draw();
+updateRefScale(val) {
+  this.refImageManager.updateRefScale(val);
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-clearRefImage(){
-REF_IMAGE.img=null;
-REF_IMAGE.width=0;
-REF_IMAGE.height=0;
-REF_IMAGE.calibrating=false;
-REF_IMAGE.calPt1=null;
-REF_IMAGE.calPt2=null;
-this.draw();
+clearRefImage() {
+  this.refImageManager.clearRefImage();
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-startCalibration(){
-if(!REF_IMAGE.img){alert('Load an image first');return}
-REF_IMAGE.calibrating=true;
-REF_IMAGE.calPt1=null;
-REF_IMAGE.calPt2=null;
-document.getElementById('btn-calibrate').textContent='📏 Click point 1...';
-document.getElementById('btn-calibrate').style.background='#5a2a2a';
-// Close settings panel so clicks go to canvas
-if(this.settingsOpen)this.toggleSettings();
-this.draw();
+startCalibration() {
+  this.refImageManager.startCalibration();
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-handleCalibrationClick(w){
-console.log('Calibration click:', w, 'calPt1:', REF_IMAGE.calPt1, 'calPt2:', REF_IMAGE.calPt2);
-if(!REF_IMAGE.calPt1){
-REF_IMAGE.calPt1={x:w.x,y:w.y};
-console.log('Set calPt1');
-this.draw();
-}else if(!REF_IMAGE.calPt2){
-REF_IMAGE.calPt2={x:w.x,y:w.y};
-console.log('Set calPt2, showing modal');
-this.draw();
-// Show custom modal instead of prompt (prompt doesn't work on iOS)
-document.getElementById('calibration-modal').style.display='flex';
-document.getElementById('calibration-distance').focus();
-document.getElementById('calibration-distance').select();
+handleCalibrationClick(w) {
+  this.refImageManager.handleCalibrationClick(w);
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
+cancelCalibration() {
+  this.refImageManager.cancelCalibration();
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-cancelCalibration(){
-document.getElementById('calibration-modal').style.display='none';
-REF_IMAGE.calibrating=false;
-REF_IMAGE.calPt1=null;
-REF_IMAGE.calPt2=null;
-document.getElementById('btn-calibrate').textContent='📏 Calibrate Scale';
-document.getElementById('btn-calibrate').style.background='#2a5a2a';
-this.draw();
-}
-applyCalibration(){
-const realDist=document.getElementById('calibration-distance').value;
-document.getElementById('calibration-modal').style.display='none';
-if(realDist&&!isNaN(parseFloat(realDist))){
-const pxDist=M.dist(REF_IMAGE.calPt1,REF_IMAGE.calPt2);
-const realMm=parseFloat(realDist);
-const newScale=realMm/pxDist*REF_IMAGE.scale;
-REF_IMAGE.scale=newScale;
-document.getElementById('cfg-refScale').value=Math.min(5,newScale);
-document.getElementById('cfg-refScale-num').value=newScale.toFixed(3);
-}
-REF_IMAGE.calibrating=false;
-REF_IMAGE.calPt1=null;
-REF_IMAGE.calPt2=null;
-document.getElementById('btn-calibrate').textContent='📏 Calibrate Scale';
-document.getElementById('btn-calibrate').style.background='#2a5a2a';
-this.draw();
+applyCalibration() {
+  this.refImageManager.applyCalibration();
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
 toggleOutliner(){this.outlinerOpen=!this.outlinerOpen;document.getElementById('outliner-panel').classList.toggle('open',this.outlinerOpen);document.getElementById('outliner-btn').style.display=this.outlinerOpen?'none':'flex';document.getElementById('settings-btn').style.display=this.outlinerOpen?'none':'flex';if(this.outlinerOpen){this.updateOutliner();if(this.settingsOpen)this.toggleSettings()}}
 updateOutliner(){
