@@ -120,7 +120,7 @@ html,body{margin:0;padding:0;overflow:hidden;background:var(--bg);font-family:-a
 .accordion-chevron{font-size:18px;color:var(--dim);transition:transform .3s cubic-bezier(0.4, 0, 0.2, 1);font-weight:bold}
 .accordion-section.expanded .accordion-chevron{transform:rotate(90deg);color:var(--accent)}
 .accordion-content{max-height:0;overflow:hidden;transition:max-height .3s cubic-bezier(0.4, 0, 0.2, 1),padding .3s}
-.accordion-section.expanded .accordion-content{max-height:1000px;padding:0 14px 14px 14px}
+.accordion-section.expanded .accordion-content{max-height:2000px;padding:0 14px 14px 14px}
 
 /* Setting Rows in Accordion */
 .accordion-content .setting-row{display:flex;justify-content:space-between;align-items:center;margin:8px 0;gap:10px}

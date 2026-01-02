@@ -80,7 +80,8 @@ this.setupEvents();
 this.resize();
 this.settingsOpen=false;
 this.outlinerOpen=false;
-this.accordionInitialized=false;
+// Initialize accordion UI
+this.initAccordion();
 // Initialize UI based on default project type
 this.onProjectTypeChange(CFG.projectType);
 this.saveState();
@@ -349,11 +350,20 @@ this.settingsOpen=!this.settingsOpen;
 document.getElementById('settings-panel').classList.toggle('open',this.settingsOpen);
 document.getElementById('settings-btn').style.display=this.settingsOpen?'none':'flex';
 if(this.settingsOpen&&this.outlinerOpen)this.toggleOutliner();
-// Initialize accordion state on first open
-if(this.settingsOpen&&!this.accordionInitialized){
-this.initAccordion();
-this.accordionInitialized=true;
 }
+saveAccordionState(section,expanded){
+// Save accordion state to localStorage
+try{
+const state=JSON.parse(localStorage.getItem('accordionState')||'{}');
+state[section]=expanded;
+localStorage.setItem('accordionState',JSON.stringify(state));
+}catch(e){console.warn('Could not save accordion state',e)}
+}
+loadAccordionState(){
+// Load saved accordion state from localStorage
+try{
+return JSON.parse(localStorage.getItem('accordionState')||'{}');
+}catch(e){console.warn('Could not load accordion state',e);return{}}
 }
 toggleAccordion(section){
 // Toggle accordion section
@@ -361,24 +371,18 @@ const sectionEl=document.querySelector(`.accordion-section[data-section="${secti
 if(!sectionEl)return;
 const wasExpanded=sectionEl.classList.contains('expanded');
 sectionEl.classList.toggle('expanded');
-// Save state to localStorage
-try{
-const state=JSON.parse(localStorage.getItem('accordionState')||'{}');
-state[section]=!wasExpanded;
-localStorage.setItem('accordionState',JSON.stringify(state));
-}catch(e){console.warn('Could not save accordion state',e)}
+// Save state
+this.saveAccordionState(section,!wasExpanded);
 }
 initAccordion(){
-// Load saved accordion state from localStorage
-try{
-const state=JSON.parse(localStorage.getItem('accordionState')||'{}');
+// Load saved accordion state and apply to sections
+const state=this.loadAccordionState();
 document.querySelectorAll('.accordion-section').forEach(section=>{
 const sectionName=section.getAttribute('data-section');
 if(state[sectionName]!==undefined){
 section.classList.toggle('expanded',state[sectionName]);
 }
 });
-}catch(e){console.warn('Could not load accordion state',e)}
 }
 loadRefImage(e){
 const file=e.target.files[0];
