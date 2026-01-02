@@ -553,17 +553,28 @@ html+='<h3 style="color:'+(CURRENT_LAYER==='front'?'#007AFF':'#FF9500')+'">'+(CU
 }else{
 html+='<h3>Pattern</h3>';
 }
+// Add Root container at the top
+const rootSel=SELECTED?.type==='root';
+html+='<div class="outliner-item'+(rootSel?' selected':'')+(false?' locked-item':'')+'" style="padding-left:6px" ondragover="app.outlinerDragOver(event)" ondrop="app.outlinerDrop(event,\'root\',0)" onclick="app.selectOutlinerItem(\'root\',0)"><span class="icon">📁</span><span class="name">Root</span></div>';
+// Main Shape as child of Root
 const holsterSel=SELECTED?.type==='holster';
-html+='<div class="outliner-item'+(holsterSel?' selected':'')+(HOLSTER.locked?' locked-item':'')+'" style="padding-left:6px" ondragover="app.outlinerDragOver(event)" ondrop="app.outlinerDrop(event,\'holster\',0)" onclick="app.selectOutlinerItem(\'holster\',0)"><span class="lock-toggle" onclick="event.stopPropagation();app.toggleItemLock(\'holster\',0)">'+(HOLSTER.locked?'🔒':'🔓')+'</span><span class="icon">◇</span><span class="name">Main Shape</span></div>';
+html+='<div class="outliner-item'+(holsterSel?' selected':'')+(HOLSTER.locked?' locked-item':'')+'" style="padding-left:22px" ondragover="app.outlinerDragOver(event)" ondrop="app.outlinerDrop(event,\'holster\',0)" onclick="app.selectOutlinerItem(\'holster\',0)"><span class="lock-toggle" onclick="event.stopPropagation();app.toggleItemLock(\'holster\',0)">'+(HOLSTER.locked?'🔒':'🔓')+'</span><span class="icon">◇</span><span class="name">Main Shape</span></div>';
 // Group and render items by category
 const categories=['Edge Ranges','Holes','Custom Holes','Stitch Lines','Shapes','Text'];
 const renderedItems=new Set();
+// First render children of Main Shape (holster) immediately after it
+allItems.forEach(item=>{
+if(item.item?.parent?.type==='holster'&&item.item?.parent?.idx===0){
+html+=renderItemWithChildren(item,2,renderedItems);
+}
+});
 categories.forEach(cat=>{
 const catItems=allItems.filter(item=>item.category===cat);
 if(catItems.length>0){
 html+='<h3>'+cat+'</h3>';
 catItems.forEach(item=>{
 // Only render root items (no parent or parent doesn't exist in our items)
+// Items parented to 'holster' should also be rendered but indented
 if(!item.item?.parent||!allItems.some(i=>i.type===item.item.parent.type&&i.idx===item.item.parent.idx)){
 html+=renderItemWithChildren(item,0,renderedItems);
 }
@@ -622,13 +633,21 @@ const srcType=data[0],srcIdx=parseInt(data[1]);
 if(srcType===targetType&&srcIdx===targetIdx)return;
 const srcObj=this.getObjByTypeIdx(srcType,srcIdx);
 if(!srcObj)return;
-// Check if dropping on holster - this unparents the item
-if(targetType==='holster'){
+// Check if dropping on root - this unparents the item
+if(targetType==='root'){
 if(srcObj.parent){
 delete srcObj.parent;
 this.updateOutliner();
 this.saveState();
 }
+return;
+}
+// Check if dropping on holster - this parents the item TO the holster
+if(targetType==='holster'){
+// Prevent circular parenting (shouldn't happen with holster but be safe)
+srcObj.parent={type:'holster',idx:0};
+this.updateOutliner();
+this.saveState();
 return;
 }
 const targetObj=this.getObjByTypeIdx(targetType,targetIdx);
@@ -2880,7 +2899,7 @@ GHOST_OFFSET.y=newOffsetY;
 break;
 }
 case'refImage':REF_IMAGE.x=DRAG.ox+(w.x-DRAG.sx);REF_IMAGE.y=DRAG.oy+(w.y-DRAG.sy);break;
-case'holsterGizmo':if(DRAG.gizmoType==='move'){HOLSTER.x=DRAG.shx+(w.x-DRAG.sx);HOLSTER.y=DRAG.shy+(w.y-DRAG.sy)}else if(DRAG.gizmoType==='rotate'){HOLSTER.rotation=Math.atan2(w.y-HOLSTER.y,w.x-HOLSTER.x)+Math.PI/4}else{const ds=Math.hypot(DRAG.sx-HOLSTER.x,DRAG.sy-HOLSTER.y),dn=Math.hypot(w.x-HOLSTER.x,w.y-HOLSTER.y),sf=dn/ds;if(SHIFT_HELD){const lw=M.worldToLocal(w,{x:HOLSTER.x,y:HOLSTER.y,rotation:HOLSTER.rotation,scaleX:1,scaleY:1}),b=M.getBounds(this.getPatternLocalPath());if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))HOLSTER.scaleX=Math.max(.1,Math.abs(lw.x)/(b.w/2+20));if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))HOLSTER.scaleY=Math.max(.1,Math.abs(lw.y)/(b.h/2+20))}else{HOLSTER.scaleX=Math.max(.1,DRAG.ssx*sf);HOLSTER.scaleY=Math.max(.1,DRAG.ssy*sf)}}this.updateInfo();break;
+case'holsterGizmo':if(DRAG.gizmoType==='move'){const oldX=HOLSTER.x,oldY=HOLSTER.y;HOLSTER.x=DRAG.shx+(w.x-DRAG.sx);HOLSTER.y=DRAG.shy+(w.y-DRAG.sy);const dx=HOLSTER.x-oldX,dy=HOLSTER.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('holster',0,dx,dy)}}else if(DRAG.gizmoType==='rotate'){HOLSTER.rotation=Math.atan2(w.y-HOLSTER.y,w.x-HOLSTER.x)+Math.PI/4}else{const ds=Math.hypot(DRAG.sx-HOLSTER.x,DRAG.sy-HOLSTER.y),dn=Math.hypot(w.x-HOLSTER.x,w.y-HOLSTER.y),sf=dn/ds;if(SHIFT_HELD){const lw=M.worldToLocal(w,{x:HOLSTER.x,y:HOLSTER.y,rotation:HOLSTER.rotation,scaleX:1,scaleY:1}),b=M.getBounds(this.getPatternLocalPath());if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))HOLSTER.scaleX=Math.max(.1,Math.abs(lw.x)/(b.w/2+20));if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))HOLSTER.scaleY=Math.max(.1,Math.abs(lw.y)/(b.h/2+20))}else{HOLSTER.scaleX=Math.max(.1,DRAG.ssx*sf);HOLSTER.scaleY=Math.max(.1,DRAG.ssy*sf)}}this.updateInfo();break;
 case'symHoleGizmo':{const hole=SYM_HOLES[DRAG.idx],lw=M.worldToHolster(w);if(DRAG.gizmoType==='move'){const oldX=hole.x,oldY=hole.y;const s=snapLocal({x:Math.abs(lw.x),y:lw.y});hole.x=s.x;hole.y=s.y;const dx=hole.x-oldX,dy=hole.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('symHole',DRAG.idx,dx,dy)}}else if(DRAG.gizmoType==='rotate'){const wh=this.getSymHoleWorld(hole,1);hole.rotation=Math.atan2(w.y-wh.y,w.x-wh.x)-(CFG.lockFoldLine?0:(HOLSTER.rotation||0))+Math.PI/4}else{const wh=this.getSymHoleWorld(hole,1),ds=Math.hypot(DRAG.sx-wh.x,DRAG.sy-wh.y),dn=Math.hypot(w.x-wh.x,w.y-wh.y),sf=dn/ds;if(SHIFT_HELD){const rot=(CFG.lockFoldLine?0:(HOLSTER.rotation||0))+(hole.rotation||0),lh=M.worldToLocal(w,{x:wh.x,y:wh.y,rotation:rot,scaleX:1,scaleY:1});if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))hole.width=Math.max(1,Math.abs(lh.x)*2/HOLSTER.scaleX);if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))hole.height=Math.max(1,Math.abs(lh.y)*2/HOLSTER.scaleY)}else{hole.width=Math.max(1,DRAG.sw*sf);hole.height=Math.max(1,DRAG.sh*sf)}}this.updateInfo();break}
 case'asymHoleGizmo':{const hole=ASYM_HOLES[DRAG.idx];if(DRAG.gizmoType==='move'){const oldX=hole.x,oldY=hole.y;const s=snapWorld(w);hole.x=s.x;hole.y=s.y;const dx=hole.x-oldX,dy=hole.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('asymHole',DRAG.idx,dx,dy)}}else if(DRAG.gizmoType==='rotate'){hole.rotation=Math.atan2(w.y-hole.y,w.x-hole.x)+Math.PI/4}else{const ds=Math.hypot(DRAG.sx-DRAG.shx,DRAG.sy-DRAG.shy),dn=Math.hypot(w.x-hole.x,w.y-hole.y),sf=dn/ds;if(SHIFT_HELD){const lh=M.worldToLocal(w,{x:hole.x,y:hole.y,rotation:hole.rotation||0,scaleX:1,scaleY:1});if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))hole.width=Math.max(1,Math.abs(lh.x)*2);if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))hole.height=Math.max(1,Math.abs(lh.y)*2)}else{hole.width=Math.max(1,DRAG.sw*sf);hole.height=Math.max(1,DRAG.sh*sf)}}this.updateInfo();break}
 case'asymShapeGizmo':{const s=ASYM_SHAPES[DRAG.idx];if(DRAG.gizmoType==='move'){const oldX=s.x,oldY=s.y;const sn=snapWorld(w);s.x=sn.x;s.y=sn.y;const dx=s.x-oldX,dy=s.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('asymShape',DRAG.idx,dx,dy)}}else if(DRAG.gizmoType==='rotate'){s.rotation=Math.atan2(w.y-s.y,w.x-s.x)+Math.PI/4}else{const ds=Math.hypot(DRAG.sx-DRAG.shx,DRAG.sy-DRAG.shy),dn=Math.hypot(w.x-s.x,w.y-s.y),sf=dn/ds;if(SHIFT_HELD&&s.points){const ls=M.worldToLocal(w,{x:s.x,y:s.y,rotation:s.rotation||0,scaleX:1,scaleY:1}),b=M.getBounds(s.points);if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))s.scaleX=Math.max(.1,Math.abs(ls.x)/(b.w/2+10));if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))s.scaleY=Math.max(.1,Math.abs(ls.y)/(b.h/2+10))}else{s.scaleX=Math.max(.1,DRAG.ssx*sf);s.scaleY=Math.max(.1,DRAG.ssy*sf)}}this.updateInfo();break}
