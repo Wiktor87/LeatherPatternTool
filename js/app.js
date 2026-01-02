@@ -5,6 +5,9 @@ import { SCALE, CFG, HOVER_TOLERANCE, HOVER_SCALE, MAX_HISTORY } from './config.
 import { M } from './math.js';
 import { ToastManager } from './ui/ToastManager.js';
 import { HistoryManager } from './state/HistoryManager.js';
+import { FileManager } from './io/FileManager.js';
+import { RefImageManager } from './io/RefImageManager.js';
+import { OutlinerManager } from './ui/OutlinerManager.js';
 
 // Make config available globally for backwards compatibility
 window.CFG = CFG;
@@ -85,6 +88,63 @@ class App{
     this.historyManager = new HistoryManager({
       maxHistory: MAX_HISTORY,
       onUpdate: () => this.updateUndoRedoButtons()
+    });
+    // Initialize file manager
+    this.fileManager = new FileManager({
+      getState: () => this.getProjectState(),
+      setState: (project) => this.setProjectState(project),
+      onLoad: () => {
+        this.updateInfo();
+        this.updateOutliner();
+        this.draw();
+        this.saveState();
+        this.showToast('Project loaded!', 'success');
+      },
+      onSave: () => {
+        this.showToast('Project saved!', 'success');
+      },
+      validateProject: (project) => {
+        return project && project.NODES && project.HOLSTER;
+      }
+    });
+    // Initialize reference image manager
+    this.refImageManager = new RefImageManager({
+      onUpdate: () => this.draw(),
+      getDistance: (p1, p2) => M.dist(p1, p2),
+      closeSettings: () => {
+        if (this.settingsOpen) this.toggleSettings();
+      }
+    });
+    // Initialize outliner manager
+    this.outlinerManager = new OutlinerManager({
+      getState: () => ({
+        EDGE_RANGES,
+        MERGED_EDGE_RANGES,
+        SYM_HOLES,
+        ASYM_HOLES,
+        SYM_CUSTOM_HOLES,
+        ASYM_CUSTOM_HOLES,
+        EDGE_STITCHES,
+        SYM_STITCHES,
+        ASYM_STITCHES,
+        SYM_SHAPES,
+        ASYM_SHAPES,
+        TEXT_ANNOTATIONS,
+        CURRENT_LAYER
+      }),
+      getSelected: () => SELECTED,
+      setSelected: (sel) => {
+        SELECTED = sel;
+        this.updateInfo();
+      },
+      getConfig: () => CFG,
+      getHolster: () => HOLSTER,
+      onUpdate: () => this.draw(),
+      onSaveState: () => this.saveState(),
+      showToast: (msg, type) => this.showToast(msg, type),
+      closeSettings: () => {
+        if (this.settingsOpen) this.toggleSettings();
+      }
     });
     this.init();
   }
@@ -173,6 +233,115 @@ updateUndoRedoButtons(){
   document.getElementById('undo-btn').disabled = !this.historyManager.canUndo();
   document.getElementById('redo-btn').disabled = !this.historyManager.canRedo();
 }
+/**
+ * Get current project state for saving
+ * @returns {Object} Complete project state
+ */
+getProjectState() {
+  const state = {
+    NODES: NODES,
+    HOLSTER: HOLSTER,
+    EDGE_RANGES: EDGE_RANGES,
+    MERGED_EDGE_RANGES: MERGED_EDGE_RANGES,
+    EDGE_STITCHES: EDGE_STITCHES,
+    SYM_HOLES: SYM_HOLES,
+    SYM_STITCHES: SYM_STITCHES,
+    SYM_SHAPES: SYM_SHAPES,
+    SYM_CUSTOM_HOLES: SYM_CUSTOM_HOLES,
+    ASYM_HOLES: ASYM_HOLES,
+    ASYM_STITCHES: ASYM_STITCHES,
+    ASYM_CUSTOM_HOLES: ASYM_CUSTOM_HOLES,
+    ASYM_SHAPES: ASYM_SHAPES,
+    TEXT_ANNOTATIONS: TEXT_ANNOTATIONS,
+    CFG: CFG
+  };
+  // Add two-layer data if in two-layer mode
+  if (CFG.projectType === 'two-layer') {
+    // Save current layer before exporting
+    if (CURRENT_LAYER === 'front') {
+      FRONT_LAYER = this.captureLayerState();
+    } else {
+      BACK_LAYER = this.captureLayerState();
+    }
+    state.CURRENT_LAYER = CURRENT_LAYER;
+    state.FRONT_LAYER = FRONT_LAYER;
+    state.BACK_LAYER = BACK_LAYER;
+    state.GHOST_OFFSET = GHOST_OFFSET;
+  }
+  return state;
+}
+/**
+ * Set project state from loaded data
+ * @param {Object} project - Project data to load
+ */
+setProjectState(project) {
+  // Restore state
+  NODES = project.NODES;
+  HOLSTER.x = project.HOLSTER.x || 0;
+  HOLSTER.y = project.HOLSTER.y || 0;
+  HOLSTER.rotation = project.HOLSTER.rotation || 0;
+  HOLSTER.scaleX = project.HOLSTER.scaleX || 1;
+  HOLSTER.scaleY = project.HOLSTER.scaleY || 1;
+  HOLSTER.locked = project.HOLSTER.locked || false;
+  EDGE_RANGES = project.EDGE_RANGES || [{start: 0, end: 1}];
+  MERGED_EDGE_RANGES = project.MERGED_EDGE_RANGES || [];
+  EDGE_STITCHES = project.EDGE_STITCHES || [];
+  SYM_HOLES = project.SYM_HOLES || [];
+  SYM_STITCHES = project.SYM_STITCHES || [];
+  SYM_SHAPES = project.SYM_SHAPES || [];
+  SYM_CUSTOM_HOLES = project.SYM_CUSTOM_HOLES || [];
+  ASYM_HOLES = project.ASYM_HOLES || [];
+  ASYM_STITCHES = project.ASYM_STITCHES || [];
+  ASYM_CUSTOM_HOLES = project.ASYM_CUSTOM_HOLES || [];
+  ASYM_SHAPES = project.ASYM_SHAPES || [];
+  TEXT_ANNOTATIONS = project.TEXT_ANNOTATIONS || [];
+  
+  // Restore CFG if present
+  if (project.CFG) {
+    Object.keys(project.CFG).forEach(k => {
+      if (CFG.hasOwnProperty(k)) CFG[k] = project.CFG[k];
+    });
+  }
+  
+  // Load two-layer data if present
+  if (project.FRONT_LAYER && project.BACK_LAYER) {
+    FRONT_LAYER = project.FRONT_LAYER;
+    BACK_LAYER = project.BACK_LAYER;
+    CURRENT_LAYER = project.CURRENT_LAYER || 'front';
+    GHOST_OFFSET = project.GHOST_OFFSET || {x: 0, y: 0};
+    // Restore the current layer
+    const targetState = CURRENT_LAYER === 'front' ? FRONT_LAYER : BACK_LAYER;
+    this.restoreLayerState(targetState);
+    // Update project type in UI
+    document.getElementById('cfg-projectType').value = 'two-layer';
+    this.onProjectTypeChange('two-layer');
+  } else {
+    // Legacy file or fold-over mode
+    FRONT_LAYER = null;
+    BACK_LAYER = null;
+    CURRENT_LAYER = 'front';
+    GHOST_OFFSET = {x: 0, y: 0};
+    // Ensure project type is set to fold-over
+    if (!project.CFG || !project.CFG.projectType) {
+      CFG.projectType = 'fold-over';
+      document.getElementById('cfg-projectType').value = 'fold-over';
+      this.onProjectTypeChange('fold-over');
+    }
+  }
+  
+  // Update pattern title
+  if (project.name) {
+    document.getElementById('project-title').textContent = project.name;
+    const titleInput = document.getElementById('pattern-title');
+    if (titleInput) titleInput.value = project.name;
+    // Sync UI checkboxes with loaded CFG values
+    document.getElementById('cfg-asymmetricOutline').checked = CFG.asymmetricOutline || false;
+    document.getElementById('cfg-syncOutline').checked = CFG.syncOutline !== false;
+    document.getElementById('cfg-syncEdgeStitches').checked = CFG.syncEdgeStitches !== false;
+  }
+  
+  SELECTED = null;
+}
 toggleFileMenu(){
 const menu=document.getElementById('file-menu');
 menu.classList.toggle('open');
@@ -209,184 +378,22 @@ const publishTitle=document.getElementById('pattern-title');
 if(publishTitle)publishTitle.value=newName.trim();
 }
 }
-saveProject(){
-document.getElementById('file-menu').classList.remove('open');
-const projectName=document.getElementById('project-title').textContent||'Leather Pattern';
-const project={
-version:2, // Increment version for two-layer support
-name:projectName,
-NODES:NODES,
-HOLSTER:HOLSTER,
-EDGE_RANGES:EDGE_RANGES,
-MERGED_EDGE_RANGES:MERGED_EDGE_RANGES,
-EDGE_STITCHES:EDGE_STITCHES,
-SYM_HOLES:SYM_HOLES,
-SYM_STITCHES:SYM_STITCHES,
-SYM_SHAPES:SYM_SHAPES,
-SYM_CUSTOM_HOLES:SYM_CUSTOM_HOLES,
-ASYM_HOLES:ASYM_HOLES,
-ASYM_STITCHES:ASYM_STITCHES,
-ASYM_CUSTOM_HOLES:ASYM_CUSTOM_HOLES,
-ASYM_SHAPES:ASYM_SHAPES,
-TEXT_ANNOTATIONS:TEXT_ANNOTATIONS,
-CFG:CFG
-};
-// Add two-layer data if in two-layer mode
-if(CFG.projectType==='two-layer'){
-// Save current layer before exporting
-if(CURRENT_LAYER==='front'){
-FRONT_LAYER=this.captureLayerState();
-}else{
-BACK_LAYER=this.captureLayerState();
+saveProject() {
+  document.getElementById('file-menu').classList.remove('open');
+  const projectName = document.getElementById('project-title').textContent || 'Leather Pattern';
+  this.fileManager.saveProject(projectName);
 }
-project.CURRENT_LAYER=CURRENT_LAYER;
-project.FRONT_LAYER=FRONT_LAYER;
-project.BACK_LAYER=BACK_LAYER;
-project.GHOST_OFFSET=GHOST_OFFSET;
+loadProject() {
+  document.getElementById('file-menu').classList.remove('open');
+  this.fileManager.triggerFileInput('file-input');
 }
-const json=JSON.stringify(project,null,2);
-const blob=new Blob([json],{type:'application/json'});
-const url=URL.createObjectURL(blob);
-const a=document.createElement('a');
-a.href=url;
-a.download=(project.name.replace(/[^a-z0-9]/gi,'_')||'holster-pattern')+'.json';
-document.body.appendChild(a);
-a.click();
-document.body.removeChild(a);
-URL.revokeObjectURL(url);
-this.showToast('Project saved!', 'success');
-}
-loadProject(){
-document.getElementById('file-menu').classList.remove('open');
-document.getElementById('file-input').click();
-}
-handleFileLoad(e){
-const file=e.target.files[0];
-if(!file)return;
-const reader=new FileReader();
-reader.onload=(evt)=>{
-try{
-const project=JSON.parse(evt.target.result);
-// Validate basic structure
-if(!project.NODES||!project.HOLSTER){
-alert('Invalid project file');
-return;
-}
-// Restore state
-NODES=project.NODES;
-HOLSTER.x=project.HOLSTER.x||0;
-HOLSTER.y=project.HOLSTER.y||0;
-HOLSTER.rotation=project.HOLSTER.rotation||0;
-HOLSTER.scaleX=project.HOLSTER.scaleX||1;
-HOLSTER.scaleY=project.HOLSTER.scaleY||1;
-HOLSTER.locked=project.HOLSTER.locked||false;
-EDGE_RANGES=project.EDGE_RANGES||[{start:0,end:1}];
-MERGED_EDGE_RANGES=project.MERGED_EDGE_RANGES||[];
-EDGE_STITCHES=project.EDGE_STITCHES||[];
-SYM_HOLES=project.SYM_HOLES||[];
-SYM_STITCHES=project.SYM_STITCHES||[];
-SYM_SHAPES=project.SYM_SHAPES||[];
-SYM_CUSTOM_HOLES=project.SYM_CUSTOM_HOLES||[];
-ASYM_HOLES=project.ASYM_HOLES||[];
-ASYM_STITCHES=project.ASYM_STITCHES||[];
-ASYM_CUSTOM_HOLES=project.ASYM_CUSTOM_HOLES||[];
-ASYM_SHAPES=project.ASYM_SHAPES||[];
-TEXT_ANNOTATIONS=project.TEXT_ANNOTATIONS||[];
-// Migrate old text formats to new simple format
-TEXT_ANNOTATIONS=TEXT_ANNOTATIONS.map(t=>{
-// Convert lines format to simple format
-if(t.lines&&Array.isArray(t.lines)){
-const firstLine=t.lines[0]||{};
-return{
-x:t.x,
-y:t.y,
-text:firstLine.text||'',
-fontSize:t.fontSize||12,
-bold:t.bold||false,
-italic:t.italic||false,
-style:firstLine.style||'normal',
-listType:firstLine.listType||'none',
-listIndex:firstLine.listIndex||1,
-name:t.name,
-hidden:t.hidden,
-locked:t.locked,
-parent:t.parent,
-arrowTo:t.arrowTo
-};
-}
-// Ensure all required fields exist
-return{
-x:t.x||0,
-y:t.y||0,
-text:t.text||'Text',
-fontSize:t.fontSize||12,
-bold:t.bold||false,
-italic:t.italic||false,
-style:t.style||t.style||'normal',
-listType:t.listType||'none',
-listIndex:t.listIndex||1,
-name:t.name,
-hidden:t.hidden,
-locked:t.locked,
-parent:t.parent,
-arrowTo:t.arrowTo
-};
-});
-// Restore CFG if present
-if(project.CFG){
-Object.keys(project.CFG).forEach(k=>{
-if(CFG.hasOwnProperty(k))CFG[k]=project.CFG[k];
-});
-}
-// Load two-layer data if present
-if(project.FRONT_LAYER&&project.BACK_LAYER){
-FRONT_LAYER=project.FRONT_LAYER;
-BACK_LAYER=project.BACK_LAYER;
-CURRENT_LAYER=project.CURRENT_LAYER||'front';
-GHOST_OFFSET=project.GHOST_OFFSET||{x:0,y:0};
-// Restore the current layer
-const targetState=CURRENT_LAYER==='front'?FRONT_LAYER:BACK_LAYER;
-this.restoreLayerState(targetState);
-// Update project type in UI
-document.getElementById('cfg-projectType').value='two-layer';
-this.onProjectTypeChange('two-layer');
-}else{
-// Legacy file or fold-over mode
-FRONT_LAYER=null;
-BACK_LAYER=null;
-CURRENT_LAYER='front';
-GHOST_OFFSET={x:0,y:0};
-// Ensure project type is set to fold-over
-if(!project.CFG||!project.CFG.projectType){
-CFG.projectType='fold-over';
-document.getElementById('cfg-projectType').value='fold-over';
-this.onProjectTypeChange('fold-over');
-}
-}
-// Update pattern title
-if(project.name){
-document.getElementById('project-title').textContent=project.name;
-const titleInput=document.getElementById('pattern-title');
-if(titleInput)titleInput.value=project.name;
-// Sync UI checkboxes with loaded CFG values
-document.getElementById('cfg-asymmetricOutline').checked=CFG.asymmetricOutline||false;
-document.getElementById('cfg-syncOutline').checked=CFG.syncOutline!==false;
-document.getElementById('cfg-syncEdgeStitches').checked=CFG.syncEdgeStitches!==false;
-}
-SELECTED=null;
-this.updateInfo();
-this.updateOutliner();
-this.draw();
-this.saveState();
-this.showToast('Project loaded!', 'success');
-}catch(err){
-alert('Error loading project: '+err.message);
-this.showToast('Error loading project', 'error');
-}
-};
-reader.readAsText(file);
-// Reset input so same file can be loaded again
-e.target.value='';
+async handleFileLoad(e) {
+  try {
+    await this.fileManager.handleFileLoad(e);
+  } catch (error) {
+    alert('Error loading project: ' + error.message);
+    this.showToast('Error loading project', 'error');
+  }
 }
 toggleSettings(){
 this.settingsOpen=!this.settingsOpen;
@@ -427,328 +434,100 @@ section.classList.toggle('expanded',state[sectionName]);
 }
 });
 }
-loadRefImage(e){
-const file=e.target.files[0];
-if(!file)return;
-const reader=new FileReader();
-reader.onload=(ev)=>{
-const img=new Image();
-img.onload=()=>{
-// Convert to mm - assume 96 DPI for now, user can scale
-// Default: 1 pixel = 0.2645mm (at 96 DPI)
-const pxToMm=0.2645;
-REF_IMAGE.img=img;
-REF_IMAGE.width=img.width*pxToMm;
-REF_IMAGE.height=img.height*pxToMm;
-REF_IMAGE.x=0;
-REF_IMAGE.y=0;
-REF_IMAGE.scale=1;
-document.getElementById('cfg-refScale').value=1;
-document.getElementById('cfg-refScale-num').value=1;
-this.draw();
-};
-img.src=ev.target.result;
-};
-reader.readAsDataURL(file);
-e.target.value='';
+loadRefImage(e) {
+  this.refImageManager.loadRefImage(e);
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-updateRefScale(val){
-REF_IMAGE.scale=parseFloat(val)||1;
-document.getElementById('cfg-refScale').value=REF_IMAGE.scale;
-document.getElementById('cfg-refScale-num').value=REF_IMAGE.scale;
-this.draw();
+updateRefScale(val) {
+  this.refImageManager.updateRefScale(val);
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-clearRefImage(){
-REF_IMAGE.img=null;
-REF_IMAGE.width=0;
-REF_IMAGE.height=0;
-REF_IMAGE.calibrating=false;
-REF_IMAGE.calPt1=null;
-REF_IMAGE.calPt2=null;
-this.draw();
+clearRefImage() {
+  this.refImageManager.clearRefImage();
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-startCalibration(){
-if(!REF_IMAGE.img){alert('Load an image first');return}
-REF_IMAGE.calibrating=true;
-REF_IMAGE.calPt1=null;
-REF_IMAGE.calPt2=null;
-document.getElementById('btn-calibrate').textContent='📏 Click point 1...';
-document.getElementById('btn-calibrate').style.background='#5a2a2a';
-// Close settings panel so clicks go to canvas
-if(this.settingsOpen)this.toggleSettings();
-this.draw();
+startCalibration() {
+  this.refImageManager.startCalibration();
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-handleCalibrationClick(w){
-console.log('Calibration click:', w, 'calPt1:', REF_IMAGE.calPt1, 'calPt2:', REF_IMAGE.calPt2);
-if(!REF_IMAGE.calPt1){
-REF_IMAGE.calPt1={x:w.x,y:w.y};
-console.log('Set calPt1');
-this.draw();
-}else if(!REF_IMAGE.calPt2){
-REF_IMAGE.calPt2={x:w.x,y:w.y};
-console.log('Set calPt2, showing modal');
-this.draw();
-// Show custom modal instead of prompt (prompt doesn't work on iOS)
-document.getElementById('calibration-modal').style.display='flex';
-document.getElementById('calibration-distance').focus();
-document.getElementById('calibration-distance').select();
+handleCalibrationClick(w) {
+  this.refImageManager.handleCalibrationClick(w);
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
+cancelCalibration() {
+  this.refImageManager.cancelCalibration();
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-cancelCalibration(){
-document.getElementById('calibration-modal').style.display='none';
-REF_IMAGE.calibrating=false;
-REF_IMAGE.calPt1=null;
-REF_IMAGE.calPt2=null;
-document.getElementById('btn-calibrate').textContent='📏 Calibrate Scale';
-document.getElementById('btn-calibrate').style.background='#2a5a2a';
-this.draw();
+applyCalibration() {
+  this.refImageManager.applyCalibration();
+  // Sync global state with manager
+  REF_IMAGE = this.refImageManager.getState();
 }
-applyCalibration(){
-const realDist=document.getElementById('calibration-distance').value;
-document.getElementById('calibration-modal').style.display='none';
-if(realDist&&!isNaN(parseFloat(realDist))){
-const pxDist=M.dist(REF_IMAGE.calPt1,REF_IMAGE.calPt2);
-const realMm=parseFloat(realDist);
-const newScale=realMm/pxDist*REF_IMAGE.scale;
-REF_IMAGE.scale=newScale;
-document.getElementById('cfg-refScale').value=Math.min(5,newScale);
-document.getElementById('cfg-refScale-num').value=newScale.toFixed(3);
+toggleOutliner() {
+  this.outlinerManager.toggleOutliner();
+  // Sync state
+  this.outlinerOpen = this.outlinerManager.isOpen;
 }
-REF_IMAGE.calibrating=false;
-REF_IMAGE.calPt1=null;
-REF_IMAGE.calPt2=null;
-document.getElementById('btn-calibrate').textContent='📏 Calibrate Scale';
-document.getElementById('btn-calibrate').style.background='#2a5a2a';
-this.draw();
+updateOutliner() {
+  this.outlinerManager.updateOutliner();
 }
-toggleOutliner(){this.outlinerOpen=!this.outlinerOpen;document.getElementById('outliner-panel').classList.toggle('open',this.outlinerOpen);document.getElementById('outliner-btn').style.display=this.outlinerOpen?'none':'flex';document.getElementById('settings-btn').style.display=this.outlinerOpen?'none':'flex';if(this.outlinerOpen){this.updateOutliner();if(this.settingsOpen)this.toggleSettings()}}
-updateOutliner(){
-const c=document.getElementById('outliner-content');
-const makeItem=(type,idx,icon,name,item,depth=0)=>{
-const sel=SELECTED?.type===type&&SELECTED?.idx===idx;
-const hidden=item?.hidden;
-const locked=item?.locked;
-const indent=depth>0?` style="padding-left:${depth*16+6}px"`:' style="padding-left:6px"';
-return '<div class="outliner-item'+(sel?' selected':'')+(hidden?' hidden-item':'')+(locked?' locked-item':'')+'"'+indent+' draggable="true" data-type="'+type+'" data-idx="'+idx+'" onclick="app.selectOutlinerItem(\''+type+'\','+idx+')" ondblclick="event.stopPropagation();app.renameItem(\''+type+'\','+idx+')" ondragstart="app.outlinerDragStart(event)" ondragover="app.outlinerDragOver(event)" ondrop="app.outlinerDrop(event,\''+type+'\','+idx+')"><span class="vis-toggle" onclick="event.stopPropagation();app.toggleItemVis(\''+type+'\','+idx+')">'+(hidden?'○':'●')+'</span><span class="lock-toggle" onclick="event.stopPropagation();app.toggleItemLock(\''+type+'\','+idx+')">'+(locked?'🔒':'🔓')+'</span><span class="icon">'+icon+'</span><span class="name">'+name+'</span></div>';
-};
-// Build a flat list of all items with their metadata
-const allItems=[];
-EDGE_RANGES.forEach((r,i)=>{allItems.push({type:'edgeRange',idx:i,icon:'⊢',name:r.name||'Range '+(i+1),item:r,category:'Edge Ranges'})});
-MERGED_EDGE_RANGES.forEach((r,i)=>{allItems.push({type:'mergedEdgeRange',idx:i,icon:'⊡',name:r.name||'Perimeter '+(i+1),item:r,category:'Edge Ranges'})});
-SYM_HOLES.forEach((h,i)=>{allItems.push({type:'symHole',idx:i,icon:'○',name:h.name||'Sym Hole '+(i+1),item:h,category:'Holes'})});
-ASYM_HOLES.forEach((h,i)=>{allItems.push({type:'asymHole',idx:i,icon:'○',name:h.name||'Asym Hole '+(i+1),item:h,category:'Holes'})});
-SYM_CUSTOM_HOLES.forEach((h,i)=>{allItems.push({type:'symCustomHole',idx:i,icon:'✏',name:h.name||'Sym Custom '+(i+1),item:h,category:'Custom Holes'})});
-ASYM_CUSTOM_HOLES.forEach((h,i)=>{allItems.push({type:'asymCustomHole',idx:i,icon:'✏',name:h.name||'Asym Custom '+(i+1),item:h,category:'Custom Holes'})});
-EDGE_STITCHES.forEach((s,i)=>{const icon=s.isMerged?'⊡':'⊢';const name=s.name||(s.isMerged?'Perim Stitch':'Edge Stitch')+' '+(i+1);allItems.push({type:'edgeStitch',idx:i,icon:icon,name:name,item:s,category:'Stitch Lines'})});
-SYM_STITCHES.forEach((s,i)=>{allItems.push({type:'symStitch',idx:i,icon:'┅',name:s.name||'Sym Stitch '+(i+1),item:s,category:'Stitch Lines'})});
-ASYM_STITCHES.forEach((s,i)=>{allItems.push({type:'asymStitch',idx:i,icon:'┅',name:s.name||'Asym Stitch '+(i+1),item:s,category:'Stitch Lines'})});
-SYM_SHAPES.forEach((s,i)=>{const icon=s.isExtension?'⊕':s.isLinkedCircle?'◎':'◇';const name=s.name||(s.isExtension?'Extension':s.isLinkedCircle?'Linked Circle':'Sym Shape')+' '+(i+1);allItems.push({type:'symShape',idx:i,icon:icon,name:name,item:s,category:'Shapes'})});
-ASYM_SHAPES.forEach((s,i)=>{const icon=s.isExtension?'⊕':s.isLinkedCircle?'◎':'◇';const name=s.name||(s.isExtension?'Extension':s.isLinkedCircle?'Linked Circle':'Asym Shape')+' '+(i+1);allItems.push({type:'asymShape',idx:i,icon:icon,name:name,item:s,category:'Shapes'})});
-TEXT_ANNOTATIONS.forEach((t,i)=>{
-const displayName=t.name||(t.text||'Text');
-allItems.push({type:'textAnnotation',idx:i,icon:'T',name:displayName,item:t,category:'Text'});
-});
-// Helper to render item with children recursively
-const renderItemWithChildren=(item,depth=0,renderedItems)=>{
-const key=`${item.type}_${item.idx}`;
-if(renderedItems.has(key))return''; // Already rendered as child
-renderedItems.add(key);
-let html=makeItem(item.type,item.idx,item.icon,item.name,item.item,depth);
-// Find children
-allItems.forEach(child=>{
-if(child.item?.parent?.type===item.type&&child.item?.parent?.idx===item.idx){
-html+=renderItemWithChildren(child,depth+1,renderedItems);
+toggleItemVis(type, idx) {
+  this.outlinerManager.toggleItemVis(type, idx);
 }
-});
-return html;
-};
-let html='';
-// Show current layer info in two-layer mode
-if(CFG.projectType==='two-layer'){
-html+='<h3 style="color:'+(CURRENT_LAYER==='front'?'#007AFF':'#FF9500')+'">'+(CURRENT_LAYER==='front'?'Front':'Back')+' Layer</h3>';
-}else{
-html+='<h3>Pattern</h3>';
+toggleItemLock(type, idx) {
+  this.outlinerManager.toggleItemLock(type, idx);
 }
-// Add Root container at the top
-const rootSel=SELECTED?.type==='root';
-html+='<div class="outliner-item'+(rootSel?' selected':'')+(false?' locked-item':'')+'" style="padding-left:6px" ondragover="app.outlinerDragOver(event)" ondrop="app.outlinerDrop(event,\'root\',0)" onclick="app.selectOutlinerItem(\'root\',0)"><span class="icon">📁</span><span class="name">Root</span></div>';
-// Main Shape as child of Root
-const holsterSel=SELECTED?.type==='holster';
-html+='<div class="outliner-item'+(holsterSel?' selected':'')+(HOLSTER.locked?' locked-item':'')+'" style="padding-left:22px" ondragover="app.outlinerDragOver(event)" ondrop="app.outlinerDrop(event,\'holster\',0)" onclick="app.selectOutlinerItem(\'holster\',0)"><span class="lock-toggle" onclick="event.stopPropagation();app.toggleItemLock(\'holster\',0)">'+(HOLSTER.locked?'🔒':'🔓')+'</span><span class="icon">◇</span><span class="name">Main Shape</span></div>';
-// Group and render items by category
-const categories=['Edge Ranges','Holes','Custom Holes','Stitch Lines','Shapes','Text'];
-const renderedItems=new Set();
-// First render children of Main Shape (holster) immediately after it
-allItems.forEach(item=>{
-if(item.item?.parent?.type==='holster'&&item.item?.parent?.idx===0){
-html+=renderItemWithChildren(item,2,renderedItems);
+getItemByTypeIdx(type, idx) {
+  return this.outlinerManager.getItemByTypeIdx(type, idx);
 }
-});
-categories.forEach(cat=>{
-const catItems=allItems.filter(item=>item.category===cat);
-if(catItems.length>0){
-html+='<h3>'+cat+'</h3>';
-catItems.forEach(item=>{
-// Only render root items (no parent or parent doesn't exist in our items)
-// Items parented to 'holster' should also be rendered but indented
-if(!item.item?.parent||!allItems.some(i=>i.type===item.item.parent.type&&i.idx===item.item.parent.idx)){
-html+=renderItemWithChildren(item,0,renderedItems);
+outlinerDragStart(e) {
+  this.outlinerManager.outlinerDragStart(e);
 }
-});
+outlinerDragOver(e) {
+  this.outlinerManager.outlinerDragOver(e);
 }
-});
-c.innerHTML=html;
+outlinerDrop(e, targetType, targetIdx) {
+  this.outlinerManager.outlinerDrop(e, targetType, targetIdx);
 }
-toggleItemVis(type,idx){
-const item=this.getItemByTypeIdx(type,idx);
-if(item){item.hidden=!item.hidden;this.updateOutliner();this.draw()}
+isDescendantOf(checkType, checkIdx, ancestorType, ancestorIdx) {
+  return this.outlinerManager.isDescendantOf(checkType, checkIdx, ancestorType, ancestorIdx);
 }
-toggleItemLock(type,idx){
-if(type==='holster'){
-HOLSTER.locked=!HOLSTER.locked;
-}else{
-const item=this.getItemByTypeIdx(type,idx);
-if(item){item.locked=!item.locked}
+renameItem(type, idx) {
+  this.outlinerManager.renameItem(type, idx);
 }
-this.updateOutliner();this.draw();
+selectOutlinerItem(type, idx) {
+  this.outlinerManager.selectOutlinerItem(type, idx);
 }
-getItemByTypeIdx(type,idx){
-if(type==='symHole')return SYM_HOLES[idx];
-if(type==='asymHole')return ASYM_HOLES[idx];
-if(type==='symCustomHole')return SYM_CUSTOM_HOLES[idx];
-if(type==='asymCustomHole')return ASYM_CUSTOM_HOLES[idx];
-if(type==='symStitch')return SYM_STITCHES[idx];
-if(type==='asymStitch')return ASYM_STITCHES[idx];
-if(type==='edgeStitch')return EDGE_STITCHES[idx];
-if(type==='edgeRange')return EDGE_RANGES[idx];
-if(type==='mergedEdgeRange')return MERGED_EDGE_RANGES[idx];
-if(type==='symShape')return SYM_SHAPES[idx];
-if(type==='asymShape')return ASYM_SHAPES[idx];
-if(type==='textAnnotation')return TEXT_ANNOTATIONS[idx];
-return null;
+getObjByTypeIdx(type, idx) {
+  return this.outlinerManager.getObjByTypeIdx(type, idx);
 }
-outlinerDragStart(e){
-const item=e.target.closest('.outliner-item');
-if(!item)return;
-e.dataTransfer.setData('text/plain',item.dataset.type+','+item.dataset.idx);
-e.dataTransfer.effectAllowed='move';
-}
-outlinerDragOver(e){
-e.preventDefault();
-e.dataTransfer.dropEffect='move';
-document.querySelectorAll('.outliner-item').forEach(i=>i.classList.remove('drag-over'));
-const item=e.target.closest('.outliner-item');
-if(item)item.classList.add('drag-over');
-}
-outlinerDrop(e,targetType,targetIdx){
-e.preventDefault();
-document.querySelectorAll('.outliner-item').forEach(i=>i.classList.remove('drag-over'));
-const data=e.dataTransfer.getData('text/plain').split(',');
-if(data.length!==2)return;
-const srcType=data[0],srcIdx=parseInt(data[1]);
-if(srcType===targetType&&srcIdx===targetIdx)return;
-const srcObj=this.getObjByTypeIdx(srcType,srcIdx);
-if(!srcObj)return;
-// Check if dropping on root - this unparents the item
-if(targetType==='root'){
-if(srcObj.parent){
-delete srcObj.parent;
-this.updateOutliner();
-this.saveState();
-}
-return;
-}
-// Check if dropping on holster - this parents the item TO the holster
-if(targetType==='holster'){
-// Prevent circular parenting (shouldn't happen with holster but be safe)
-srcObj.parent={type:'holster',idx:0};
-this.updateOutliner();
-this.saveState();
-return;
-}
-const targetObj=this.getObjByTypeIdx(targetType,targetIdx);
-if(targetObj){
-// Prevent circular parenting (can't parent to self or to own descendant)
-if(this.isDescendantOf(targetType,targetIdx,srcType,srcIdx)){
-this.showToast('Cannot create circular parent relationship','error');
-return;
-}
-srcObj.parent={type:targetType,idx:targetIdx};
-this.updateOutliner();
-this.saveState();
-}
-}
-isDescendantOf(checkType,checkIdx,ancestorType,ancestorIdx){
-// Check if checkType/checkIdx is a descendant of ancestorType/ancestorIdx
-if(checkType===ancestorType&&checkIdx===ancestorIdx)return true;
-const checkObj=this.getObjByTypeIdx(checkType,checkIdx);
-if(!checkObj||!checkObj.parent)return false;
-return this.isDescendantOf(checkObj.parent.type,checkObj.parent.idx,ancestorType,ancestorIdx);
-}
-propagateTransformToChildren(parentType,parentIdx,dx,dy){
-// Move all children by the same delta as the parent
-const allArrays=[
-{type:'symHole',arr:SYM_HOLES},{type:'asymHole',arr:ASYM_HOLES},
-{type:'symStitch',arr:SYM_STITCHES},{type:'asymStitch',arr:ASYM_STITCHES},
-{type:'symCustomHole',arr:SYM_CUSTOM_HOLES},{type:'asymCustomHole',arr:ASYM_CUSTOM_HOLES},
-{type:'symShape',arr:SYM_SHAPES},{type:'asymShape',arr:ASYM_SHAPES},{type:'textAnnotation',arr:TEXT_ANNOTATIONS},
-{type:'edgeRange',arr:EDGE_RANGES},{type:'edgeStitch',arr:EDGE_STITCHES},
-{type:'mergedEdgeRange',arr:MERGED_EDGE_RANGES}
-];
-allArrays.forEach(({type,arr})=>{
-arr.forEach((obj,idx)=>{
-if(obj.parent&&obj.parent.type===parentType&&obj.parent.idx===parentIdx){
-// Apply transformation to this child
-if(obj.x!==undefined){obj.x+=dx}
-if(obj.y!==undefined){obj.y+=dy}
-// Recursively propagate to grandchildren
-this.propagateTransformToChildren(type,idx,dx,dy);
-}
-});
-});
-}
-renameItem(type,idx){
-const obj=this.getObjByTypeIdx(type,idx);
-if(!obj)return;
-const item=document.querySelector(`.outliner-item[data-type="${type}"][data-idx="${idx}"]`);
-if(!item)return;
-const nameSpan=item.querySelector('.name');
-if(!nameSpan)return;
-const current=obj.name||nameSpan.textContent;
-// Create inline input
-const input=document.createElement('input');
-input.type='text';
-input.value=current;
-input.style.cssText='width:100%;padding:2px;font-size:12px;border:1px solid #007AFF;border-radius:3px;background:#333;color:#fff;';
-nameSpan.innerHTML='';
-nameSpan.appendChild(input);
-input.focus();
-input.select();
-const finishEdit=()=>{
-obj.name=input.value||current;
-this.updateOutliner();
-this.saveState();
-};
-input.addEventListener('blur',finishEdit);
-input.addEventListener('keydown',e=>{
-if(e.key==='Enter'){e.preventDefault();finishEdit();}
-if(e.key==='Escape'){e.preventDefault();this.updateOutliner();}
-});
-}
-selectOutlinerItem(type,idx){SELECTED={type,idx};this.updateInfo();this.updateOutliner();this.draw()}
-getObjByTypeIdx(type,idx){
-if(type==='symHole')return SYM_HOLES[idx];
-if(type==='asymHole')return ASYM_HOLES[idx];
-if(type==='symStitch')return SYM_STITCHES[idx];
-if(type==='asymStitch')return ASYM_STITCHES[idx];
-if(type==='symCustomHole')return SYM_CUSTOM_HOLES[idx];
-if(type==='asymCustomHole')return ASYM_CUSTOM_HOLES[idx];
-if(type==='symShape')return SYM_SHAPES[idx];
-if(type==='asymShape')return ASYM_SHAPES[idx];
-if(type==='textAnnotation')return TEXT_ANNOTATIONS[idx];
-if(type==='edgeRange')return EDGE_RANGES[idx];
-if(type==='edgeStitch')return EDGE_STITCHES[idx];
-return null;
+propagateTransformToChildren(parentType, parentIdx, dx, dy) {
+  // Move all children by the same delta as the parent
+  const allArrays = [
+    {type: 'symHole', arr: SYM_HOLES}, {type: 'asymHole', arr: ASYM_HOLES},
+    {type: 'symStitch', arr: SYM_STITCHES}, {type: 'asymStitch', arr: ASYM_STITCHES},
+    {type: 'symCustomHole', arr: SYM_CUSTOM_HOLES}, {type: 'asymCustomHole', arr: ASYM_CUSTOM_HOLES},
+    {type: 'symShape', arr: SYM_SHAPES}, {type: 'asymShape', arr: ASYM_SHAPES}, {type: 'textAnnotation', arr: TEXT_ANNOTATIONS},
+    {type: 'edgeRange', arr: EDGE_RANGES}, {type: 'edgeStitch', arr: EDGE_STITCHES},
+    {type: 'mergedEdgeRange', arr: MERGED_EDGE_RANGES}
+  ];
+  allArrays.forEach(({type, arr}) => {
+    arr.forEach((obj, idx) => {
+      if (obj.parent && obj.parent.type === parentType && obj.parent.idx === parentIdx) {
+        // Apply transformation to this child
+        if (obj.x !== undefined) { obj.x += dx }
+        if (obj.y !== undefined) { obj.y += dy }
+        // Recursively propagate to grandchildren
+        this.propagateTransformToChildren(type, idx, dx, dy);
+      }
+    });
+  });
 }
 updateCfg(key,val){
 if(typeof CFG[key]==='number')CFG[key]=parseFloat(val);
