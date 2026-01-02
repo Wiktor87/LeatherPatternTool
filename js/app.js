@@ -8,6 +8,9 @@ import { HistoryManager } from './state/HistoryManager.js';
 import { FileManager } from './io/FileManager.js';
 import { RefImageManager } from './io/RefImageManager.js';
 import { OutlinerManager } from './ui/OutlinerManager.js';
+import { ToolManager } from './tools/ToolManager.js';
+import { LayerManager } from './layers/LayerManager.js';
+import { PropertiesPanel } from './ui/PropertiesPanel.js';
 
 // Make config available globally for backwards compatibility
 window.CFG = CFG;
@@ -145,6 +148,68 @@ class App{
       closeSettings: () => {
         if (this.settingsOpen) this.toggleSettings();
       }
+    });
+    // Initialize tool manager
+    this.toolManager = new ToolManager({
+      getMode: () => MODE,
+      setModeState: (m) => { MODE = m; },
+      getLayer: () => LAYER,
+      setLayer: (l) => this.setLayer(l),
+      getTempStitch: () => TEMP_STITCH,
+      setTempStitch: (s) => { TEMP_STITCH = s; },
+      getTempShape: () => TEMP_SHAPE,
+      setTempShape: (s) => { TEMP_SHAPE = s; },
+      getTempCustomHole: () => TEMP_CUSTOMHOLE,
+      setTempCustomHole: (h) => { TEMP_CUSTOMHOLE = h; },
+      getCanvas: () => this.canvas,
+      draw: () => this.draw(),
+      finishStitch: () => this._finishStitch(),
+      finishShape: () => this._finishShape(),
+      finishCustomHole: () => this._finishCustomHole()
+    });
+    // Initialize layer manager
+    this.layerManager = new LayerManager({
+      getConfig: () => CFG,
+      getCurrentLayer: () => CURRENT_LAYER,
+      setCurrentLayer: (l) => { CURRENT_LAYER = l; },
+      getFrontLayer: () => FRONT_LAYER,
+      setFrontLayer: (l) => { FRONT_LAYER = l; },
+      getBackLayer: () => BACK_LAYER,
+      setBackLayer: (l) => { BACK_LAYER = l; },
+      getGhostOffset: () => GHOST_OFFSET,
+      setGhostOffset: (o) => { GHOST_OFFSET = o; },
+      captureState: () => this.captureLayerState(),
+      restoreState: (s) => this.restoreLayerState(s),
+      getCanvas: () => this.canvas,
+      draw: () => this.draw(),
+      updateInfo: () => this.updateInfo(),
+      updateOutliner: () => this.updateOutliner(),
+      saveState: () => this.saveState(),
+      showToast: (msg, type) => this.showToast(msg, type),
+      clearSelection: () => { SELECTED = null; }
+    });
+    // Initialize properties panel
+    this.propertiesPanel = new PropertiesPanel({
+      getSelected: () => SELECTED,
+      getConfig: () => CFG,
+      getCurrentLayer: () => CURRENT_LAYER,
+      getHolster: () => HOLSTER,
+      getNodes: () => NODES,
+      getSymHoles: () => SYM_HOLES,
+      getAsymHoles: () => ASYM_HOLES,
+      getSymCustomHoles: () => SYM_CUSTOM_HOLES,
+      getAsymCustomHoles: () => ASYM_CUSTOM_HOLES,
+      getSymShapes: () => SYM_SHAPES,
+      getAsymShapes: () => ASYM_SHAPES,
+      getSymStitches: () => SYM_STITCHES,
+      getAsymStitches: () => ASYM_STITCHES,
+      getEdgeStitches: () => EDGE_STITCHES,
+      getEdgeRanges: () => EDGE_RANGES,
+      getMergedEdgeRanges: () => MERGED_EDGE_RANGES,
+      getTextAnnotations: () => TEXT_ANNOTATIONS,
+      draw: () => this.draw(),
+      saveState: () => this.saveState(),
+      updateOutliner: () => this.updateOutliner()
     });
     this.init();
   }
@@ -622,24 +687,10 @@ resize(){const w=innerWidth,h=innerHeight;this.canvas.width=w*this.dpr;this.canv
 resetView(){VIEW.zoom=1;VIEW.x=innerWidth/2;VIEW.y=innerHeight/2;this.updateZoomIndicator();this.draw()}
 setLayer(l){LAYER=l;document.querySelector('.layer-btn.sym').classList.toggle('active',l==='symmetric');document.querySelector('.layer-btn.asym').classList.toggle('active',l==='asymmetric');CFG.showSymmetric=true;CFG.showAsymmetric=true;this.draw()}
 // Two-Layer Mode functions
-onProjectTypeChange(type){
-// Toggle UI elements based on project type
-const isTwoLayer=type==='two-layer';
-document.getElementById('layer-toggle').style.display=isTwoLayer?'none':'flex';
-document.getElementById('two-layer-toggle').style.display=isTwoLayer?'flex':'none';
-document.getElementById('two-layer-sync').style.display=isTwoLayer?'block':'none';
-document.getElementById('two-layer-ghost').style.display=isTwoLayer?'block':'none';
-document.getElementById('two-layer-actions').style.display=isTwoLayer?'flex':'none';
-document.getElementById('publish-layout').style.display=isTwoLayer?'inline-block':'none';
-// Initialize layers if switching to two-layer mode
-if(isTwoLayer&&!FRONT_LAYER){
-this.initializeLayers();
-CURRENT_LAYER='front';
-this.updateLayerUI();
+onProjectTypeChange(type) {
+  this.layerManager.onProjectTypeChange(type);
 }
-// Show notification
-this.showToast(isTwoLayer?'Switched to Two-Layer Mode':'Switched to Fold-Over Mode','info');
-}
+
 onAsymmetricOutlineChange(enabled){
 // When enabling asymmetric mode, convert current mirrored outline to full perimeter
 if(enabled){
@@ -682,174 +733,228 @@ this.showToast('Asymmetric Outline disabled - nodes define right half only','inf
 this.saveState();
 this.draw();
 }
-initializeLayers(){
-// Save current state as front layer
-FRONT_LAYER=this.captureLayerState();
-// Initialize back layer as copy of front
-BACK_LAYER=JSON.parse(JSON.stringify(FRONT_LAYER));
+
+initializeLayers() {
+  this.layerManager.initializeLayers();
 }
-captureLayerState(){
-return{
-NODES:JSON.parse(JSON.stringify(NODES)),
-EDGE_RANGES:JSON.parse(JSON.stringify(EDGE_RANGES)),
-MERGED_EDGE_RANGES:JSON.parse(JSON.stringify(MERGED_EDGE_RANGES)),
-EDGE_STITCHES:JSON.parse(JSON.stringify(EDGE_STITCHES)),
-SYM_HOLES:JSON.parse(JSON.stringify(SYM_HOLES)),
-SYM_STITCHES:JSON.parse(JSON.stringify(SYM_STITCHES)),
-SYM_SHAPES:JSON.parse(JSON.stringify(SYM_SHAPES)),
-SYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(SYM_CUSTOM_HOLES)),
-ASYM_HOLES:JSON.parse(JSON.stringify(ASYM_HOLES)),
-ASYM_STITCHES:JSON.parse(JSON.stringify(ASYM_STITCHES)),
-ASYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(ASYM_CUSTOM_HOLES)),
-ASYM_SHAPES:JSON.parse(JSON.stringify(ASYM_SHAPES)),
-TEXT_ANNOTATIONS:JSON.parse(JSON.stringify(TEXT_ANNOTATIONS))
-};
+
+captureLayerState() {
+  return {
+    NODES: JSON.parse(JSON.stringify(NODES)),
+    EDGE_RANGES: JSON.parse(JSON.stringify(EDGE_RANGES)),
+    MERGED_EDGE_RANGES: JSON.parse(JSON.stringify(MERGED_EDGE_RANGES)),
+    EDGE_STITCHES: JSON.parse(JSON.stringify(EDGE_STITCHES)),
+    SYM_HOLES: JSON.parse(JSON.stringify(SYM_HOLES)),
+    SYM_STITCHES: JSON.parse(JSON.stringify(SYM_STITCHES)),
+    SYM_SHAPES: JSON.parse(JSON.stringify(SYM_SHAPES)),
+    SYM_CUSTOM_HOLES: JSON.parse(JSON.stringify(SYM_CUSTOM_HOLES)),
+    ASYM_HOLES: JSON.parse(JSON.stringify(ASYM_HOLES)),
+    ASYM_STITCHES: JSON.parse(JSON.stringify(ASYM_STITCHES)),
+    ASYM_CUSTOM_HOLES: JSON.parse(JSON.stringify(ASYM_CUSTOM_HOLES)),
+    ASYM_SHAPES: JSON.parse(JSON.stringify(ASYM_SHAPES)),
+    TEXT_ANNOTATIONS: JSON.parse(JSON.stringify(TEXT_ANNOTATIONS))
+  };
 }
-restoreLayerState(state){
-NODES=JSON.parse(JSON.stringify(state.NODES));
-EDGE_RANGES=JSON.parse(JSON.stringify(state.EDGE_RANGES));
-MERGED_EDGE_RANGES=JSON.parse(JSON.stringify(state.MERGED_EDGE_RANGES));
-EDGE_STITCHES=JSON.parse(JSON.stringify(state.EDGE_STITCHES));
-SYM_HOLES=JSON.parse(JSON.stringify(state.SYM_HOLES));
-SYM_STITCHES=JSON.parse(JSON.stringify(state.SYM_STITCHES));
-SYM_SHAPES=JSON.parse(JSON.stringify(state.SYM_SHAPES||[]));
-SYM_CUSTOM_HOLES=JSON.parse(JSON.stringify(state.SYM_CUSTOM_HOLES));
-ASYM_HOLES=JSON.parse(JSON.stringify(state.ASYM_HOLES));
-ASYM_STITCHES=JSON.parse(JSON.stringify(state.ASYM_STITCHES));
-ASYM_CUSTOM_HOLES=JSON.parse(JSON.stringify(state.ASYM_CUSTOM_HOLES));
-ASYM_SHAPES=JSON.parse(JSON.stringify(state.ASYM_SHAPES));
-TEXT_ANNOTATIONS=JSON.parse(JSON.stringify(state.TEXT_ANNOTATIONS));
+
+restoreLayerState(state) {
+  NODES = JSON.parse(JSON.stringify(state.NODES));
+  EDGE_RANGES = JSON.parse(JSON.stringify(state.EDGE_RANGES));
+  MERGED_EDGE_RANGES = JSON.parse(JSON.stringify(state.MERGED_EDGE_RANGES));
+  EDGE_STITCHES = JSON.parse(JSON.stringify(state.EDGE_STITCHES));
+  SYM_HOLES = JSON.parse(JSON.stringify(state.SYM_HOLES));
+  SYM_STITCHES = JSON.parse(JSON.stringify(state.SYM_STITCHES));
+  SYM_SHAPES = JSON.parse(JSON.stringify(state.SYM_SHAPES || []));
+  SYM_CUSTOM_HOLES = JSON.parse(JSON.stringify(state.SYM_CUSTOM_HOLES));
+  ASYM_HOLES = JSON.parse(JSON.stringify(state.ASYM_HOLES));
+  ASYM_STITCHES = JSON.parse(JSON.stringify(state.ASYM_STITCHES));
+  ASYM_CUSTOM_HOLES = JSON.parse(JSON.stringify(state.ASYM_CUSTOM_HOLES));
+  ASYM_SHAPES = JSON.parse(JSON.stringify(state.ASYM_SHAPES));
+  TEXT_ANNOTATIONS = JSON.parse(JSON.stringify(state.TEXT_ANNOTATIONS));
 }
-switchLayer(layer){
-if(CFG.projectType!=='two-layer')return;
-// Save current layer state
-if(CURRENT_LAYER==='front'){
-FRONT_LAYER=this.captureLayerState();
-}else{
-BACK_LAYER=this.captureLayerState();
+
+switchLayer(layer) {
+  this.layerManager.switchLayer(layer);
 }
-// Switch to new layer
-CURRENT_LAYER=layer;
-const targetState=layer==='front'?FRONT_LAYER:BACK_LAYER;
-this.restoreLayerState(targetState);
-// Update UI
-this.updateLayerUI();
-SELECTED=null;
-this.updateInfo();
-this.updateOutliner();
-this.draw();
-this.showToast(`Editing ${layer==='front'?'Front':'Back'} Layer`,layer==='front'?'info':'success');
+
+updateLayerUI() {
+  this.layerManager.updateLayerUI();
 }
-updateLayerUI(){
-// Update toggle buttons
-document.querySelector('.layer-btn.front')?.classList.toggle('active',CURRENT_LAYER==='front');
-document.querySelector('.layer-btn.back')?.classList.toggle('active',CURRENT_LAYER==='back');
-// Update canvas background tint
-this.canvas.classList.remove('layer-front','layer-back');
-if(CFG.projectType==='two-layer'){
-this.canvas.classList.add('layer-'+CURRENT_LAYER);
+
+duplicateLayer(direction) {
+  this.layerManager.duplicateLayer(direction);
 }
-// Update properties bar prefix
-const selTitle=document.getElementById('sel-type');
-if(selTitle&&CFG.projectType==='two-layer'){
-const prefix=CURRENT_LAYER==='front'?'[Front] ':'[Back] ';
-const baseText=selTitle.textContent.replace(/^\[(Front|Back)\] /,'');
-selTitle.textContent=prefix+baseText;
+
+resetToMaster() {
+  this.layerManager.resetToMaster();
 }
+
+resetGhostPosition() {
+  this.layerManager.resetGhostPosition();
 }
-duplicateLayer(direction){
-if(CFG.projectType!=='two-layer')return;
-const msg=direction==='toBack'?
-'Copy all Front layer data to Back layer? This will overwrite the Back layer.':
-'Copy all Back layer data to Front layer? This will overwrite the Front layer.';
-if(!confirm(msg))return;
-if(direction==='toBack'){
-// Save current front state and copy to back
-if(CURRENT_LAYER==='front'){
-FRONT_LAYER=this.captureLayerState();
-}
-BACK_LAYER=JSON.parse(JSON.stringify(FRONT_LAYER));
-if(CURRENT_LAYER==='back'){
-this.restoreLayerState(BACK_LAYER);
-}
-this.showToast('Front layer copied to Back','success');
-}else{
-// Save current back state and copy to front
-if(CURRENT_LAYER==='back'){
-BACK_LAYER=this.captureLayerState();
-}
-FRONT_LAYER=JSON.parse(JSON.stringify(BACK_LAYER));
-if(CURRENT_LAYER==='front'){
-this.restoreLayerState(FRONT_LAYER);
-}
-this.showToast('Back layer copied to Front','success');
-}
-this.updateInfo();
-this.updateOutliner();
-this.draw();
-this.saveState();
-}
-resetToMaster(){
-if(CFG.projectType!=='two-layer')return;
-if(!confirm('Reset Back layer to match Front layer? This will overwrite all Back layer data.'))return;
-// Copy front to back
-BACK_LAYER=JSON.parse(JSON.stringify(FRONT_LAYER));
-// If currently on back layer, restore it
-if(CURRENT_LAYER==='back'){
-this.restoreLayerState(BACK_LAYER);
-this.updateInfo();
-this.updateOutliner();
-this.draw();
-}
-this.showToast('Back layer reset to master','success');
-this.saveState();
-}
-resetGhostPosition(){
-if(CFG.projectType!=='two-layer')return;
-GHOST_OFFSET.x=0;
-GHOST_OFFSET.y=0;
-this.draw();
-this.showToast('Ghost layer position reset','info');
-}
+
 // Sync functions for two-layer mode
-syncOutlineToBack(){
-if(CFG.projectType!=='two-layer'||!CFG.syncOutline||CURRENT_LAYER!=='front')return;
-// Save current front layer
-FRONT_LAYER=this.captureLayerState();
-// Update back layer's outline
-if(BACK_LAYER){
-BACK_LAYER.NODES=JSON.parse(JSON.stringify(FRONT_LAYER.NODES));
-BACK_LAYER.EDGE_RANGES=JSON.parse(JSON.stringify(FRONT_LAYER.EDGE_RANGES));
-BACK_LAYER.MERGED_EDGE_RANGES=JSON.parse(JSON.stringify(FRONT_LAYER.MERGED_EDGE_RANGES));
+syncOutlineToBack() {
+  this.layerManager.syncOutlineToBack();
 }
+
+syncEdgeStitchesToBack() {
+  this.layerManager.syncEdgeStitchesToBack();
 }
-syncEdgeStitchesToBack(){
-if(CFG.projectType!=='two-layer'||!CFG.syncEdgeStitches||CURRENT_LAYER!=='front')return;
-// Save current front layer
-FRONT_LAYER=this.captureLayerState();
-// Update back layer's edge stitches
-if(BACK_LAYER){
-BACK_LAYER.EDGE_STITCHES=JSON.parse(JSON.stringify(FRONT_LAYER.EDGE_STITCHES));
+
+selectHolster() {SELECTED={type:'holster'};this.updateInfo();this.draw()}
+setMode(m) {
+  this.toolManager.setMode(m);
 }
+
+_finishStitch() {
+  if (!TEMP_STITCH || TEMP_STITCH.points.length < 2) return;
+  
+  const ns = {
+    points: TEMP_STITCH.points.map(p => ({
+      x: p.x,
+      y: p.y,
+      h1: { x: 0, y: 0 },
+      h2: { x: 0, y: 0 }
+    })),
+    spacing: 4
+  };
+  this.smoothHandles(ns.points);
+  
+  if (LAYER === 'asymmetric') {
+    ASYM_STITCHES.push(ns);
+  } else {
+    ns.points = ns.points.map(p => {
+      const lp = M.worldToHolster(p);
+      return {
+        x: Math.abs(lp.x),
+        y: lp.y,
+        h1: p.h1,
+        h2: p.h2
+      };
+    });
+    SYM_STITCHES.push(ns);
+  }
+  
+  TEMP_STITCH = null;
+  this.saveState();
 }
-selectHolster(){SELECTED={type:'holster'};this.updateInfo();this.draw()}
-setMode(m){MODE=m;TEMP_STITCH=null;TEMP_SHAPE=null;TEMP_CUSTOMHOLE=null;
-document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active','orange','purple'));
-const toolId='tool-'+m;const btn=document.getElementById(toolId);
-if(btn){btn.classList.add('active');if(m==='shape'||m==='hole'||m==='customhole')btn.classList.add('orange');if(m==='stitch')btn.classList.add('purple')}
-else document.getElementById('tool-select').classList.add('active');
-const ind=document.getElementById('mode-indicator');
-if(m==='hole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'○ Single Hole':'○ Mirrored Hole';ind.className='active orange';this.canvas.style.cursor='copy'}
-else if(m==='customhole'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'✎ Single Custom':'✎ Mirrored Custom';ind.className='active orange';this.canvas.style.cursor='crosshair'}
-else if(m==='stitch'){ind.querySelector('.mode-text').textContent=LAYER==='asymmetric'?'┅ Single Stitch':'┅ Mirrored Stitch';ind.className='active purple';this.canvas.style.cursor='copy'}
-else if(m==='text'){ind.querySelector('.mode-text').textContent='T Add Text';ind.className='active';this.canvas.style.cursor='text'}
-else if(m==='shape'){ind.querySelector('.mode-text').textContent='◇ Single Shape';ind.className='active orange';this.canvas.style.cursor='crosshair';LAYER='asymmetric';this.setLayer('asymmetric')}
-else{ind.className='';this.canvas.style.cursor='default'}
-this.draw()}
-finishMode(){if(MODE==='stitch'&&TEMP_STITCH&&TEMP_STITCH.points.length>=2){const ns={points:TEMP_STITCH.points.map(p=>({x:p.x,y:p.y,h1:{x:0,y:0},h2:{x:0,y:0}})),spacing:4};this.smoothHandles(ns.points);if(LAYER==='asymmetric')ASYM_STITCHES.push(ns);else{ns.points=ns.points.map(p=>{const lp=M.worldToHolster(p);return{x:Math.abs(lp.x),y:lp.y,h1:p.h1,h2:p.h2}});SYM_STITCHES.push(ns)}TEMP_STITCH=null;this.saveState()}if(MODE==='shape'&&TEMP_SHAPE&&TEMP_SHAPE.points.length>=3){const b=M.getBounds(TEMP_SHAPE.points);const pts=TEMP_SHAPE.points.map(p=>({x:p.x-b.cx,y:p.y-b.cy,h1:{x:0,y:0},h2:{x:0,y:0}}));this.smoothHandlesClosed(pts);ASYM_SHAPES.push({points:pts,x:b.cx,y:b.cy,rotation:0,scaleX:1,scaleY:1,stitchBorder:false,stitchMargin:3,stitchSpacing:3});TEMP_SHAPE=null;this.saveState()}if(MODE==='customhole'&&TEMP_CUSTOMHOLE&&TEMP_CUSTOMHOLE.points.length>=3){const b=M.getBounds(TEMP_CUSTOMHOLE.points);const pts=TEMP_CUSTOMHOLE.points.map(p=>({x:p.x-b.cx,y:p.y-b.cy,h1:{x:0,y:0},h2:{x:0,y:0}}));this.smoothHandlesClosed(pts);if(LAYER==='asymmetric'){ASYM_CUSTOM_HOLES.push({points:pts,x:b.cx,y:b.cy,rotation:0,scaleX:1,scaleY:1,stitchBorder:false,stitchMargin:3,stitchSpacing:3})}else{const lc=M.worldToHolster({x:b.cx,y:b.cy});const localPts=pts.map(p=>{const wp={x:p.x+b.cx,y:p.y+b.cy};const lp=M.worldToHolster(wp);return{x:lp.x-lc.x,y:lp.y-lc.y,h1:{x:p.h1.x/HOLSTER.scaleX,y:p.h1.y/HOLSTER.scaleY},h2:{x:p.h2.x/HOLSTER.scaleX,y:p.h2.y/HOLSTER.scaleY}}});SYM_CUSTOM_HOLES.push({points:localPts,x:Math.abs(lc.x),y:lc.y,rotation:0,scaleX:1,scaleY:1,stitchBorder:false,stitchMargin:3,stitchSpacing:3})}TEMP_CUSTOMHOLE=null;this.saveState()}this.setMode('select')}
-smoothHandles(pts){if(pts.length<2)return;for(let i=0;i<pts.length;i++){const p=pts[i-1],c=pts[i],n=pts[i+1];if(p&&n){const dx=n.x-p.x,dy=n.y-p.y,len=Math.hypot(dx,dy)*.25,ang=Math.atan2(dy,dx);c.h1={x:-Math.cos(ang)*len,y:-Math.sin(ang)*len};c.h2={x:Math.cos(ang)*len,y:Math.sin(ang)*len}}else if(n){c.h2={x:(n.x-c.x)*.25,y:(n.y-c.y)*.25};c.h1={x:0,y:0}}else if(p){c.h1={x:-(c.x-p.x)*.25,y:-(c.y-p.y)*.25};c.h2={x:0,y:0}}}}
-smoothHandlesClosed(pts){if(pts.length<3)return;for(let i=0;i<pts.length;i++){const p=pts[(i-1+pts.length)%pts.length],c=pts[i],n=pts[(i+1)%pts.length];const dx=n.x-p.x,dy=n.y-p.y,len=Math.hypot(dx,dy)*.25,ang=Math.atan2(dy,dx);c.h1={x:-Math.cos(ang)*len,y:-Math.sin(ang)*len};c.h2={x:Math.cos(ang)*len,y:Math.sin(ang)*len}}}
-cancelMode(){TEMP_STITCH=null;TEMP_SHAPE=null;TEMP_CUSTOMHOLE=null;this.setMode('select')}
+
+_finishShape() {
+  if (!TEMP_SHAPE || TEMP_SHAPE.points.length < 3) return;
+  
+  const b = M.getBounds(TEMP_SHAPE.points);
+  const pts = TEMP_SHAPE.points.map(p => ({
+    x: p.x - b.cx,
+    y: p.y - b.cy,
+    h1: { x: 0, y: 0 },
+    h2: { x: 0, y: 0 }
+  }));
+  this.smoothHandlesClosed(pts);
+  
+  ASYM_SHAPES.push({
+    points: pts,
+    x: b.cx,
+    y: b.cy,
+    rotation: 0,
+    scaleX: 1,
+    scaleY: 1,
+    stitchBorder: false,
+    stitchMargin: 3,
+    stitchSpacing: 3
+  });
+  
+  TEMP_SHAPE = null;
+  this.saveState();
+}
+
+_finishCustomHole() {
+  if (!TEMP_CUSTOMHOLE || TEMP_CUSTOMHOLE.points.length < 3) return;
+  
+  const b = M.getBounds(TEMP_CUSTOMHOLE.points);
+  const pts = TEMP_CUSTOMHOLE.points.map(p => ({
+    x: p.x - b.cx,
+    y: p.y - b.cy,
+    h1: { x: 0, y: 0 },
+    h2: { x: 0, y: 0 }
+  }));
+  this.smoothHandlesClosed(pts);
+  
+  if (LAYER === 'asymmetric') {
+    ASYM_CUSTOM_HOLES.push({
+      points: pts,
+      x: b.cx,
+      y: b.cy,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+      stitchBorder: false,
+      stitchMargin: 3,
+      stitchSpacing: 3
+    });
+  } else {
+    const lc = M.worldToHolster({ x: b.cx, y: b.cy });
+    const localPts = pts.map(p => {
+      const wp = { x: p.x + b.cx, y: p.y + b.cy };
+      const lp = M.worldToHolster(wp);
+      return {
+        x: lp.x - lc.x,
+        y: lp.y - lc.y,
+        h1: { x: p.h1.x / HOLSTER.scaleX, y: p.h1.y / HOLSTER.scaleY },
+        h2: { x: p.h2.x / HOLSTER.scaleX, y: p.h2.y / HOLSTER.scaleY }
+      };
+    });
+    SYM_CUSTOM_HOLES.push({
+      points: localPts,
+      x: Math.abs(lc.x),
+      y: lc.y,
+      rotation: 0,
+      scaleX: 1,
+      scaleY: 1,
+      stitchBorder: false,
+      stitchMargin: 3,
+      stitchSpacing: 3
+    });
+  }
+  
+  TEMP_CUSTOMHOLE = null;
+  this.saveState();
+}
+
+finishMode() {
+  this.toolManager.finishMode();
+}
+
+smoothHandles(pts) {
+  if (pts.length < 2) return;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i - 1], c = pts[i], n = pts[i + 1];
+    if (p && n) {
+      const dx = n.x - p.x, dy = n.y - p.y, len = Math.hypot(dx, dy) * .25, ang = Math.atan2(dy, dx);
+      c.h1 = { x: -Math.cos(ang) * len, y: -Math.sin(ang) * len };
+      c.h2 = { x: Math.cos(ang) * len, y: Math.sin(ang) * len };
+    } else if (n) {
+      c.h2 = { x: (n.x - c.x) * .25, y: (n.y - c.y) * .25 };
+      c.h1 = { x: 0, y: 0 };
+    } else if (p) {
+      c.h1 = { x: -(c.x - p.x) * .25, y: -(c.y - p.y) * .25 };
+      c.h2 = { x: 0, y: 0 };
+    }
+  }
+}
+
+smoothHandlesClosed(pts) {
+  if (pts.length < 3) return;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[(i - 1 + pts.length) % pts.length], c = pts[i], n = pts[(i + 1) % pts.length];
+    const dx = n.x - p.x, dy = n.y - p.y, len = Math.hypot(dx, dy) * .25, ang = Math.atan2(dy, dx);
+    c.h1 = { x: -Math.cos(ang) * len, y: -Math.sin(ang) * len };
+    c.h2 = { x: Math.cos(ang) * len, y: Math.sin(ang) * len };
+  }
+}
+
+cancelMode() {
+  this.toolManager.cancelMode();
+}
 addEdgeRange(){EDGE_RANGES.push({start:0.1,end:0.9});SELECTED={type:'edgeRange',idx:EDGE_RANGES.length-1};this.updateInfo();this.draw();this.saveState()}
 addMergedEdgeRange(){MERGED_EDGE_RANGES.push({start:0.1,end:0.9});SELECTED={type:'mergedEdgeRange',idx:MERGED_EDGE_RANGES.length-1};this.updateInfo();this.draw();this.saveState()}
 generateMatchingCircle(){
@@ -929,12 +1034,31 @@ return{points:circlePoints,radius:radius,edgeLength:baseLen,stitchPositions:stit
 }catch(e){console.error('getLinkedCircleData error:',e);return null;}
 }
 deleteSelected(){if(!SELECTED)return;if(SELECTED.type==='symHole')SYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='symStitch')SYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='symCustomHole')SYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='symShape')SYM_SHAPES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymShape')ASYM_SHAPES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymHole')ASYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymStitch')ASYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymCustomHole')ASYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='textAnnotation')TEXT_ANNOTATIONS.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeRange'&&EDGE_RANGES.length>1)EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='mergedEdgeRange')MERGED_EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeStitch')EDGE_STITCHES.splice(SELECTED.idx,1);SELECTED=null;this.updateInfo();this.updateOutliner();this.draw();this.saveState();this.showToast('Deleted', 'info')}
-changeHoleShape(s){const h=this.getSelectedObj();if(h&&h.shape!==undefined){h.shape=s;if(s==='circle')h.width=h.height=Math.max(h.width,h.height);this.updateInfo();this.draw();this.saveState()}}
-changeHoleWidth(v){const h=this.getSelectedObj();if(h&&h.width!==undefined){h.width=parseFloat(v);document.getElementById('sel-width').value=v;document.getElementById('sel-width-slider').value=v;this.draw()}}
-changeHoleHeight(v){const h=this.getSelectedObj();if(h&&h.height!==undefined){h.height=parseFloat(v);document.getElementById('sel-height').value=v;document.getElementById('sel-height-slider').value=v;this.draw()}}
-toggleStitchBorder(v){const h=this.getSelectedObj();if(h){h.stitchBorder=v;this.updateInfo();this.draw();this.saveState()}}
-changeStitchMargin(v){const h=this.getSelectedObj();if(h){if(SELECTED?.type==='edgeStitch'){h.margin=parseFloat(v)}else{h.stitchMargin=parseFloat(v)}document.getElementById('sel-stitch-margin').value=v;document.getElementById('sel-stitch-margin-slider').value=v;this.draw()}}
-changeStitchSpacing(v){const h=this.getSelectedObj();if(h){if(SELECTED?.type==='edgeStitch'){h.spacing=parseFloat(v)}else{h.stitchSpacing=parseFloat(v)}document.getElementById('sel-stitch-spacing').value=v;document.getElementById('sel-stitch-spacing-slider').value=v;this.draw()}}
+changeHoleShape(s) {
+  this.propertiesPanel.changeHoleShape(s);
+  this.updateInfo();
+}
+
+changeHoleWidth(v) {
+  this.propertiesPanel.changeHoleWidth(v);
+}
+
+changeHoleHeight(v) {
+  this.propertiesPanel.changeHoleHeight(v);
+}
+
+toggleStitchBorder(v) {
+  this.propertiesPanel.toggleStitchBorder(v);
+  this.updateInfo();
+}
+
+changeStitchMargin(v) {
+  this.propertiesPanel.changeStitchMargin(v);
+}
+
+changeStitchSpacing(v) {
+  this.propertiesPanel.changeStitchSpacing(v);
+}
 // Text editing functions
 startTextEdit(idx){
 const t=TEXT_ANNOTATIONS[idx];
@@ -1002,70 +1126,30 @@ this.setMode('select');
 this.updateInfo();
 this.draw();
 }
-changeText(v){
-if(SELECTED?.type==='textAnnotation'){
-TEXT_ANNOTATIONS[SELECTED.idx].text=v;
-this.draw();
-this.saveState();
+changeText(v) {
+  this.propertiesPanel.changeText(v);
 }
+
+changeFontSize(v) {
+  this.propertiesPanel.changeFontSize(v);
 }
-changeFontSize(v){
-if(SELECTED?.type==='textAnnotation'){
-TEXT_ANNOTATIONS[SELECTED.idx].fontSize=parseInt(v)||12;
-document.getElementById('sel-fontsize').value=v;
-this.draw();
-this.saveState();
+
+toggleBold() {
+  this.propertiesPanel.toggleBold();
 }
+
+toggleItalic() {
+  this.propertiesPanel.toggleItalic();
 }
-toggleBold(){
-if(SELECTED?.type==='textAnnotation'){
-const t=TEXT_ANNOTATIONS[SELECTED.idx];
-t.bold=!t.bold;
-document.getElementById('btn-bold').style.background=t.bold?'var(--accent)':'#333';
-this.draw();
-this.saveState();
+
+changeTextStyle(style) {
+  this.propertiesPanel.changeTextStyle(style);
+  this.updateInfo();
 }
-}
-toggleItalic(){
-if(SELECTED?.type==='textAnnotation'){
-const t=TEXT_ANNOTATIONS[SELECTED.idx];
-t.italic=!t.italic;
-document.getElementById('btn-italic').style.background=t.italic?'var(--accent)':'#333';
-this.draw();
-this.saveState();
-}
-}
-changeTextStyle(style){
-if(SELECTED?.type==='textAnnotation'){
-const t=TEXT_ANNOTATIONS[SELECTED.idx];
-t.style=style;
-// Apply appropriate styling based on text style
-if(style==='header'){
-t.fontSize=24;
-t.bold=true;
-}else if(style==='subheader'){
-t.fontSize=18;
-t.bold=true;
-}else{
-// normal - keep current settings or reset to defaults
-if(!t.fontSize||t.fontSize>18)t.fontSize=12;
-}
-this.updateInfo();
-this.draw();
-this.saveState();
-}
-}
-changeListType(listType){
-if(SELECTED?.type==='textAnnotation'){
-const t=TEXT_ANNOTATIONS[SELECTED.idx];
-t.listType=listType;
-if(listType!=='none'&&!t.listIndex){
-t.listIndex=1;
-}
-this.updateInfo();
-this.draw();
-this.saveState();
-}
+
+changeListType(listType) {
+  this.propertiesPanel.changeListType(listType);
+  this.updateInfo();
 }
 toggleMirror(checked){
 // Toggle between mirrored (symmetric) and single (asymmetric) elements
@@ -1350,7 +1434,9 @@ this.breakHandles();
 this.linkHandles();
 }
 }
-getSelectedObj(){if(SELECTED?.type==='symHole')return SYM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymHole')return ASYM_HOLES[SELECTED.idx];if(SELECTED?.type==='symCustomHole')return SYM_CUSTOM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymCustomHole')return ASYM_CUSTOM_HOLES[SELECTED.idx];if(SELECTED?.type==='symShape')return SYM_SHAPES[SELECTED.idx];if(SELECTED?.type==='asymShape')return ASYM_SHAPES[SELECTED.idx];if(SELECTED?.type==='symStitch')return SYM_STITCHES[SELECTED.idx];if(SELECTED?.type==='asymStitch')return ASYM_STITCHES[SELECTED.idx];if(SELECTED?.type==='edgeStitch')return EDGE_STITCHES[SELECTED.idx];return null}
+getSelectedObj() {
+  return this.propertiesPanel.getSelectedObj();
+}
 updateInfo(){
 if(this.outlinerOpen)this.updateOutliner();
 const bar=document.getElementById('props-bar'),stats=document.getElementById('stats');
