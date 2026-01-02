@@ -1057,6 +1057,169 @@ document.getElementById('btn-italic').style.background=t.italic?'var(--accent)':
 this.draw();
 }
 }
+changeTextStyle(style){
+if(SELECTED?.type==='textAnnotation'){
+const t=TEXT_ANNOTATIONS[SELECTED.idx];
+t.textStyle=style;
+// Apply appropriate styling based on text style
+if(style==='header'){
+t.fontSize=24;
+t.bold=true;
+}else if(style==='subheader'){
+t.fontSize=18;
+t.bold=true;
+}else{
+// normal - keep current settings
+}
+this.updateInfo();
+this.draw();
+this.saveState();
+}
+}
+changeListType(listType){
+if(SELECTED?.type==='textAnnotation'){
+const t=TEXT_ANNOTATIONS[SELECTED.idx];
+t.listType=listType;
+if(listType!=='none'&&!t.listIndex){
+t.listIndex=1;
+}
+this.updateInfo();
+this.draw();
+this.saveState();
+}
+}
+toggleMirror(checked){
+// Toggle between mirrored (symmetric) and single (asymmetric) elements
+if(!SELECTED)return;
+const type=SELECTED.type;
+const idx=SELECTED.idx;
+if(type==='symHole'){
+// Convert symmetric hole to asymmetric
+const hole=SYM_HOLES[idx];
+const newHole={
+x:M.holsterToWorld({x:hole.x,y:hole.y}).x,
+y:M.holsterToWorld({x:hole.x,y:hole.y}).y,
+width:hole.width*HOLSTER.scaleX,
+height:hole.height*HOLSTER.scaleY,
+rotation:(HOLSTER.rotation||0)+(hole.rotation||0),
+shape:hole.shape,
+stitchBorder:hole.stitchBorder,
+stitchMargin:hole.stitchMargin,
+stitchSpacing:hole.stitchSpacing,
+name:hole.name
+};
+SYM_HOLES.splice(idx,1);
+ASYM_HOLES.push(newHole);
+SELECTED={type:'asymHole',idx:ASYM_HOLES.length-1};
+}else if(type==='asymHole'){
+// Convert asymmetric hole to symmetric
+const hole=ASYM_HOLES[idx];
+const localPos=M.worldToHolster({x:hole.x,y:hole.y});
+const scaleX=Math.max(0.01,HOLSTER.scaleX);
+const scaleY=Math.max(0.01,HOLSTER.scaleY);
+const newHole={
+x:Math.abs(localPos.x),
+y:localPos.y,
+width:hole.width/scaleX,
+height:hole.height/scaleY,
+rotation:(hole.rotation||0)-(HOLSTER.rotation||0),
+shape:hole.shape,
+stitchBorder:hole.stitchBorder,
+stitchMargin:hole.stitchMargin,
+stitchSpacing:hole.stitchSpacing,
+name:hole.name
+};
+ASYM_HOLES.splice(idx,1);
+SYM_HOLES.push(newHole);
+SELECTED={type:'symHole',idx:SYM_HOLES.length-1};
+}else if(type==='symCustomHole'){
+// Convert symmetric custom hole to asymmetric
+const hole=SYM_CUSTOM_HOLES[idx];
+const worldPos=M.holsterToWorld({x:hole.x,y:hole.y});
+const newHole={
+x:worldPos.x,
+y:worldPos.y,
+points:JSON.parse(JSON.stringify(hole.points)),
+scaleX:(hole.scaleX||1)*HOLSTER.scaleX,
+scaleY:(hole.scaleY||1)*HOLSTER.scaleY,
+rotation:(HOLSTER.rotation||0)+(hole.rotation||0),
+stitchBorder:hole.stitchBorder,
+stitchMargin:hole.stitchMargin,
+stitchSpacing:hole.stitchSpacing,
+name:hole.name
+};
+SYM_CUSTOM_HOLES.splice(idx,1);
+ASYM_CUSTOM_HOLES.push(newHole);
+SELECTED={type:'asymCustomHole',idx:ASYM_CUSTOM_HOLES.length-1};
+}else if(type==='asymCustomHole'){
+// Convert asymmetric custom hole to symmetric
+const hole=ASYM_CUSTOM_HOLES[idx];
+const localPos=M.worldToHolster({x:hole.x,y:hole.y});
+const scaleX=Math.max(0.01,HOLSTER.scaleX);
+const scaleY=Math.max(0.01,HOLSTER.scaleY);
+const newHole={
+x:Math.abs(localPos.x),
+y:localPos.y,
+points:JSON.parse(JSON.stringify(hole.points)),
+scaleX:(hole.scaleX||1)/scaleX,
+scaleY:(hole.scaleY||1)/scaleY,
+rotation:(hole.rotation||0)-(HOLSTER.rotation||0),
+stitchBorder:hole.stitchBorder,
+stitchMargin:hole.stitchMargin,
+stitchSpacing:hole.stitchSpacing,
+name:hole.name
+};
+ASYM_CUSTOM_HOLES.splice(idx,1);
+SYM_CUSTOM_HOLES.push(newHole);
+SELECTED={type:'symCustomHole',idx:SYM_CUSTOM_HOLES.length-1};
+}else if(type==='symStitch'){
+// Convert symmetric stitch to asymmetric
+const stitch=SYM_STITCHES[idx];
+const newPoints=stitch.points.map(p=>{
+const wp=M.holsterToWorld({x:p.x,y:p.y});
+return{
+x:wp.x,
+y:wp.y,
+h1:p.h1?{x:p.h1.x*HOLSTER.scaleX,y:p.h1.y*HOLSTER.scaleY}:{x:0,y:0},
+h2:p.h2?{x:p.h2.x*HOLSTER.scaleX,y:p.h2.y*HOLSTER.scaleY}:{x:0,y:0}
+};
+});
+const newStitch={
+points:newPoints,
+spacing:stitch.spacing,
+name:stitch.name
+};
+SYM_STITCHES.splice(idx,1);
+ASYM_STITCHES.push(newStitch);
+SELECTED={type:'asymStitch',idx:ASYM_STITCHES.length-1};
+}else if(type==='asymStitch'){
+// Convert asymmetric stitch to symmetric
+const stitch=ASYM_STITCHES[idx];
+const scaleX=Math.max(0.01,HOLSTER.scaleX);
+const scaleY=Math.max(0.01,HOLSTER.scaleY);
+const newPoints=stitch.points.map(p=>{
+const lp=M.worldToHolster({x:p.x,y:p.y});
+return{
+x:Math.abs(lp.x),
+y:lp.y,
+h1:p.h1?{x:p.h1.x/scaleX,y:p.h1.y/scaleY}:{x:0,y:0},
+h2:p.h2?{x:p.h2.x/scaleX,y:p.h2.y/scaleY}:{x:0,y:0}
+};
+});
+const newStitch={
+points:newPoints,
+spacing:stitch.spacing,
+name:stitch.name
+};
+ASYM_STITCHES.splice(idx,1);
+SYM_STITCHES.push(newStitch);
+SELECTED={type:'symStitch',idx:SYM_STITCHES.length-1};
+}
+this.updateInfo();
+this.updateOutliner();
+this.draw();
+this.saveState();
+}
 // Edge stitch functions
 createStitchFromRange(){
 if(SELECTED?.type!=='edgeRange')return;
@@ -1168,16 +1331,16 @@ if(this.outlinerOpen)this.updateOutliner();
 const bar=document.getElementById('props-bar'),stats=document.getElementById('stats');
 if(!SELECTED){bar.classList.remove('active');stats.classList.remove('hidden');return}
 bar.classList.add('active');stats.classList.add('hidden');
-const propShape=document.getElementById('prop-shape'),propWidth=document.getElementById('prop-width'),propHeight=document.getElementById('prop-height'),propSize=document.getElementById('prop-size'),propText=document.getElementById('prop-text'),propFontsize=document.getElementById('prop-fontsize'),propFontstyle=document.getElementById('prop-fontstyle'),propStitch=document.getElementById('prop-stitch'),propMargin=document.getElementById('prop-margin'),propSpacing=document.getElementById('prop-spacing'),propCreateStitch=document.getElementById('prop-create-stitch'),propEsLine=document.getElementById('prop-es-line'),propEsHoles=document.getElementById('prop-es-holes'),propEsMirror=document.getElementById('prop-es-mirror'),propExtension=document.getElementById('prop-extension'),propLinkHandles=document.getElementById('prop-link-handles');
-[propShape,propWidth,propHeight,propSize,propText,propFontsize,propFontstyle,propStitch,propMargin,propSpacing,propCreateStitch,propEsLine,propEsHoles,propEsMirror,propExtension,propLinkHandles].forEach(p=>p.style.display='none');
+const propShape=document.getElementById('prop-shape'),propWidth=document.getElementById('prop-width'),propHeight=document.getElementById('prop-height'),propSize=document.getElementById('prop-size'),propText=document.getElementById('prop-text'),propFontsize=document.getElementById('prop-fontsize'),propFontstyle=document.getElementById('prop-fontstyle'),propTextStyle=document.getElementById('prop-textstyle'),propListType=document.getElementById('prop-listtype'),propStitch=document.getElementById('prop-stitch'),propMargin=document.getElementById('prop-margin'),propSpacing=document.getElementById('prop-spacing'),propCreateStitch=document.getElementById('prop-create-stitch'),propEsLine=document.getElementById('prop-es-line'),propEsHoles=document.getElementById('prop-es-holes'),propEsMirror=document.getElementById('prop-es-mirror'),propExtension=document.getElementById('prop-extension'),propMirror=document.getElementById('prop-mirror'),propLinkHandles=document.getElementById('prop-link-handles');
+[propShape,propWidth,propHeight,propSize,propText,propFontsize,propFontstyle,propTextStyle,propListType,propStitch,propMargin,propSpacing,propCreateStitch,propEsLine,propEsHoles,propEsMirror,propExtension,propMirror,propLinkHandles].forEach(p=>p.style.display='none');
 // Layer prefix for two-layer mode
 const layerPrefix=CFG.projectType==='two-layer'?(CURRENT_LAYER==='front'?'[Front] ':'[Back] '):'';
 if(SELECTED.type==='holster'){document.getElementById('sel-type').textContent=layerPrefix+'Main Pattern';propSize.style.display='flex';document.getElementById('sel-size').textContent=HOLSTER.scaleX.toFixed(2)+' × '+HOLSTER.scaleY.toFixed(2)}
-else if(SELECTED.type==='symHole'||SELECTED.type==='asymHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symHole'?'Sym Hole':'Asym Hole');propShape.style.display='flex';propWidth.style.display='flex';propHeight.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-shape').value=h.shape||'ellipse';document.getElementById('sel-width').value=h.width;document.getElementById('sel-width-slider').value=h.width;document.getElementById('sel-height').value=h.height;document.getElementById('sel-height-slider').value=h.height;document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
+else if(SELECTED.type==='symHole'||SELECTED.type==='asymHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symHole'?'Sym Hole':'Asym Hole');propShape.style.display='flex';propWidth.style.display='flex';propHeight.style.display='flex';propStitch.style.display='flex';propMirror.style.display='flex';document.getElementById('sel-shape').value=h.shape||'ellipse';document.getElementById('sel-width').value=h.width;document.getElementById('sel-width-slider').value=h.width;document.getElementById('sel-height').value=h.height;document.getElementById('sel-height-slider').value=h.height;document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;document.getElementById('sel-mirror').checked=SELECTED.type==='symHole';if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
 else if(SELECTED.type==='asymShape'){const s=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(s.isExtension?'Extension Shape':s.isLinkedCircle?'Linked Circle':'Asym Shape');propSize.style.display='flex';propStitch.style.display='flex';propExtension.style.display='flex';document.getElementById('sel-size').textContent=(s.scaleX||1).toFixed(2)+' × '+(s.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=s.stitchBorder||false;document.getElementById('sel-extension').checked=s.isExtension||false;if(s.stitchBorder&&!s.isExtension){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=s.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=s.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=s.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=s.stitchSpacing||3}}
-else if(SELECTED.type==='symStitch'||SELECTED.type==='asymStitch'){const st=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symStitch'?'Sym Stitch':'Asym Stitch');propSpacing.style.display='flex';document.getElementById('sel-stitch-spacing').value=st.spacing||4;document.getElementById('sel-stitch-spacing-slider').value=st.spacing||4}
-else if(SELECTED.type==='symCustomHole'||SELECTED.type==='asymCustomHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symCustomHole'?'Sym Custom':'Asym Custom');propSize.style.display='flex';propStitch.style.display='flex';document.getElementById('sel-size').textContent=(h.scaleX||1).toFixed(2)+' × '+(h.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
-else if(SELECTED.type==='textAnnotation'){const t=TEXT_ANNOTATIONS[SELECTED.idx];document.getElementById('sel-type').textContent=layerPrefix+'Text';propText.style.display='flex';propFontsize.style.display='flex';propFontstyle.style.display='flex';document.getElementById('sel-text').value=t.text;document.getElementById('sel-fontsize').value=t.fontSize||12;document.getElementById('btn-bold').style.background=t.bold?'var(--accent)':'#333';document.getElementById('btn-italic').style.background=t.italic?'var(--accent)':'#333'}
+else if(SELECTED.type==='symStitch'||SELECTED.type==='asymStitch'){const st=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symStitch'?'Sym Stitch':'Asym Stitch');propSpacing.style.display='flex';propMirror.style.display='flex';document.getElementById('sel-stitch-spacing').value=st.spacing||4;document.getElementById('sel-stitch-spacing-slider').value=st.spacing||4;document.getElementById('sel-mirror').checked=SELECTED.type==='symStitch'}
+else if(SELECTED.type==='symCustomHole'||SELECTED.type==='asymCustomHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symCustomHole'?'Sym Custom':'Asym Custom');propSize.style.display='flex';propStitch.style.display='flex';propMirror.style.display='flex';document.getElementById('sel-size').textContent=(h.scaleX||1).toFixed(2)+' × '+(h.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;document.getElementById('sel-mirror').checked=SELECTED.type==='symCustomHole';if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
+else if(SELECTED.type==='textAnnotation'){const t=TEXT_ANNOTATIONS[SELECTED.idx];document.getElementById('sel-type').textContent=layerPrefix+'Text';propText.style.display='flex';propFontsize.style.display='flex';propFontstyle.style.display='flex';propTextStyle.style.display='flex';propListType.style.display='flex';document.getElementById('sel-text').value=t.text;document.getElementById('sel-fontsize').value=t.fontSize||12;document.getElementById('btn-bold').style.background=t.bold?'var(--accent)':'#333';document.getElementById('btn-italic').style.background=t.italic?'var(--accent)':'#333';document.getElementById('sel-textstyle').value=t.textStyle||'normal';document.getElementById('sel-listtype').value=t.listType||'none'}
 else if(SELECTED.type==='edgeRange'){document.getElementById('sel-type').textContent=layerPrefix+'Edge Range #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
 else if(SELECTED.type==='mergedEdgeRange'){document.getElementById('sel-type').textContent=layerPrefix+'Perimeter #'+(SELECTED.idx+1);propSize.style.display='flex';propCreateStitch.style.display='flex';const rng=MERGED_EDGE_RANGES[SELECTED.idx];document.getElementById('sel-size').textContent=((rng.end-rng.start)*100).toFixed(0)+'%'}
 else if(SELECTED.type==='edgeStitch'){const es=EDGE_STITCHES[SELECTED.idx];document.getElementById('sel-type').textContent=layerPrefix+(es.isMerged?'Perim Stitch #'+(SELECTED.idx+1):'Edge Stitch #'+(SELECTED.idx+1));propMargin.style.display='flex';propSpacing.style.display='flex';propEsLine.style.display='flex';propEsHoles.style.display='flex';if(!es.isMerged)propEsMirror.style.display='flex';document.getElementById('sel-stitch-margin').value=es.margin||CFG.stitchMargin;document.getElementById('sel-stitch-margin-slider').value=es.margin||CFG.stitchMargin;document.getElementById('sel-stitch-spacing').value=es.spacing||CFG.stitchSpacing;document.getElementById('sel-stitch-spacing-slider').value=es.spacing||CFG.stitchSpacing;document.getElementById('sel-es-line').checked=es.showLine!==false;document.getElementById('sel-es-holes').checked=es.showHoles!==false;document.getElementById('sel-es-mirror').checked=es.mirror!==false}
@@ -1331,28 +1494,16 @@ result.push({x:curr.x+nx*delta,y:curr.y+ny*delta});
 }
 return result;
 }
-// Stable offset for closed paths - maintains point order
+// Stable offset for closed paths - uses ClipperLib for proper topology handling
 offsetPathStableClosed(path,delta){
-if(path.length<3)return path;
-const result=[];
-const n=path.length;
-const cx=HOLSTER.x,cy=HOLSTER.y;
-for(let i=0;i<n;i++){
-const curr=path[i];
-const prev=path[(i-1+n)%n];
-const next=path[(i+1)%n];
-const dx=next.x-prev.x;
-const dy=next.y-prev.y;
-const len=Math.hypot(dx,dy)||1;
-const nx1=dy/len,ny1=-dx/len;
-const nx2=-dy/len,ny2=dx/len;
-const d1=Math.hypot((curr.x+nx1)-cx,(curr.y+ny1)-cy);
-const d2=Math.hypot((curr.x+nx2)-cx,(curr.y+ny2)-cy);
-const nx=d1>d2?nx1:nx2;
-const ny=d1>d2?ny1:ny2;
-result.push({x:curr.x+nx*delta,y:curr.y+ny*delta});
-}
-return result;
+if(!ClipperLib||path.length<3)return path;
+const co=new ClipperLib.ClipperOffset();
+const cp=path.map(p=>({X:Math.round(p.x*SCALE),Y:Math.round(p.y*SCALE)}));
+co.AddPaths([cp],ClipperLib.JoinType.jtRound,ClipperLib.EndType.etClosedPolygon);
+const sol=[];
+co.Execute(sol,delta*SCALE);
+if(!sol.length)return path;
+return sol[0].map(p=>({x:p.X/SCALE,y:p.Y/SCALE}));
 }
 getSymHoleWorld(hole,side){
 const lx=hole.x*side,wp=M.holsterToWorld({x:lx,y:hole.y}),rot=(HOLSTER.rotation||0)+(hole.rotation||0)*side,w=hole.width*HOLSTER.scaleX,h=hole.height*HOLSTER.scaleY;
@@ -1884,12 +2035,29 @@ if(TEMP_CUSTOMHOLE&&TEMP_CUSTOMHOLE.points.length){ctx.beginPath();ctx.moveTo(TE
 if(CFG.showText)TEXT_ANNOTATIONS.forEach((t,idx)=>{
 if(t.hidden)return;
 const sel=SELECTED?.type==='textAnnotation'&&SELECTED?.idx===idx;
-const fs=(t.fontSize||12)/VIEW.zoom;
-const fontStyle=(t.italic?'italic ':'')+(t.bold?'bold ':'');
-ctx.font=`${fontStyle}${fs}px "Segoe UI", sans-serif`;
+let fs=(t.fontSize||12)/VIEW.zoom;
+// Apply text style overrides
+if(t.textStyle==='header'){fs=24/VIEW.zoom}
+else if(t.textStyle==='subheader'){fs=18/VIEW.zoom}
+const fontWeight=(t.bold||t.textStyle==='header'||t.textStyle==='subheader')?'bold ':'';
+const fontStyle=(t.italic?'italic ':'');
+ctx.font=`${fontStyle}${fontWeight}${fs}px "Segoe UI", sans-serif`;
 ctx.fillStyle=sel?'#007AFF':'#333';
 ctx.textAlign='left';ctx.textBaseline='top';
-if(t.text)ctx.fillText(t.text,t.x,t.y);
+// Add list prefix if list type is set
+let textToShow=t.text||'';
+if(t.listType&&t.listType!=='none'){
+const listIdx=t.listIndex||1;
+let prefix='';
+if(t.listType==='bullet'){prefix='• '}
+else if(t.listType==='numbered'){prefix=`${listIdx}. `}
+else if(t.listType==='lettered'){
+const letter=String.fromCharCode(97+listIdx-1); // a, b, c...
+prefix=`${letter}. `;
+}
+textToShow=prefix+textToShow;
+}
+if(textToShow)ctx.fillText(textToShow,t.x,t.y);
 // Draw arrow if present
 if(t.arrowTo){
 ctx.strokeStyle=sel?'#007AFF':'#333';ctx.lineWidth=1.5/VIEW.zoom;
@@ -2642,10 +2810,23 @@ lr.state?this.drawPatternLayerFullPattern(ctx,lr.state,scale,lr.color,lr.label):
 if(!isTwoLayer||layout==='front-only'||layout==='back-only'){
 TEXT_ANNOTATIONS.forEach(t=>{
 if(!t.text)return;
-const fs=t.fontSize||12;
-ctx.font=`${t.italic?'italic ':''}${t.bold?'bold ':''}${fs}px sans-serif`;
+let fs=t.fontSize||12;
+if(t.textStyle==='header'){fs=24}
+else if(t.textStyle==='subheader'){fs=18}
+const fontWeight=(t.bold||t.textStyle==='header'||t.textStyle==='subheader')?'bold ':'';
+const fontStyle=t.italic?'italic ':'';
+ctx.font=`${fontStyle}${fontWeight}${fs}px sans-serif`;
 ctx.fillStyle='#000';ctx.textAlign='left';ctx.textBaseline='top';
-ctx.fillText(t.text,t.x,t.y);
+let textToShow=t.text;
+if(t.listType&&t.listType!=='none'){
+const listIdx=t.listIndex||1;
+let prefix='';
+if(t.listType==='bullet'){prefix='• '}
+else if(t.listType==='numbered'){prefix=`${listIdx}. `}
+else if(t.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
+textToShow=prefix+textToShow;
+}
+ctx.fillText(textToShow,t.x,t.y);
 });
 }
 ctx.restore();
@@ -2947,10 +3128,23 @@ lr.state?this.drawPatternLayer(ctx,lr.state,scale,lr.color,lr.label):this.drawPa
 if(!isTwoLayer||layout==='front-only'||layout==='back-only'){
 TEXT_ANNOTATIONS.forEach(t=>{
 if(!t.text)return;
-const fs=t.fontSize||12;
-ctx.font=`${t.italic?'italic ':''}${t.bold?'bold ':''}${fs}px sans-serif`;
+let fs=t.fontSize||12;
+if(t.textStyle==='header'){fs=24}
+else if(t.textStyle==='subheader'){fs=18}
+const fontWeight=(t.bold||t.textStyle==='header'||t.textStyle==='subheader')?'bold ':'';
+const fontStyle=t.italic?'italic ':'';
+ctx.font=`${fontStyle}${fontWeight}${fs}px sans-serif`;
 ctx.fillStyle='#000';ctx.textAlign='left';ctx.textBaseline='top';
-ctx.fillText(t.text,t.x,t.y);
+let textToShow=t.text;
+if(t.listType&&t.listType!=='none'){
+const listIdx=t.listIndex||1;
+let prefix='';
+if(t.listType==='bullet'){prefix='• '}
+else if(t.listType==='numbered'){prefix=`${listIdx}. `}
+else if(t.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
+textToShow=prefix+textToShow;
+}
+ctx.fillText(textToShow,t.x,t.y);
 });
 }
 ctx.restore(); // pattern transform
@@ -3132,10 +3326,23 @@ lr.state?this.drawPatternLayerFullPattern(ctx,lr.state,scale,lr.color,lr.label):
 if(!isTwoLayer||layout==='front-only'||layout==='back-only'){
 TEXT_ANNOTATIONS.forEach(t=>{
 if(!t.text)return;
-const fs=t.fontSize||12;
-ctx.font=`${t.italic?'italic ':''}${t.bold?'bold ':''}${fs}px sans-serif`;
+let fs=t.fontSize||12;
+if(t.textStyle==='header'){fs=24}
+else if(t.textStyle==='subheader'){fs=18}
+const fontWeight=(t.bold||t.textStyle==='header'||t.textStyle==='subheader')?'bold ':'';
+const fontStyle=t.italic?'italic ':'';
+ctx.font=`${fontStyle}${fontWeight}${fs}px sans-serif`;
 ctx.fillStyle='#000';ctx.textAlign='left';ctx.textBaseline='top';
-ctx.fillText(t.text,t.x,t.y);
+let textToShow=t.text;
+if(t.listType&&t.listType!=='none'){
+const listIdx=t.listIndex||1;
+let prefix='';
+if(t.listType==='bullet'){prefix='• '}
+else if(t.listType==='numbered'){prefix=`${listIdx}. `}
+else if(t.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
+textToShow=prefix+textToShow;
+}
+ctx.fillText(textToShow,t.x,t.y);
 });
 }
 ctx.restore();

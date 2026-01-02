@@ -254,6 +254,8 @@ if (typeof ClipperLib === 'undefined') {
 <button id="btn-bold" style="width:28px;height:24px;background:#333;border:1px solid #444;color:#fff;border-radius:3px;font-weight:bold;cursor:pointer" onclick="app.toggleBold()">B</button>
 <button id="btn-italic" style="width:28px;height:24px;background:#333;border:1px solid #444;color:#fff;border-radius:3px;font-style:italic;cursor:pointer" onclick="app.toggleItalic()">I</button>
 </div>
+<div class="prop-group" id="prop-textstyle" style="display:none"><label>Style</label><select id="sel-textstyle" onchange="app.changeTextStyle(this.value)"><option value="normal">Normal</option><option value="subheader">Subheader</option><option value="header">Header</option></select></div>
+<div class="prop-group" id="prop-listtype" style="display:none"><label>List</label><select id="sel-listtype" onchange="app.changeListType(this.value)"><option value="none">None</option><option value="bullet">Bullet</option><option value="numbered">Numbered</option><option value="lettered">Lettered</option></select></div>
 <div class="prop-group" id="prop-stitch"><label>Stitch</label><input type="checkbox" id="sel-stitch-border" onchange="app.toggleStitchBorder(this.checked)"></div>
 <div class="prop-group" id="prop-margin"><label>Margin</label><input type="range" id="sel-stitch-margin-slider" min="1" max="15" step="0.5" value="3" oninput="app.changeStitchMargin(this.value)" onchange="app.saveState()"><input type="number" id="sel-stitch-margin" value="3" min="1" max="15" step="0.5" onchange="app.changeStitchMargin(this.value);app.saveState()"></div>
 <div class="prop-group" id="prop-spacing"><label>Spacing</label><input type="range" id="sel-stitch-spacing-slider" min="1" max="10" step="0.5" value="3" oninput="app.changeStitchSpacing(this.value)" onchange="app.saveState()"><input type="number" id="sel-stitch-spacing" value="3" min="1" max="10" step="0.5" onchange="app.changeStitchSpacing(this.value);app.saveState()"></div>
@@ -262,6 +264,7 @@ if (typeof ClipperLib === 'undefined') {
 <div class="prop-group" id="prop-es-holes"><label>Holes</label><input type="checkbox" id="sel-es-holes" checked onchange="app.toggleEdgeStitchHoles(this.checked)"></div>
 <div class="prop-group" id="prop-es-mirror"><label>Mirror</label><input type="checkbox" id="sel-es-mirror" checked onchange="app.toggleEdgeStitchMirror(this.checked)"></div>
 <div class="prop-group" id="prop-extension"><label>Extension</label><input type="checkbox" id="sel-extension" onchange="app.toggleShapeExtension(this.checked)"></div>
+<div class="prop-group" id="prop-mirror" style="display:none"><label>Mirror</label><input type="checkbox" id="sel-mirror" onchange="app.toggleMirror(this.checked)"></div>
 <div class="prop-group" id="prop-link-handles" style="display:none">
 <button id="btn-link-handles" onclick="app.toggleHandleLink()" style="background:#007AFF;color:#fff;border:none;padding:4px 10px;border-radius:4px;font-size:11px;cursor:pointer">Link Handles</button>
 </div>
