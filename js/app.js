@@ -5,6 +5,7 @@ import { SCALE, CFG, HOVER_TOLERANCE, HOVER_SCALE, MAX_HISTORY } from './config.
 import { M } from './math.js';
 import { ToastManager } from './ui/ToastManager.js';
 import { HistoryManager } from './state/HistoryManager.js';
+import { FileManager } from './io/FileManager.js';
 
 // Make config available globally for backwards compatibility
 window.CFG = CFG;
@@ -85,6 +86,24 @@ class App{
     this.historyManager = new HistoryManager({
       maxHistory: MAX_HISTORY,
       onUpdate: () => this.updateUndoRedoButtons()
+    });
+    // Initialize file manager
+    this.fileManager = new FileManager({
+      getState: () => this.getProjectState(),
+      setState: (project) => this.setProjectState(project),
+      onLoad: () => {
+        this.updateInfo();
+        this.updateOutliner();
+        this.draw();
+        this.saveState();
+        this.showToast('Project loaded!', 'success');
+      },
+      onSave: () => {
+        this.showToast('Project saved!', 'success');
+      },
+      validateProject: (project) => {
+        return project && project.NODES && project.HOLSTER;
+      }
     });
     this.init();
   }
@@ -173,6 +192,115 @@ updateUndoRedoButtons(){
   document.getElementById('undo-btn').disabled = !this.historyManager.canUndo();
   document.getElementById('redo-btn').disabled = !this.historyManager.canRedo();
 }
+/**
+ * Get current project state for saving
+ * @returns {Object} Complete project state
+ */
+getProjectState() {
+  const state = {
+    NODES: NODES,
+    HOLSTER: HOLSTER,
+    EDGE_RANGES: EDGE_RANGES,
+    MERGED_EDGE_RANGES: MERGED_EDGE_RANGES,
+    EDGE_STITCHES: EDGE_STITCHES,
+    SYM_HOLES: SYM_HOLES,
+    SYM_STITCHES: SYM_STITCHES,
+    SYM_SHAPES: SYM_SHAPES,
+    SYM_CUSTOM_HOLES: SYM_CUSTOM_HOLES,
+    ASYM_HOLES: ASYM_HOLES,
+    ASYM_STITCHES: ASYM_STITCHES,
+    ASYM_CUSTOM_HOLES: ASYM_CUSTOM_HOLES,
+    ASYM_SHAPES: ASYM_SHAPES,
+    TEXT_ANNOTATIONS: TEXT_ANNOTATIONS,
+    CFG: CFG
+  };
+  // Add two-layer data if in two-layer mode
+  if (CFG.projectType === 'two-layer') {
+    // Save current layer before exporting
+    if (CURRENT_LAYER === 'front') {
+      FRONT_LAYER = this.captureLayerState();
+    } else {
+      BACK_LAYER = this.captureLayerState();
+    }
+    state.CURRENT_LAYER = CURRENT_LAYER;
+    state.FRONT_LAYER = FRONT_LAYER;
+    state.BACK_LAYER = BACK_LAYER;
+    state.GHOST_OFFSET = GHOST_OFFSET;
+  }
+  return state;
+}
+/**
+ * Set project state from loaded data
+ * @param {Object} project - Project data to load
+ */
+setProjectState(project) {
+  // Restore state
+  NODES = project.NODES;
+  HOLSTER.x = project.HOLSTER.x || 0;
+  HOLSTER.y = project.HOLSTER.y || 0;
+  HOLSTER.rotation = project.HOLSTER.rotation || 0;
+  HOLSTER.scaleX = project.HOLSTER.scaleX || 1;
+  HOLSTER.scaleY = project.HOLSTER.scaleY || 1;
+  HOLSTER.locked = project.HOLSTER.locked || false;
+  EDGE_RANGES = project.EDGE_RANGES || [{start: 0, end: 1}];
+  MERGED_EDGE_RANGES = project.MERGED_EDGE_RANGES || [];
+  EDGE_STITCHES = project.EDGE_STITCHES || [];
+  SYM_HOLES = project.SYM_HOLES || [];
+  SYM_STITCHES = project.SYM_STITCHES || [];
+  SYM_SHAPES = project.SYM_SHAPES || [];
+  SYM_CUSTOM_HOLES = project.SYM_CUSTOM_HOLES || [];
+  ASYM_HOLES = project.ASYM_HOLES || [];
+  ASYM_STITCHES = project.ASYM_STITCHES || [];
+  ASYM_CUSTOM_HOLES = project.ASYM_CUSTOM_HOLES || [];
+  ASYM_SHAPES = project.ASYM_SHAPES || [];
+  TEXT_ANNOTATIONS = project.TEXT_ANNOTATIONS || [];
+  
+  // Restore CFG if present
+  if (project.CFG) {
+    Object.keys(project.CFG).forEach(k => {
+      if (CFG.hasOwnProperty(k)) CFG[k] = project.CFG[k];
+    });
+  }
+  
+  // Load two-layer data if present
+  if (project.FRONT_LAYER && project.BACK_LAYER) {
+    FRONT_LAYER = project.FRONT_LAYER;
+    BACK_LAYER = project.BACK_LAYER;
+    CURRENT_LAYER = project.CURRENT_LAYER || 'front';
+    GHOST_OFFSET = project.GHOST_OFFSET || {x: 0, y: 0};
+    // Restore the current layer
+    const targetState = CURRENT_LAYER === 'front' ? FRONT_LAYER : BACK_LAYER;
+    this.restoreLayerState(targetState);
+    // Update project type in UI
+    document.getElementById('cfg-projectType').value = 'two-layer';
+    this.onProjectTypeChange('two-layer');
+  } else {
+    // Legacy file or fold-over mode
+    FRONT_LAYER = null;
+    BACK_LAYER = null;
+    CURRENT_LAYER = 'front';
+    GHOST_OFFSET = {x: 0, y: 0};
+    // Ensure project type is set to fold-over
+    if (!project.CFG || !project.CFG.projectType) {
+      CFG.projectType = 'fold-over';
+      document.getElementById('cfg-projectType').value = 'fold-over';
+      this.onProjectTypeChange('fold-over');
+    }
+  }
+  
+  // Update pattern title
+  if (project.name) {
+    document.getElementById('project-title').textContent = project.name;
+    const titleInput = document.getElementById('pattern-title');
+    if (titleInput) titleInput.value = project.name;
+    // Sync UI checkboxes with loaded CFG values
+    document.getElementById('cfg-asymmetricOutline').checked = CFG.asymmetricOutline || false;
+    document.getElementById('cfg-syncOutline').checked = CFG.syncOutline !== false;
+    document.getElementById('cfg-syncEdgeStitches').checked = CFG.syncEdgeStitches !== false;
+  }
+  
+  SELECTED = null;
+}
 toggleFileMenu(){
 const menu=document.getElementById('file-menu');
 menu.classList.toggle('open');
@@ -209,184 +337,22 @@ const publishTitle=document.getElementById('pattern-title');
 if(publishTitle)publishTitle.value=newName.trim();
 }
 }
-saveProject(){
-document.getElementById('file-menu').classList.remove('open');
-const projectName=document.getElementById('project-title').textContent||'Leather Pattern';
-const project={
-version:2, // Increment version for two-layer support
-name:projectName,
-NODES:NODES,
-HOLSTER:HOLSTER,
-EDGE_RANGES:EDGE_RANGES,
-MERGED_EDGE_RANGES:MERGED_EDGE_RANGES,
-EDGE_STITCHES:EDGE_STITCHES,
-SYM_HOLES:SYM_HOLES,
-SYM_STITCHES:SYM_STITCHES,
-SYM_SHAPES:SYM_SHAPES,
-SYM_CUSTOM_HOLES:SYM_CUSTOM_HOLES,
-ASYM_HOLES:ASYM_HOLES,
-ASYM_STITCHES:ASYM_STITCHES,
-ASYM_CUSTOM_HOLES:ASYM_CUSTOM_HOLES,
-ASYM_SHAPES:ASYM_SHAPES,
-TEXT_ANNOTATIONS:TEXT_ANNOTATIONS,
-CFG:CFG
-};
-// Add two-layer data if in two-layer mode
-if(CFG.projectType==='two-layer'){
-// Save current layer before exporting
-if(CURRENT_LAYER==='front'){
-FRONT_LAYER=this.captureLayerState();
-}else{
-BACK_LAYER=this.captureLayerState();
+saveProject() {
+  document.getElementById('file-menu').classList.remove('open');
+  const projectName = document.getElementById('project-title').textContent || 'Leather Pattern';
+  this.fileManager.saveProject(projectName);
 }
-project.CURRENT_LAYER=CURRENT_LAYER;
-project.FRONT_LAYER=FRONT_LAYER;
-project.BACK_LAYER=BACK_LAYER;
-project.GHOST_OFFSET=GHOST_OFFSET;
+loadProject() {
+  document.getElementById('file-menu').classList.remove('open');
+  this.fileManager.triggerFileInput('file-input');
 }
-const json=JSON.stringify(project,null,2);
-const blob=new Blob([json],{type:'application/json'});
-const url=URL.createObjectURL(blob);
-const a=document.createElement('a');
-a.href=url;
-a.download=(project.name.replace(/[^a-z0-9]/gi,'_')||'holster-pattern')+'.json';
-document.body.appendChild(a);
-a.click();
-document.body.removeChild(a);
-URL.revokeObjectURL(url);
-this.showToast('Project saved!', 'success');
-}
-loadProject(){
-document.getElementById('file-menu').classList.remove('open');
-document.getElementById('file-input').click();
-}
-handleFileLoad(e){
-const file=e.target.files[0];
-if(!file)return;
-const reader=new FileReader();
-reader.onload=(evt)=>{
-try{
-const project=JSON.parse(evt.target.result);
-// Validate basic structure
-if(!project.NODES||!project.HOLSTER){
-alert('Invalid project file');
-return;
-}
-// Restore state
-NODES=project.NODES;
-HOLSTER.x=project.HOLSTER.x||0;
-HOLSTER.y=project.HOLSTER.y||0;
-HOLSTER.rotation=project.HOLSTER.rotation||0;
-HOLSTER.scaleX=project.HOLSTER.scaleX||1;
-HOLSTER.scaleY=project.HOLSTER.scaleY||1;
-HOLSTER.locked=project.HOLSTER.locked||false;
-EDGE_RANGES=project.EDGE_RANGES||[{start:0,end:1}];
-MERGED_EDGE_RANGES=project.MERGED_EDGE_RANGES||[];
-EDGE_STITCHES=project.EDGE_STITCHES||[];
-SYM_HOLES=project.SYM_HOLES||[];
-SYM_STITCHES=project.SYM_STITCHES||[];
-SYM_SHAPES=project.SYM_SHAPES||[];
-SYM_CUSTOM_HOLES=project.SYM_CUSTOM_HOLES||[];
-ASYM_HOLES=project.ASYM_HOLES||[];
-ASYM_STITCHES=project.ASYM_STITCHES||[];
-ASYM_CUSTOM_HOLES=project.ASYM_CUSTOM_HOLES||[];
-ASYM_SHAPES=project.ASYM_SHAPES||[];
-TEXT_ANNOTATIONS=project.TEXT_ANNOTATIONS||[];
-// Migrate old text formats to new simple format
-TEXT_ANNOTATIONS=TEXT_ANNOTATIONS.map(t=>{
-// Convert lines format to simple format
-if(t.lines&&Array.isArray(t.lines)){
-const firstLine=t.lines[0]||{};
-return{
-x:t.x,
-y:t.y,
-text:firstLine.text||'',
-fontSize:t.fontSize||12,
-bold:t.bold||false,
-italic:t.italic||false,
-style:firstLine.style||'normal',
-listType:firstLine.listType||'none',
-listIndex:firstLine.listIndex||1,
-name:t.name,
-hidden:t.hidden,
-locked:t.locked,
-parent:t.parent,
-arrowTo:t.arrowTo
-};
-}
-// Ensure all required fields exist
-return{
-x:t.x||0,
-y:t.y||0,
-text:t.text||'Text',
-fontSize:t.fontSize||12,
-bold:t.bold||false,
-italic:t.italic||false,
-style:t.style||t.style||'normal',
-listType:t.listType||'none',
-listIndex:t.listIndex||1,
-name:t.name,
-hidden:t.hidden,
-locked:t.locked,
-parent:t.parent,
-arrowTo:t.arrowTo
-};
-});
-// Restore CFG if present
-if(project.CFG){
-Object.keys(project.CFG).forEach(k=>{
-if(CFG.hasOwnProperty(k))CFG[k]=project.CFG[k];
-});
-}
-// Load two-layer data if present
-if(project.FRONT_LAYER&&project.BACK_LAYER){
-FRONT_LAYER=project.FRONT_LAYER;
-BACK_LAYER=project.BACK_LAYER;
-CURRENT_LAYER=project.CURRENT_LAYER||'front';
-GHOST_OFFSET=project.GHOST_OFFSET||{x:0,y:0};
-// Restore the current layer
-const targetState=CURRENT_LAYER==='front'?FRONT_LAYER:BACK_LAYER;
-this.restoreLayerState(targetState);
-// Update project type in UI
-document.getElementById('cfg-projectType').value='two-layer';
-this.onProjectTypeChange('two-layer');
-}else{
-// Legacy file or fold-over mode
-FRONT_LAYER=null;
-BACK_LAYER=null;
-CURRENT_LAYER='front';
-GHOST_OFFSET={x:0,y:0};
-// Ensure project type is set to fold-over
-if(!project.CFG||!project.CFG.projectType){
-CFG.projectType='fold-over';
-document.getElementById('cfg-projectType').value='fold-over';
-this.onProjectTypeChange('fold-over');
-}
-}
-// Update pattern title
-if(project.name){
-document.getElementById('project-title').textContent=project.name;
-const titleInput=document.getElementById('pattern-title');
-if(titleInput)titleInput.value=project.name;
-// Sync UI checkboxes with loaded CFG values
-document.getElementById('cfg-asymmetricOutline').checked=CFG.asymmetricOutline||false;
-document.getElementById('cfg-syncOutline').checked=CFG.syncOutline!==false;
-document.getElementById('cfg-syncEdgeStitches').checked=CFG.syncEdgeStitches!==false;
-}
-SELECTED=null;
-this.updateInfo();
-this.updateOutliner();
-this.draw();
-this.saveState();
-this.showToast('Project loaded!', 'success');
-}catch(err){
-alert('Error loading project: '+err.message);
-this.showToast('Error loading project', 'error');
-}
-};
-reader.readAsText(file);
-// Reset input so same file can be loaded again
-e.target.value='';
+async handleFileLoad(e) {
+  try {
+    await this.fileManager.handleFileLoad(e);
+  } catch (error) {
+    alert('Error loading project: ' + error.message);
+    this.showToast('Error loading project', 'error');
+  }
 }
 toggleSettings(){
 this.settingsOpen=!this.settingsOpen;
