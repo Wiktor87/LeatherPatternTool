@@ -32,7 +32,7 @@ let NODES=[{x:0,y:-180,h1:{x:0,y:0},h2:{x:45,y:0}},{x:70,y:-180,h1:{x:-20,y:0},h
 let EDGE_RANGES=[{start:0,end:1}];
 let MERGED_EDGE_RANGES=[]; // Ranges on full merged perimeter (including extensions)
 let EDGE_STITCHES=[]; // New: stitches bound to edge ranges
-let SYM_HOLES=[],SYM_STITCHES=[],ASYM_SHAPES=[],ASYM_HOLES=[],ASYM_STITCHES=[],SYM_CUSTOM_HOLES=[],ASYM_CUSTOM_HOLES=[],TEXT_ANNOTATIONS=[];
+let SYM_HOLES=[],SYM_STITCHES=[],SYM_SHAPES=[],ASYM_SHAPES=[],ASYM_HOLES=[],ASYM_STITCHES=[],SYM_CUSTOM_HOLES=[],ASYM_CUSTOM_HOLES=[],TEXT_ANNOTATIONS=[];
 
 // Two-Layer Mode: State for front and back layers
 let CURRENT_LAYER='front'; // 'front' or 'back'
@@ -108,6 +108,7 @@ MERGED_EDGE_RANGES:JSON.parse(JSON.stringify(MERGED_EDGE_RANGES)),
 EDGE_STITCHES:JSON.parse(JSON.stringify(EDGE_STITCHES)),
 SYM_HOLES:JSON.parse(JSON.stringify(SYM_HOLES)),
 SYM_STITCHES:JSON.parse(JSON.stringify(SYM_STITCHES)),
+SYM_SHAPES:JSON.parse(JSON.stringify(SYM_SHAPES)),
 SYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(SYM_CUSTOM_HOLES)),
 ASYM_HOLES:JSON.parse(JSON.stringify(ASYM_HOLES)),
 ASYM_STITCHES:JSON.parse(JSON.stringify(ASYM_STITCHES)),
@@ -141,6 +142,7 @@ MERGED_EDGE_RANGES=JSON.parse(JSON.stringify(state.MERGED_EDGE_RANGES||[]));
 EDGE_STITCHES=JSON.parse(JSON.stringify(state.EDGE_STITCHES));
 SYM_HOLES=JSON.parse(JSON.stringify(state.SYM_HOLES));
 SYM_STITCHES=JSON.parse(JSON.stringify(state.SYM_STITCHES));
+SYM_SHAPES=JSON.parse(JSON.stringify(state.SYM_SHAPES||[]));
 SYM_CUSTOM_HOLES=JSON.parse(JSON.stringify(state.SYM_CUSTOM_HOLES));
 ASYM_HOLES=JSON.parse(JSON.stringify(state.ASYM_HOLES));
 ASYM_STITCHES=JSON.parse(JSON.stringify(state.ASYM_STITCHES));
@@ -221,6 +223,7 @@ MERGED_EDGE_RANGES:MERGED_EDGE_RANGES,
 EDGE_STITCHES:EDGE_STITCHES,
 SYM_HOLES:SYM_HOLES,
 SYM_STITCHES:SYM_STITCHES,
+SYM_SHAPES:SYM_SHAPES,
 SYM_CUSTOM_HOLES:SYM_CUSTOM_HOLES,
 ASYM_HOLES:ASYM_HOLES,
 ASYM_STITCHES:ASYM_STITCHES,
@@ -283,6 +286,7 @@ MERGED_EDGE_RANGES=project.MERGED_EDGE_RANGES||[];
 EDGE_STITCHES=project.EDGE_STITCHES||[];
 SYM_HOLES=project.SYM_HOLES||[];
 SYM_STITCHES=project.SYM_STITCHES||[];
+SYM_SHAPES=project.SYM_SHAPES||[];
 SYM_CUSTOM_HOLES=project.SYM_CUSTOM_HOLES||[];
 ASYM_HOLES=project.ASYM_HOLES||[];
 ASYM_STITCHES=project.ASYM_STITCHES||[];
@@ -521,7 +525,8 @@ ASYM_CUSTOM_HOLES.forEach((h,i)=>{allItems.push({type:'asymCustomHole',idx:i,ico
 EDGE_STITCHES.forEach((s,i)=>{const icon=s.isMerged?'⊡':'⊢';const name=s.name||(s.isMerged?'Perim Stitch':'Edge Stitch')+' '+(i+1);allItems.push({type:'edgeStitch',idx:i,icon:icon,name:name,item:s,category:'Stitch Lines'})});
 SYM_STITCHES.forEach((s,i)=>{allItems.push({type:'symStitch',idx:i,icon:'┅',name:s.name||'Sym Stitch '+(i+1),item:s,category:'Stitch Lines'})});
 ASYM_STITCHES.forEach((s,i)=>{allItems.push({type:'asymStitch',idx:i,icon:'┅',name:s.name||'Asym Stitch '+(i+1),item:s,category:'Stitch Lines'})});
-ASYM_SHAPES.forEach((s,i)=>{const icon=s.isExtension?'⊕':s.isLinkedCircle?'◎':'◇';const name=s.name||(s.isExtension?'Extension':s.isLinkedCircle?'Linked Circle':'Shape')+' '+(i+1);allItems.push({type:'asymShape',idx:i,icon:icon,name:name,item:s,category:'Shapes'})});
+SYM_SHAPES.forEach((s,i)=>{const icon=s.isExtension?'⊕':s.isLinkedCircle?'◎':'◇';const name=s.name||(s.isExtension?'Extension':s.isLinkedCircle?'Linked Circle':'Sym Shape')+' '+(i+1);allItems.push({type:'symShape',idx:i,icon:icon,name:name,item:s,category:'Shapes'})});
+ASYM_SHAPES.forEach((s,i)=>{const icon=s.isExtension?'⊕':s.isLinkedCircle?'◎':'◇';const name=s.name||(s.isExtension?'Extension':s.isLinkedCircle?'Linked Circle':'Asym Shape')+' '+(i+1);allItems.push({type:'asymShape',idx:i,icon:icon,name:name,item:s,category:'Shapes'})});
 TEXT_ANNOTATIONS.forEach((t,i)=>{
 const firstLine=t.lines?t.lines[0]?.text:(t.text||'');
 const displayName=t.name||firstLine||(t.lines&&t.lines.length>1?`(${t.lines.length} lines)`:'(empty)');
@@ -548,17 +553,28 @@ html+='<h3 style="color:'+(CURRENT_LAYER==='front'?'#007AFF':'#FF9500')+'">'+(CU
 }else{
 html+='<h3>Pattern</h3>';
 }
+// Add Root container at the top
+const rootSel=SELECTED?.type==='root';
+html+='<div class="outliner-item'+(rootSel?' selected':'')+(false?' locked-item':'')+'" style="padding-left:6px" ondragover="app.outlinerDragOver(event)" ondrop="app.outlinerDrop(event,\'root\',0)" onclick="app.selectOutlinerItem(\'root\',0)"><span class="icon">📁</span><span class="name">Root</span></div>';
+// Main Shape as child of Root
 const holsterSel=SELECTED?.type==='holster';
-html+='<div class="outliner-item'+(holsterSel?' selected':'')+(HOLSTER.locked?' locked-item':'')+'" style="padding-left:6px" ondragover="app.outlinerDragOver(event)" ondrop="app.outlinerDrop(event,\'holster\',0)" onclick="app.selectOutlinerItem(\'holster\',0)"><span class="lock-toggle" onclick="event.stopPropagation();app.toggleItemLock(\'holster\',0)">'+(HOLSTER.locked?'🔒':'🔓')+'</span><span class="icon">◇</span><span class="name">Main Shape</span></div>';
+html+='<div class="outliner-item'+(holsterSel?' selected':'')+(HOLSTER.locked?' locked-item':'')+'" style="padding-left:22px" ondragover="app.outlinerDragOver(event)" ondrop="app.outlinerDrop(event,\'holster\',0)" onclick="app.selectOutlinerItem(\'holster\',0)"><span class="lock-toggle" onclick="event.stopPropagation();app.toggleItemLock(\'holster\',0)">'+(HOLSTER.locked?'🔒':'🔓')+'</span><span class="icon">◇</span><span class="name">Main Shape</span></div>';
 // Group and render items by category
 const categories=['Edge Ranges','Holes','Custom Holes','Stitch Lines','Shapes','Text'];
 const renderedItems=new Set();
+// First render children of Main Shape (holster) immediately after it
+allItems.forEach(item=>{
+if(item.item?.parent?.type==='holster'&&item.item?.parent?.idx===0){
+html+=renderItemWithChildren(item,2,renderedItems);
+}
+});
 categories.forEach(cat=>{
 const catItems=allItems.filter(item=>item.category===cat);
 if(catItems.length>0){
 html+='<h3>'+cat+'</h3>';
 catItems.forEach(item=>{
 // Only render root items (no parent or parent doesn't exist in our items)
+// Items parented to 'holster' should also be rendered but indented
 if(!item.item?.parent||!allItems.some(i=>i.type===item.item.parent.type&&i.idx===item.item.parent.idx)){
 html+=renderItemWithChildren(item,0,renderedItems);
 }
@@ -590,6 +606,7 @@ if(type==='asymStitch')return ASYM_STITCHES[idx];
 if(type==='edgeStitch')return EDGE_STITCHES[idx];
 if(type==='edgeRange')return EDGE_RANGES[idx];
 if(type==='mergedEdgeRange')return MERGED_EDGE_RANGES[idx];
+if(type==='symShape')return SYM_SHAPES[idx];
 if(type==='asymShape')return ASYM_SHAPES[idx];
 if(type==='textAnnotation')return TEXT_ANNOTATIONS[idx];
 return null;
@@ -616,13 +633,21 @@ const srcType=data[0],srcIdx=parseInt(data[1]);
 if(srcType===targetType&&srcIdx===targetIdx)return;
 const srcObj=this.getObjByTypeIdx(srcType,srcIdx);
 if(!srcObj)return;
-// Check if dropping on holster - this unparents the item
-if(targetType==='holster'){
+// Check if dropping on root - this unparents the item
+if(targetType==='root'){
 if(srcObj.parent){
 delete srcObj.parent;
 this.updateOutliner();
 this.saveState();
 }
+return;
+}
+// Check if dropping on holster - this parents the item TO the holster
+if(targetType==='holster'){
+// Prevent circular parenting (shouldn't happen with holster but be safe)
+srcObj.parent={type:'holster',idx:0};
+this.updateOutliner();
+this.saveState();
 return;
 }
 const targetObj=this.getObjByTypeIdx(targetType,targetIdx);
@@ -650,7 +675,7 @@ const allArrays=[
 {type:'symHole',arr:SYM_HOLES},{type:'asymHole',arr:ASYM_HOLES},
 {type:'symStitch',arr:SYM_STITCHES},{type:'asymStitch',arr:ASYM_STITCHES},
 {type:'symCustomHole',arr:SYM_CUSTOM_HOLES},{type:'asymCustomHole',arr:ASYM_CUSTOM_HOLES},
-{type:'asymShape',arr:ASYM_SHAPES},{type:'textAnnotation',arr:TEXT_ANNOTATIONS},
+{type:'symShape',arr:SYM_SHAPES},{type:'asymShape',arr:ASYM_SHAPES},{type:'textAnnotation',arr:TEXT_ANNOTATIONS},
 {type:'edgeRange',arr:EDGE_RANGES},{type:'edgeStitch',arr:EDGE_STITCHES},
 {type:'mergedEdgeRange',arr:MERGED_EDGE_RANGES}
 ];
@@ -702,6 +727,7 @@ if(type==='symStitch')return SYM_STITCHES[idx];
 if(type==='asymStitch')return ASYM_STITCHES[idx];
 if(type==='symCustomHole')return SYM_CUSTOM_HOLES[idx];
 if(type==='asymCustomHole')return ASYM_CUSTOM_HOLES[idx];
+if(type==='symShape')return SYM_SHAPES[idx];
 if(type==='asymShape')return ASYM_SHAPES[idx];
 if(type==='textAnnotation')return TEXT_ANNOTATIONS[idx];
 if(type==='edgeRange')return EDGE_RANGES[idx];
@@ -854,6 +880,7 @@ MERGED_EDGE_RANGES:JSON.parse(JSON.stringify(MERGED_EDGE_RANGES)),
 EDGE_STITCHES:JSON.parse(JSON.stringify(EDGE_STITCHES)),
 SYM_HOLES:JSON.parse(JSON.stringify(SYM_HOLES)),
 SYM_STITCHES:JSON.parse(JSON.stringify(SYM_STITCHES)),
+SYM_SHAPES:JSON.parse(JSON.stringify(SYM_SHAPES)),
 SYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(SYM_CUSTOM_HOLES)),
 ASYM_HOLES:JSON.parse(JSON.stringify(ASYM_HOLES)),
 ASYM_STITCHES:JSON.parse(JSON.stringify(ASYM_STITCHES)),
@@ -869,6 +896,7 @@ MERGED_EDGE_RANGES=JSON.parse(JSON.stringify(state.MERGED_EDGE_RANGES));
 EDGE_STITCHES=JSON.parse(JSON.stringify(state.EDGE_STITCHES));
 SYM_HOLES=JSON.parse(JSON.stringify(state.SYM_HOLES));
 SYM_STITCHES=JSON.parse(JSON.stringify(state.SYM_STITCHES));
+SYM_SHAPES=JSON.parse(JSON.stringify(state.SYM_SHAPES||[]));
 SYM_CUSTOM_HOLES=JSON.parse(JSON.stringify(state.SYM_CUSTOM_HOLES));
 ASYM_HOLES=JSON.parse(JSON.stringify(state.ASYM_HOLES));
 ASYM_STITCHES=JSON.parse(JSON.stringify(state.ASYM_STITCHES));
@@ -1059,7 +1087,7 @@ circlePoints.push({x:Math.cos(angle)*radius,y:Math.sin(angle)*radius});
 return{points:circlePoints,radius:radius,edgeLength:baseLen,stitchPositions:stitchPositions,stitchCount:stitchPositions.length};
 }catch(e){console.error('getLinkedCircleData error:',e);return null;}
 }
-deleteSelected(){if(!SELECTED)return;if(SELECTED.type==='symHole')SYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='symStitch')SYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='symCustomHole')SYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymShape')ASYM_SHAPES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymHole')ASYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymStitch')ASYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymCustomHole')ASYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='textAnnotation')TEXT_ANNOTATIONS.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeRange'&&EDGE_RANGES.length>1)EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='mergedEdgeRange')MERGED_EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeStitch')EDGE_STITCHES.splice(SELECTED.idx,1);SELECTED=null;this.updateInfo();this.updateOutliner();this.draw();this.saveState();this.showToast('Deleted', 'info')}
+deleteSelected(){if(!SELECTED)return;if(SELECTED.type==='symHole')SYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='symStitch')SYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='symCustomHole')SYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='symShape')SYM_SHAPES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymShape')ASYM_SHAPES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymHole')ASYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymStitch')ASYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymCustomHole')ASYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='textAnnotation')TEXT_ANNOTATIONS.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeRange'&&EDGE_RANGES.length>1)EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='mergedEdgeRange')MERGED_EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeStitch')EDGE_STITCHES.splice(SELECTED.idx,1);SELECTED=null;this.updateInfo();this.updateOutliner();this.draw();this.saveState();this.showToast('Deleted', 'info')}
 changeHoleShape(s){const h=this.getSelectedObj();if(h&&h.shape!==undefined){h.shape=s;if(s==='circle')h.width=h.height=Math.max(h.width,h.height);this.updateInfo();this.draw();this.saveState()}}
 changeHoleWidth(v){const h=this.getSelectedObj();if(h&&h.width!==undefined){h.width=parseFloat(v);document.getElementById('sel-width').value=v;document.getElementById('sel-width-slider').value=v;this.draw()}}
 changeHoleHeight(v){const h=this.getSelectedObj();if(h&&h.height!==undefined){h.height=parseFloat(v);document.getElementById('sel-height').value=v;document.getElementById('sel-height-slider').value=v;this.draw()}}
@@ -1070,92 +1098,66 @@ changeStitchSpacing(v){const h=this.getSelectedObj();if(h){if(SELECTED?.type==='
 startTextEdit(idx){
 const t=TEXT_ANNOTATIONS[idx];
 const ed=document.getElementById('text-editor');
-const inp=document.getElementById('text-input');
-const styleSelect=document.getElementById('text-line-style');
-const listSelect=document.getElementById('text-line-list');
+const container=document.getElementById('quill-editor-container');
 // Position editor at text location
 const sx=VIEW.x+t.x*VIEW.zoom,sy=VIEW.y+t.y*VIEW.zoom;
 ed.style.left=sx+'px';ed.style.top=sy+'px';
-// Set current text (join all lines with newlines)
-const lines=t.lines||[{text:'',style:'normal',listType:'none'}];
-inp.value=lines.map(l=>l.text).join('\n');
-ed.classList.add('active');
-inp.focus();
-inp.select();
-this.editingTextIdx=idx;
-this.editingLineIdx=0; // Track current line being edited
-// Update controls for first line
-styleSelect.value=lines[0]?.style||'normal';
-listSelect.value=lines[0]?.listType||'none';
-// Set up control handlers
-document.getElementById('text-apply-btn').onclick=()=>this.stopTextEdit();
-// Style change handler
-styleSelect.onchange=()=>{
-const cursorPos=inp.selectionStart;
-const textBefore=inp.value.substring(0,cursorPos);
-const lineIdx=textBefore.split('\n').length-1;
-if(t.lines&&t.lines[lineIdx]){
-t.lines[lineIdx].style=styleSelect.value;
-this.draw();
+// Initialize Quill editor if not already initialized
+if(!this.quillEditor){
+this.quillEditor=new Quill('#quill-editor-container',{
+theme:'snow',
+placeholder:'Type your text here...',
+modules:{
+toolbar:[
+[{header:[1,2,false]}],
+['bold','italic'],
+[{list:'ordered'},{list:'bullet'}]
+]
 }
-};
-// List type change handler
-listSelect.onchange=()=>{
-const cursorPos=inp.selectionStart;
-const textBefore=inp.value.substring(0,cursorPos);
-const lineIdx=textBefore.split('\n').length-1;
-if(t.lines&&t.lines[lineIdx]){
-t.lines[lineIdx].listType=listSelect.value;
-if(listSelect.value!=='none'&&!t.lines[lineIdx].listIndex){
-t.lines[lineIdx].listIndex=lineIdx+1;
-}
-this.draw();
-}
-};
-// Update controls when cursor moves between lines
-const updateControlsForCursorLine=()=>{
-const cursorPos=inp.selectionStart;
-const textBefore=inp.value.substring(0,cursorPos);
-const lineIdx=textBefore.split('\n').length-1;
-if(t.lines&&t.lines[lineIdx]){
-styleSelect.value=t.lines[lineIdx].style||'normal';
-listSelect.value=t.lines[lineIdx].listType||'none';
-}
-};
-inp.onclick=updateControlsForCursorLine;
-inp.onkeyup=updateControlsForCursorLine;
-// Auto-resize textarea
-inp.style.height='auto';
-inp.style.height=inp.scrollHeight+'px';
-inp.oninput=(e)=>{
-e.target.style.height='auto';
-e.target.style.height=e.target.scrollHeight+'px';
-this.onTextInput(e);
-updateControlsForCursorLine();
-};
-inp.onkeydown=(e)=>this.onTextKey(e);
-this.draw();
-}
-stopTextEdit(){
-const ed=document.getElementById('text-editor');
-const inp=document.getElementById('text-input');
-ed.classList.remove('active');
-if(this.editingTextIdx!==undefined){
-const t=TEXT_ANNOTATIONS[this.editingTextIdx];
-// Parse lines from textarea
-const textLines=inp.value.split('\n');
-t.lines=textLines.map((text,idx)=>{
-// Preserve existing line properties if available
-const existingLine=t.lines&&t.lines[idx];
-return{
-text:text,
-style:existingLine?.style||'normal',
-listType:existingLine?.listType||'none',
-listIndex:existingLine?.listIndex||(idx+1)
-};
 });
-// Remove empty text if all lines are empty
-if(t.lines.every(l=>!l.text.trim())){
+}
+// Load existing content (HTML or Delta format)
+if(t.htmlContent){
+this.quillEditor.root.innerHTML=t.htmlContent;
+}else if(t.lines){
+// Convert old format to HTML for initial migration
+const html=t.lines.map(line=>{
+let tag='p';
+if(line.style==='header')tag='h1';
+else if(line.style==='subheader')tag='h2';
+let content=line.text||'';
+// Handle list types
+if(line.listType==='bullet'){
+return`<li>${content}</li>`;
+}else if(line.listType==='numbered'){
+return`<li>${content}</li>`;
+}
+return`<${tag}>${content}</${tag}>`;
+}).join('');
+this.quillEditor.root.innerHTML=html;
+}else{
+this.quillEditor.setText('');
+}
+ed.classList.add('active');
+this.quillEditor.focus();
+this.editingTextIdx=idx;
+// Set up control handlers
+document.getElementById('text-apply-btn').onclick=()=>this.stopTextEdit(true);
+document.getElementById('text-cancel-btn').onclick=()=>this.stopTextEdit(false);
+this.draw();
+}
+stopTextEdit(apply=true){
+const ed=document.getElementById('text-editor');
+ed.classList.remove('active');
+if(this.editingTextIdx!==undefined&&apply){
+const t=TEXT_ANNOTATIONS[this.editingTextIdx];
+// Store the HTML content from Quill
+t.htmlContent=this.quillEditor.root.innerHTML;
+// Also parse and store as plain text for backward compatibility
+const textContent=this.quillEditor.getText().trim();
+t.text=textContent;
+// Remove empty text annotations
+if(!textContent){
 TEXT_ANNOTATIONS.splice(this.editingTextIdx,1);
 SELECTED=null;
 }
@@ -1373,6 +1375,52 @@ name:stitch.name
 ASYM_STITCHES.splice(idx,1);
 SYM_STITCHES.push(newStitch);
 SELECTED={type:'symStitch',idx:SYM_STITCHES.length-1};
+}else if(type==='symShape'){
+// Convert symmetric shape to asymmetric
+const shape=SYM_SHAPES[idx];
+const worldPos=M.holsterToWorld({x:shape.x,y:shape.y});
+const newShape={
+x:worldPos.x,
+y:worldPos.y,
+points:JSON.parse(JSON.stringify(shape.points)),
+scaleX:(shape.scaleX||1)*HOLSTER.scaleX,
+scaleY:(shape.scaleY||1)*HOLSTER.scaleY,
+rotation:(HOLSTER.rotation||0)+(shape.rotation||0),
+stitchBorder:shape.stitchBorder,
+stitchMargin:shape.stitchMargin,
+stitchSpacing:shape.stitchSpacing,
+isExtension:shape.isExtension,
+isLinkedCircle:shape.isLinkedCircle,
+sourceRangeIdx:shape.sourceRangeIdx,
+name:shape.name
+};
+SYM_SHAPES.splice(idx,1);
+ASYM_SHAPES.push(newShape);
+SELECTED={type:'asymShape',idx:ASYM_SHAPES.length-1};
+}else if(type==='asymShape'){
+// Convert asymmetric shape to symmetric
+const shape=ASYM_SHAPES[idx];
+const localPos=M.worldToHolster({x:shape.x,y:shape.y});
+const scaleX=Math.max(0.01,HOLSTER.scaleX);
+const scaleY=Math.max(0.01,HOLSTER.scaleY);
+const newShape={
+x:Math.abs(localPos.x),
+y:localPos.y,
+points:JSON.parse(JSON.stringify(shape.points)),
+scaleX:(shape.scaleX||1)/scaleX,
+scaleY:(shape.scaleY||1)/scaleY,
+rotation:(shape.rotation||0)-(HOLSTER.rotation||0),
+stitchBorder:shape.stitchBorder,
+stitchMargin:shape.stitchMargin,
+stitchSpacing:shape.stitchSpacing,
+isExtension:shape.isExtension,
+isLinkedCircle:shape.isLinkedCircle,
+sourceRangeIdx:shape.sourceRangeIdx,
+name:shape.name
+};
+ASYM_SHAPES.splice(idx,1);
+SYM_SHAPES.push(newShape);
+SELECTED={type:'symShape',idx:SYM_SHAPES.length-1};
 }
 this.updateInfo();
 this.updateOutliner();
@@ -1484,7 +1532,7 @@ this.breakHandles();
 this.linkHandles();
 }
 }
-getSelectedObj(){if(SELECTED?.type==='symHole')return SYM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymHole')return ASYM_HOLES[SELECTED.idx];if(SELECTED?.type==='symCustomHole')return SYM_CUSTOM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymCustomHole')return ASYM_CUSTOM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymShape')return ASYM_SHAPES[SELECTED.idx];if(SELECTED?.type==='symStitch')return SYM_STITCHES[SELECTED.idx];if(SELECTED?.type==='asymStitch')return ASYM_STITCHES[SELECTED.idx];if(SELECTED?.type==='edgeStitch')return EDGE_STITCHES[SELECTED.idx];return null}
+getSelectedObj(){if(SELECTED?.type==='symHole')return SYM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymHole')return ASYM_HOLES[SELECTED.idx];if(SELECTED?.type==='symCustomHole')return SYM_CUSTOM_HOLES[SELECTED.idx];if(SELECTED?.type==='asymCustomHole')return ASYM_CUSTOM_HOLES[SELECTED.idx];if(SELECTED?.type==='symShape')return SYM_SHAPES[SELECTED.idx];if(SELECTED?.type==='asymShape')return ASYM_SHAPES[SELECTED.idx];if(SELECTED?.type==='symStitch')return SYM_STITCHES[SELECTED.idx];if(SELECTED?.type==='asymStitch')return ASYM_STITCHES[SELECTED.idx];if(SELECTED?.type==='edgeStitch')return EDGE_STITCHES[SELECTED.idx];return null}
 updateInfo(){
 if(this.outlinerOpen)this.updateOutliner();
 const bar=document.getElementById('props-bar'),stats=document.getElementById('stats');
@@ -1496,7 +1544,7 @@ const propShape=document.getElementById('prop-shape'),propWidth=document.getElem
 const layerPrefix=CFG.projectType==='two-layer'?(CURRENT_LAYER==='front'?'[Front] ':'[Back] '):'';
 if(SELECTED.type==='holster'){document.getElementById('sel-type').textContent=layerPrefix+'Main Pattern';propSize.style.display='flex';document.getElementById('sel-size').textContent=HOLSTER.scaleX.toFixed(2)+' × '+HOLSTER.scaleY.toFixed(2)}
 else if(SELECTED.type==='symHole'||SELECTED.type==='asymHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symHole'?'Sym Hole':'Asym Hole');propShape.style.display='flex';propWidth.style.display='flex';propHeight.style.display='flex';propStitch.style.display='flex';propMirror.style.display='flex';document.getElementById('sel-shape').value=h.shape||'ellipse';document.getElementById('sel-width').value=h.width;document.getElementById('sel-width-slider').value=h.width;document.getElementById('sel-height').value=h.height;document.getElementById('sel-height-slider').value=h.height;document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;document.getElementById('sel-mirror').checked=SELECTED.type==='symHole';if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
-else if(SELECTED.type==='asymShape'){const s=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(s.isExtension?'Extension Shape':s.isLinkedCircle?'Linked Circle':'Asym Shape');propSize.style.display='flex';propStitch.style.display='flex';propExtension.style.display='flex';document.getElementById('sel-size').textContent=(s.scaleX||1).toFixed(2)+' × '+(s.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=s.stitchBorder||false;document.getElementById('sel-extension').checked=s.isExtension||false;if(s.stitchBorder&&!s.isExtension){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=s.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=s.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=s.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=s.stitchSpacing||3}}
+else if(SELECTED.type==='symShape'||SELECTED.type==='asymShape'){const s=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(s.isExtension?'Extension Shape':s.isLinkedCircle?'Linked Circle':(SELECTED.type==='symShape'?'Sym Shape':'Asym Shape'));propSize.style.display='flex';propStitch.style.display='flex';propExtension.style.display='flex';propMirror.style.display='flex';document.getElementById('sel-size').textContent=(s.scaleX||1).toFixed(2)+' × '+(s.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=s.stitchBorder||false;document.getElementById('sel-extension').checked=s.isExtension||false;document.getElementById('sel-mirror').checked=SELECTED.type==='symShape';if(s.stitchBorder&&!s.isExtension){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=s.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=s.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=s.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=s.stitchSpacing||3}}
 else if(SELECTED.type==='symStitch'||SELECTED.type==='asymStitch'){const st=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symStitch'?'Sym Stitch':'Asym Stitch');propSpacing.style.display='flex';propMirror.style.display='flex';document.getElementById('sel-stitch-spacing').value=st.spacing||4;document.getElementById('sel-stitch-spacing-slider').value=st.spacing||4;document.getElementById('sel-mirror').checked=SELECTED.type==='symStitch'}
 else if(SELECTED.type==='symCustomHole'||SELECTED.type==='asymCustomHole'){const h=this.getSelectedObj();document.getElementById('sel-type').textContent=layerPrefix+(SELECTED.type==='symCustomHole'?'Sym Custom':'Asym Custom');propSize.style.display='flex';propStitch.style.display='flex';propMirror.style.display='flex';document.getElementById('sel-size').textContent=(h.scaleX||1).toFixed(2)+' × '+(h.scaleY||1).toFixed(2);document.getElementById('sel-stitch-border').checked=h.stitchBorder||false;document.getElementById('sel-mirror').checked=SELECTED.type==='symCustomHole';if(h.stitchBorder){propMargin.style.display='flex';propSpacing.style.display='flex';document.getElementById('sel-stitch-margin').value=h.stitchMargin||3;document.getElementById('sel-stitch-margin-slider').value=h.stitchMargin||3;document.getElementById('sel-stitch-spacing').value=h.stitchSpacing||3;document.getElementById('sel-stitch-spacing-slider').value=h.stitchSpacing||3}}
 else if(SELECTED.type==='textAnnotation'){const t=TEXT_ANNOTATIONS[SELECTED.idx];document.getElementById('sel-type').textContent=layerPrefix+'Text';propText.style.display='flex';propFontsize.style.display='flex';propFontstyle.style.display='flex';propTextStyle.style.display='flex';propListType.style.display='flex';document.getElementById('sel-text').value=t.text;document.getElementById('sel-fontsize').value=t.fontSize||12;document.getElementById('btn-bold').style.background=t.bold?'var(--accent)':'#333';document.getElementById('btn-italic').style.background=t.italic?'var(--accent)':'#333';document.getElementById('sel-textstyle').value=t.textStyle||'normal';document.getElementById('sel-listtype').value=t.listType||'none'}
@@ -1667,6 +1715,23 @@ return sol[0].map(p=>({x:p.X/SCALE,y:p.Y/SCALE}));
 getSymHoleWorld(hole,side){
 const lx=hole.x*side,wp=M.holsterToWorld({x:lx,y:hole.y}),rot=(HOLSTER.rotation||0)+(hole.rotation||0)*side,w=hole.width*HOLSTER.scaleX,h=hole.height*HOLSTER.scaleY;
 return{x:wp.x,y:wp.y,rotation:rot,width:w,height:h,shape:hole.shape,stitchBorder:hole.stitchBorder,stitchMargin:hole.stitchMargin,stitchSpacing:hole.stitchSpacing}
+}
+getSymShapeWorld(shape,side){
+const lx=shape.x*side,wp=M.holsterToWorld({x:lx,y:shape.y}),rot=(HOLSTER.rotation||0)+(shape.rotation||0)*side;
+return{
+x:wp.x,
+y:wp.y,
+rotation:rot,
+points:shape.points,
+scaleX:(shape.scaleX||1)*HOLSTER.scaleX,
+scaleY:(shape.scaleY||1)*HOLSTER.scaleY,
+stitchBorder:shape.stitchBorder,
+stitchMargin:shape.stitchMargin,
+stitchSpacing:shape.stitchSpacing,
+isExtension:shape.isExtension,
+isLinkedCircle:shape.isLinkedCircle,
+sourceRangeIdx:shape.sourceRangeIdx
+}
 }
 getGizmos(obj,type){const hs=[];let cx,cy,hw,hh,rot;if(type==='holster'){const b=M.getBounds(this.getPatternPath());cx=HOLSTER.x;cy=HOLSTER.y;hw=b.w/2+20;hh=b.h/2+20;rot=HOLSTER.rotation||0}else if(type==='asymShape'){
 // Handle linked circles
@@ -1858,7 +1923,8 @@ this._stitchBtnBounds=null;
 this._mergedStitchBtnBounds=null;
 const pat=this.getMergedPatternPath(),st=this.offsetPath(pat,-CFG.stitchMargin),cav=this.offsetPath(st,-CFG.thickness*2);
 oc.beginPath();pat.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.4;oc.fill();oc.globalAlpha=1;
-// Draw non-extension asymmetric shapes separately
+// Draw non-extension shapes separately
+if(CFG.showSymmetric)SYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{[1,-1].forEach(side=>{const wShp=this.getSymShapeWorld(s,side);if(wShp.isLinkedCircle){const cd=this.getLinkedCircleData(wShp);if(cd){const pts=cd.points.map(p=>{const sc={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(sc,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y}});oc.beginPath();pts.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}else{this.drawShape(oc,wShp);oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}})});
 if(CFG.showAsymmetric)ASYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{if(s.isLinkedCircle){const cd=this.getLinkedCircleData(s);if(cd){const pts=cd.points.map(p=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sc,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y}});oc.beginPath();pts.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}else{this.drawShape(oc,s);oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}});
 oc.globalCompositeOperation='destination-out';
 if(CFG.showSymmetric)SYM_HOLES.forEach(hole=>{[1,-1].forEach(side=>{const wh=this.getSymHoleWorld(hole,side);this.drawHole(oc,wh.x,wh.y,wh.rotation,wh.width,wh.height,wh.shape);oc.fill()})});
@@ -1928,6 +1994,62 @@ ctx.strokeStyle=sel?'#007AFF':'#555';ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;ctx.str
 if(h.stitchBorder){const sp=this.offsetPath(pts,h.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=h.stitchSpacing||3;ctx.fillStyle=sel?'#007AFF':'#444';for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill();hsc++}}}
 });
 if(sel){const ptsR=this.getCustomHoleWorld(h,1);const b=M.getBounds(ptsR);this.drawGizmo(ctx,this.getGizmos({x:b.cx,y:b.cy,points:h.points,scaleX:h.scaleX||1,scaleY:h.scaleY||1,rotation:h.rotation||0},'asymShape'),'#007AFF');const cpts=this.getCustomHoleControlPts(h,1);const ns=8/VIEW.zoom,hs=5/VIEW.zoom;cpts.forEach(n=>{const h1w={x:n.x+n.h1.x,y:n.y+n.h1.y},h2w={x:n.x+n.h2.x,y:n.y+n.h2.y};ctx.strokeStyle='rgba(0,122,255,.5)';ctx.lineWidth=1/VIEW.zoom;ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(h1w.x,h1w.y);ctx.stroke();ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(h2w.x,h2w.y);ctx.stroke();ctx.fillStyle='#FF3B30';ctx.beginPath();ctx.arc(h1w.x,h1w.y,hs,0,Math.PI*2);ctx.fill();ctx.fillStyle='#00C7BE';ctx.beginPath();ctx.arc(h2w.x,h2w.y,hs,0,Math.PI*2);ctx.fill();ctx.fillStyle='#007AFF';ctx.fillRect(n.x-ns/2,n.y-ns/2,ns,ns);ctx.strokeStyle='#fff';ctx.lineWidth=1.5/VIEW.zoom;ctx.strokeRect(n.x-ns/2,n.y-ns/2,ns,ns)})}});
+}
+if(CFG.showSymmetric){
+SYM_SHAPES.forEach((shape,idx)=>{if(shape.hidden)return;try{const sel=SELECTED?.type==='symShape'&&SELECTED?.idx===idx;
+[1,-1].forEach(side=>{
+const wShp=this.getSymShapeWorld(shape,side);
+// Handle linked circles specially
+if(wShp.isLinkedCircle){
+const circleData=this.getLinkedCircleData(wShp);
+if(!circleData)return;
+const pts=circleData.points.map(p=>{const s={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(s,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y}});
+ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
+ctx.strokeStyle=sel?'#007AFF':'#555';ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;ctx.stroke();
+if(wShp.stitchBorder){
+ctx.fillStyle=sel?'#007AFF':'#444';
+circleData.stitchPositions.forEach(pos=>{
+const angle=pos*Math.PI*2-Math.PI/2;
+const sx=Math.cos(angle)*(circleData.radius+CFG.stitchMargin)*(wShp.scaleX||1);
+const sy=Math.sin(angle)*(circleData.radius+CFG.stitchMargin)*(wShp.scaleY||1);
+const r=M.rotate({x:sx,y:sy},wShp.rotation||0);
+ctx.beginPath();ctx.arc(wShp.x+r.x,wShp.y+r.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill();hsc++;
+});
+}
+return;
+}
+// Regular shape rendering
+const isExt=wShp.isExtension;
+this.drawShape(ctx,wShp);
+ctx.strokeStyle=sel?(isExt?'#34C759':'#007AFF'):(isExt?'rgba(52,199,89,.3)':'#555');
+ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;
+ctx.setLineDash(sel||isExt?[]:[5/VIEW.zoom,3/VIEW.zoom]);
+ctx.stroke();ctx.setLineDash([]);
+if(wShp.stitchBorder&&!isExt){const pts=wShp.points.map(p=>{const s={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(s,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y}});const sp=this.offsetPath(pts,wShp.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=wShp.stitchSpacing||3;ctx.fillStyle=sel?'#007AFF':'#444';for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill();hsc++}}}
+});
+// Only draw gizmo/handles on right side for sym shapes
+if(sel){
+const wShp=this.getSymShapeWorld(shape,1);
+this.drawGizmo(ctx,this.getGizmos(wShp,'asymShape'),wShp.isExtension?'#34C759':'#007AFF');
+const cpts=this.getShapeControlPts(wShp);
+const ns=8/VIEW.zoom,hs=5/VIEW.zoom;
+cpts.forEach(n=>{
+const h1w={x:n.x+n.h1.x,y:n.y+n.h1.y},h2w={x:n.x+n.h2.x,y:n.y+n.h2.y};
+ctx.strokeStyle=wShp.isExtension?'rgba(52,199,89,.5)':'rgba(0,122,255,.5)';
+ctx.lineWidth=1/VIEW.zoom;
+ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(h1w.x,h1w.y);ctx.stroke();
+ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(h2w.x,h2w.y);ctx.stroke();
+ctx.fillStyle='#FF3B30';
+ctx.beginPath();ctx.arc(h1w.x,h1w.y,hs,0,Math.PI*2);ctx.fill();
+ctx.fillStyle='#00C7BE';
+ctx.beginPath();ctx.arc(h2w.x,h2w.y,hs,0,Math.PI*2);ctx.fill();
+ctx.fillStyle=wShp.isExtension?'#34C759':'#007AFF';
+ctx.fillRect(n.x-ns/2,n.y-ns/2,ns,ns);
+ctx.strokeStyle='#fff';
+ctx.lineWidth=1.5/VIEW.zoom;
+ctx.strokeRect(n.x-ns/2,n.y-ns/2,ns,ns);
+});
+}}catch(e){console.error('SYM_SHAPES render error:',e,shape)}});
 }
 if(CFG.showAsymmetric){
 ASYM_SHAPES.forEach((shape,idx)=>{if(shape.hidden)return;try{const sel=SELECTED?.type==='asymShape'&&SELECTED?.idx===idx;
@@ -2194,7 +2316,49 @@ if(TEMP_CUSTOMHOLE&&TEMP_CUSTOMHOLE.points.length){ctx.beginPath();ctx.moveTo(TE
 if(CFG.showText)TEXT_ANNOTATIONS.forEach((t,idx)=>{
 if(t.hidden)return;
 const sel=SELECTED?.type==='textAnnotation'&&SELECTED?.idx===idx;
-// Handle both old and new format
+// Render text from HTML content if available
+if(t.htmlContent){
+// Parse HTML and render with basic formatting
+const parser=new DOMParser();
+const doc=parser.parseFromString(`<div>${t.htmlContent}</div>`,'text/html');
+let yOffset=0;
+const lineHeight=1.4;
+// Process each element in the HTML
+const processElement=(el,indent=0)=>{
+Array.from(el.children).forEach(child=>{
+let fs=12/VIEW.zoom;
+let fontWeight='';
+let textContent=child.textContent.trim();
+if(!textContent)return;
+// Handle different element types
+if(child.tagName==='H1'){fs=24/VIEW.zoom;fontWeight='bold '}
+else if(child.tagName==='H2'){fs=18/VIEW.zoom;fontWeight='bold '}
+else if(child.tagName==='P'){fs=12/VIEW.zoom}
+else if(child.tagName==='LI'){fs=12/VIEW.zoom}
+// Check for bold/italic in inline elements
+if(child.querySelector('strong')||child.style.fontWeight==='bold'){fontWeight='bold '}
+const isItalic=child.querySelector('em')||child.style.fontStyle==='italic';
+ctx.font=`${isItalic?'italic ':''}${fontWeight}${fs}px "Segoe UI", sans-serif`;
+ctx.fillStyle=sel?'#007AFF':'#333';
+ctx.textAlign='left';ctx.textBaseline='top';
+// Add list prefix if it's a list item
+let prefix='';
+if(child.tagName==='LI'){
+const parent=child.parentElement;
+if(parent.tagName==='UL'){prefix='• '}
+else if(parent.tagName==='OL'){
+const liIndex=Array.from(parent.children).indexOf(child)+1;
+prefix=`${liIndex}. `;
+}
+}
+const displayText=prefix+textContent;
+ctx.fillText(displayText,t.x+indent,t.y+yOffset);
+yOffset+=fs*lineHeight;
+});
+};
+processElement(doc.body.firstChild);
+}else{
+// Handle both old and new format (backward compatibility)
 const lines=t.lines||[{text:t.text||'',style:t.textStyle||'normal',listType:t.listType||'none',listIndex:t.listIndex}];
 let yOffset=0;
 const lineHeight=1.3; // Line height multiplier
@@ -2220,6 +2384,7 @@ textToShow=prefix+textToShow;
 if(textToShow)ctx.fillText(textToShow,t.x,t.y+yOffset);
 yOffset+=fs*lineHeight;
 });
+}
 // Draw arrow if present
 if(t.arrowTo){
 ctx.strokeStyle=sel?'#007AFF':'#333';ctx.lineWidth=1.5/VIEW.zoom;
@@ -2235,7 +2400,7 @@ ctx.lineTo(t.arrowTo.x-al*Math.cos(ang+0.4),t.arrowTo.y-al*Math.sin(ang+0.4));
 ctx.stroke();
 }
 // Selection indicator
-if(sel){const tw=ctx.measureText(t.text||'').width||20;ctx.strokeStyle='#007AFF';ctx.lineWidth=1/VIEW.zoom;ctx.setLineDash([3/VIEW.zoom,3/VIEW.zoom]);ctx.strokeRect(t.x-3/VIEW.zoom,t.y-3/VIEW.zoom,tw+6/VIEW.zoom,fs+6/VIEW.zoom);ctx.setLineDash([])}
+if(sel){const tw=ctx.measureText(t.text||'').width||20;ctx.strokeStyle='#007AFF';ctx.lineWidth=1/VIEW.zoom;ctx.setLineDash([3/VIEW.zoom,3/VIEW.zoom]);ctx.strokeRect(t.x-3/VIEW.zoom,t.y-3/VIEW.zoom,tw+6/VIEW.zoom,12/VIEW.zoom+6/VIEW.zoom);ctx.setLineDash([])}
 });
 // Draw ghost layer in two-layer mode
 if(CFG.projectType==='two-layer'&&CFG.showGhostLayer){
@@ -2477,6 +2642,20 @@ if(M.dist(w,h2w)<10/VIEW.zoom){DRAG={active:true,type:'asymShapeH2',idx:SELECTED
 }
 // Then check gizmo handles
 const gizmo=this.getGizmos(s,'asymShape');for(const g of gizmo.handles){if(M.dist(w,g)<12/VIEW.zoom){DRAG={active:true,type:'asymShapeGizmo',gizmoType:g.type,idx:SELECTED.idx,sx:w.x,sy:w.y,shx:s.x,shy:s.y,ssx:s.scaleX||1,ssy:s.scaleY||1,sr:s.rotation||0};return}}}}
+if(SELECTED?.type==='symShape'){const s=SYM_SHAPES[SELECTED.idx];if(!s.locked){
+// Check for vertex drag first (higher priority than bezier handles)
+const wShp=this.getSymShapeWorld(s,1);
+const pts=wShp.points.map((p,i)=>{const sc={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(sc,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y,idx:i}});
+for(const pt of pts){if(M.dist(w,pt)<12/VIEW.zoom){DRAG={active:true,type:'symShapeVertex',idx:SELECTED.idx,ptIdx:pt.idx};return}}
+// Check bezier handles
+const cpts=this.getShapeControlPts(wShp);
+for(let i=0;i<cpts.length;i++){
+const n=cpts[i],h1w={x:n.x+n.h1.x,y:n.y+n.h1.y},h2w={x:n.x+n.h2.x,y:n.y+n.h2.y};
+if(M.dist(w,h1w)<10/VIEW.zoom){DRAG={active:true,type:'symShapeH1',idx:SELECTED.idx,ptIdx:i};return}
+if(M.dist(w,h2w)<10/VIEW.zoom){DRAG={active:true,type:'symShapeH2',idx:SELECTED.idx,ptIdx:i};return}
+}
+// Then check gizmo handles
+const gizmo=this.getGizmos(wShp,'asymShape');for(const g of gizmo.handles){if(M.dist(w,g)<12/VIEW.zoom){DRAG={active:true,type:'symShapeGizmo',gizmoType:g.type,idx:SELECTED.idx,sx:w.x,sy:w.y,shx:s.x,shy:s.y,ssx:s.scaleX||1,ssy:s.scaleY||1,sr:s.rotation||0};return}}}}
 // Check for canvas "+ Stitch" button clicks - check merged first
 if(this._mergedStitchBtnBounds){
 const b=this._mergedStitchBtnBounds;
@@ -2527,6 +2706,17 @@ if(SELECTED?.type==='edgeRange'){if(checkEdgeHandles())return;if(checkMergedHand
 else if(SELECTED?.type==='mergedEdgeRange'){if(checkMergedHandles())return;if(checkEdgeHandles())return}
 else{if(checkEdgeHandles())return;if(checkMergedHandles())return}
 // Object selection
+for(let i=SYM_SHAPES.length-1;i>=0;i--){const s=SYM_SHAPES[i];
+for(const side of[1,-1]){
+const wShp=this.getSymShapeWorld(s,side);
+// Handle linked circles
+if(wShp.isLinkedCircle){const cd=this.getLinkedCircleData(wShp);if(cd){const d=M.dist(w,{x:wShp.x,y:wShp.y});if(d<cd.radius*(wShp.scaleX||1)+10){SELECTED={type:'symShape',idx:i};this.updateInfo();this.draw();return}}}
+else{
+// Regular shape
+const pts=wShp.points.map(p=>{const sc={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(sc,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y}});
+if(M.insidePoly(w,pts)){SELECTED={type:'symShape',idx:i};this.updateInfo();this.draw();return}
+}
+}}
 for(let i=ASYM_SHAPES.length-1;i>=0;i--){const s=ASYM_SHAPES[i];
 // Handle linked circles
 if(s.isLinkedCircle){const cd=this.getLinkedCircleData(s);if(cd){const d=M.dist(w,{x:s.x,y:s.y});if(d<cd.radius*(s.scaleX||1)+10){SELECTED={type:'asymShape',idx:i};this.updateInfo();this.draw();return}}continue}
@@ -2726,7 +2916,7 @@ GHOST_OFFSET.y=newOffsetY;
 break;
 }
 case'refImage':REF_IMAGE.x=DRAG.ox+(w.x-DRAG.sx);REF_IMAGE.y=DRAG.oy+(w.y-DRAG.sy);break;
-case'holsterGizmo':if(DRAG.gizmoType==='move'){HOLSTER.x=DRAG.shx+(w.x-DRAG.sx);HOLSTER.y=DRAG.shy+(w.y-DRAG.sy)}else if(DRAG.gizmoType==='rotate'){HOLSTER.rotation=Math.atan2(w.y-HOLSTER.y,w.x-HOLSTER.x)+Math.PI/4}else{const ds=Math.hypot(DRAG.sx-HOLSTER.x,DRAG.sy-HOLSTER.y),dn=Math.hypot(w.x-HOLSTER.x,w.y-HOLSTER.y),sf=dn/ds;if(SHIFT_HELD){const lw=M.worldToLocal(w,{x:HOLSTER.x,y:HOLSTER.y,rotation:HOLSTER.rotation,scaleX:1,scaleY:1}),b=M.getBounds(this.getPatternLocalPath());if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))HOLSTER.scaleX=Math.max(.1,Math.abs(lw.x)/(b.w/2+20));if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))HOLSTER.scaleY=Math.max(.1,Math.abs(lw.y)/(b.h/2+20))}else{HOLSTER.scaleX=Math.max(.1,DRAG.ssx*sf);HOLSTER.scaleY=Math.max(.1,DRAG.ssy*sf)}}this.updateInfo();break;
+case'holsterGizmo':if(DRAG.gizmoType==='move'){const oldX=HOLSTER.x,oldY=HOLSTER.y;HOLSTER.x=DRAG.shx+(w.x-DRAG.sx);HOLSTER.y=DRAG.shy+(w.y-DRAG.sy);const dx=HOLSTER.x-oldX,dy=HOLSTER.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('holster',0,dx,dy)}}else if(DRAG.gizmoType==='rotate'){HOLSTER.rotation=Math.atan2(w.y-HOLSTER.y,w.x-HOLSTER.x)+Math.PI/4}else{const ds=Math.hypot(DRAG.sx-HOLSTER.x,DRAG.sy-HOLSTER.y),dn=Math.hypot(w.x-HOLSTER.x,w.y-HOLSTER.y),sf=dn/ds;if(SHIFT_HELD){const lw=M.worldToLocal(w,{x:HOLSTER.x,y:HOLSTER.y,rotation:HOLSTER.rotation,scaleX:1,scaleY:1}),b=M.getBounds(this.getPatternLocalPath());if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))HOLSTER.scaleX=Math.max(.1,Math.abs(lw.x)/(b.w/2+20));if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))HOLSTER.scaleY=Math.max(.1,Math.abs(lw.y)/(b.h/2+20))}else{HOLSTER.scaleX=Math.max(.1,DRAG.ssx*sf);HOLSTER.scaleY=Math.max(.1,DRAG.ssy*sf)}}this.updateInfo();break;
 case'symHoleGizmo':{const hole=SYM_HOLES[DRAG.idx],lw=M.worldToHolster(w);if(DRAG.gizmoType==='move'){const oldX=hole.x,oldY=hole.y;const s=snapLocal({x:Math.abs(lw.x),y:lw.y});hole.x=s.x;hole.y=s.y;const dx=hole.x-oldX,dy=hole.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('symHole',DRAG.idx,dx,dy)}}else if(DRAG.gizmoType==='rotate'){const wh=this.getSymHoleWorld(hole,1);hole.rotation=Math.atan2(w.y-wh.y,w.x-wh.x)-(CFG.lockFoldLine?0:(HOLSTER.rotation||0))+Math.PI/4}else{const wh=this.getSymHoleWorld(hole,1),ds=Math.hypot(DRAG.sx-wh.x,DRAG.sy-wh.y),dn=Math.hypot(w.x-wh.x,w.y-wh.y),sf=dn/ds;if(SHIFT_HELD){const rot=(CFG.lockFoldLine?0:(HOLSTER.rotation||0))+(hole.rotation||0),lh=M.worldToLocal(w,{x:wh.x,y:wh.y,rotation:rot,scaleX:1,scaleY:1});if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))hole.width=Math.max(1,Math.abs(lh.x)*2/HOLSTER.scaleX);if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))hole.height=Math.max(1,Math.abs(lh.y)*2/HOLSTER.scaleY)}else{hole.width=Math.max(1,DRAG.sw*sf);hole.height=Math.max(1,DRAG.sh*sf)}}this.updateInfo();break}
 case'asymHoleGizmo':{const hole=ASYM_HOLES[DRAG.idx];if(DRAG.gizmoType==='move'){const oldX=hole.x,oldY=hole.y;const s=snapWorld(w);hole.x=s.x;hole.y=s.y;const dx=hole.x-oldX,dy=hole.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('asymHole',DRAG.idx,dx,dy)}}else if(DRAG.gizmoType==='rotate'){hole.rotation=Math.atan2(w.y-hole.y,w.x-hole.x)+Math.PI/4}else{const ds=Math.hypot(DRAG.sx-DRAG.shx,DRAG.sy-DRAG.shy),dn=Math.hypot(w.x-hole.x,w.y-hole.y),sf=dn/ds;if(SHIFT_HELD){const lh=M.worldToLocal(w,{x:hole.x,y:hole.y,rotation:hole.rotation||0,scaleX:1,scaleY:1});if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))hole.width=Math.max(1,Math.abs(lh.x)*2);if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))hole.height=Math.max(1,Math.abs(lh.y)*2)}else{hole.width=Math.max(1,DRAG.sw*sf);hole.height=Math.max(1,DRAG.sh*sf)}}this.updateInfo();break}
 case'asymShapeGizmo':{const s=ASYM_SHAPES[DRAG.idx];if(DRAG.gizmoType==='move'){const oldX=s.x,oldY=s.y;const sn=snapWorld(w);s.x=sn.x;s.y=sn.y;const dx=s.x-oldX,dy=s.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('asymShape',DRAG.idx,dx,dy)}}else if(DRAG.gizmoType==='rotate'){s.rotation=Math.atan2(w.y-s.y,w.x-s.x)+Math.PI/4}else{const ds=Math.hypot(DRAG.sx-DRAG.shx,DRAG.sy-DRAG.shy),dn=Math.hypot(w.x-s.x,w.y-s.y),sf=dn/ds;if(SHIFT_HELD&&s.points){const ls=M.worldToLocal(w,{x:s.x,y:s.y,rotation:s.rotation||0,scaleX:1,scaleY:1}),b=M.getBounds(s.points);if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))s.scaleX=Math.max(.1,Math.abs(ls.x)/(b.w/2+10));if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))s.scaleY=Math.max(.1,Math.abs(ls.y)/(b.h/2+10))}else{s.scaleX=Math.max(.1,DRAG.ssx*sf);s.scaleY=Math.max(.1,DRAG.ssy*sf)}}this.updateInfo();break}
@@ -2750,6 +2940,10 @@ const rot=-(s.rotation||0);
 const rd=M.rotate({x:dx,y:dy},rot);
 p.h2={x:rd.x/(s.scaleX||1),y:rd.y/(s.scaleY||1)};
 break}
+case'symShapeGizmo':{const s=SYM_SHAPES[DRAG.idx],lw=M.worldToHolster(w);if(DRAG.gizmoType==='move'){const oldX=s.x,oldY=s.y;const sn=snapLocal({x:Math.abs(lw.x),y:lw.y});s.x=sn.x;s.y=sn.y;const dx=s.x-oldX,dy=s.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('symShape',DRAG.idx,dx,dy)}}else if(DRAG.gizmoType==='rotate'){const wShp=this.getSymShapeWorld(s,1);s.rotation=Math.atan2(w.y-wShp.y,w.x-wShp.x)-(HOLSTER.rotation||0)+Math.PI/4}else{const wShp=this.getSymShapeWorld(s,1),ds=Math.hypot(DRAG.sx-wShp.x,DRAG.sy-wShp.y),dn=Math.hypot(w.x-wShp.x,w.y-wShp.y),sf=dn/ds;if(SHIFT_HELD&&s.points){const ls=M.worldToLocal(w,{x:wShp.x,y:wShp.y,rotation:wShp.rotation||0,scaleX:1,scaleY:1}),b=M.getBounds(s.points);if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))s.scaleX=Math.max(.1,Math.abs(ls.x)/(b.w/2+10));if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))s.scaleY=Math.max(.1,Math.abs(ls.y)/(b.h/2+10))}else{s.scaleX=Math.max(.1,DRAG.ssx*sf);s.scaleY=Math.max(.1,DRAG.ssy*sf)}}this.updateInfo();break}
+case'symShapeVertex':{const s=SYM_SHAPES[DRAG.idx],lw=M.worldToHolster(w);const localW={x:Math.abs(lw.x),y:lw.y};s.points[DRAG.ptIdx].x=localW.x;s.points[DRAG.ptIdx].y=localW.y;break}
+case'symShapeH1':{const s=SYM_SHAPES[DRAG.idx],p=s.points[DRAG.ptIdx];const wShp=this.getSymShapeWorld(s,1);const cpts=this.getShapeControlPts(wShp),cp=cpts[DRAG.ptIdx];const dx=w.x-cp.x,dy=w.y-cp.y;const rot=-(s.rotation||0)-(HOLSTER.rotation||0);const rd=M.rotate({x:dx/HOLSTER.scaleX,y:dy/HOLSTER.scaleY},rot);p.h1={x:rd.x/(s.scaleX||1),y:rd.y/(s.scaleY||1)};break}
+case'symShapeH2':{const s=SYM_SHAPES[DRAG.idx],p=s.points[DRAG.ptIdx];const wShp=this.getSymShapeWorld(s,1);const cpts=this.getShapeControlPts(wShp),cp=cpts[DRAG.ptIdx];const dx=w.x-cp.x,dy=w.y-cp.y;const rot=-(s.rotation||0)-(HOLSTER.rotation||0);const rd=M.rotate({x:dx/HOLSTER.scaleX,y:dy/HOLSTER.scaleY},rot);p.h2={x:rd.x/(s.scaleX||1),y:rd.y/(s.scaleY||1)};break}
 case'symCustomHoleGizmo':{const h=SYM_CUSTOM_HOLES[DRAG.idx],lw=M.worldToHolster(w);if(DRAG.gizmoType==='move'){const oldX=h.x,oldY=h.y;const s=snapLocal({x:Math.abs(lw.x),y:lw.y});h.x=s.x;h.y=s.y;const dx=h.x-oldX,dy=h.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('symCustomHole',DRAG.idx,dx,dy)}}else if(DRAG.gizmoType==='rotate'){const pts=this.getCustomHoleWorld(h,1),b=M.getBounds(pts);h.rotation=Math.atan2(w.y-b.cy,w.x-b.cx)-(HOLSTER.rotation||0)+Math.PI/4}else{const pts=this.getCustomHoleWorld(h,1),b=M.getBounds(pts),ds=Math.hypot(DRAG.sx-b.cx,DRAG.sy-b.cy),dn=Math.hypot(w.x-b.cx,w.y-b.cy),sf=dn/ds;if(SHIFT_HELD){const ls=M.worldToLocal(w,{x:b.cx,y:b.cy,rotation:(HOLSTER.rotation||0)+(h.rotation||0),scaleX:1,scaleY:1}),hb=M.getBounds(h.points);if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))h.scaleX=Math.max(.1,Math.abs(ls.x)/(hb.w/2+10));if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))h.scaleY=Math.max(.1,Math.abs(ls.y)/(hb.h/2+10))}else{h.scaleX=Math.max(.1,DRAG.ssx*sf);h.scaleY=Math.max(.1,DRAG.ssy*sf)}}this.updateInfo();break}
 case'asymCustomHoleGizmo':{const h=ASYM_CUSTOM_HOLES[DRAG.idx];if(DRAG.gizmoType==='move'){const oldX=h.x,oldY=h.y;const s=snapWorld(w);h.x=s.x;h.y=s.y;const dx=h.x-oldX,dy=h.y-oldY;if(dx!==0||dy!==0){this.propagateTransformToChildren('asymCustomHole',DRAG.idx,dx,dy)}}else if(DRAG.gizmoType==='rotate'){h.rotation=Math.atan2(w.y-h.y,w.x-h.x)+Math.PI/4}else{const ds=Math.hypot(DRAG.sx-DRAG.shx,DRAG.sy-DRAG.shy),dn=Math.hypot(w.x-h.x,w.y-h.y),sf=dn/ds;if(SHIFT_HELD){const ls=M.worldToLocal(w,{x:h.x,y:h.y,rotation:h.rotation||0,scaleX:1,scaleY:1}),b=M.getBounds(h.points);if(DRAG.gizmoType.includes('e')||DRAG.gizmoType.includes('w'))h.scaleX=Math.max(.1,Math.abs(ls.x)/(b.w/2+10));if(DRAG.gizmoType.includes('n')||DRAG.gizmoType.includes('s'))h.scaleY=Math.max(.1,Math.abs(ls.y)/(b.h/2+10))}else{h.scaleX=Math.max(.1,DRAG.ssx*sf);h.scaleY=Math.max(.1,DRAG.ssy*sf)}}this.updateInfo();break}
 case'symStitchPt':{const sl=SYM_STITCHES[DRAG.idx],lw=M.worldToHolster(w);const s=snapLocal({x:Math.abs(lw.x),y:lw.y});sl.points[DRAG.ptIdx].x=s.x;sl.points[DRAG.ptIdx].y=s.y;break}
