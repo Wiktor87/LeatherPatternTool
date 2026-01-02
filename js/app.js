@@ -2373,7 +2373,35 @@ for(let i=SYM_CUSTOM_HOLES.length-1;i>=0;i--){const h=SYM_CUSTOM_HOLES[i];for(co
 for(let i=SYM_STITCHES.length-1;i>=0;i--){const sl=SYM_STITCHES[i];for(const side of[1,-1]){const pts=this.getSymStitchWorld(sl,side);const smp=M.sampleBezier(pts,30);if(M.ptOnBezier(smp,w,10/VIEW.zoom)){SELECTED={type:'symStitch',idx:i};this.updateInfo();this.draw();return}}}
 for(let i=ASYM_STITCHES.length-1;i>=0;i--){const sl=ASYM_STITCHES[i];const smp=M.sampleBezier(sl.points,30);if(M.ptOnBezier(smp,w,10/VIEW.zoom)){SELECTED={type:'asymStitch',idx:i};this.updateInfo();this.draw();return}}
 // Text annotation selection
-for(let i=TEXT_ANNOTATIONS.length-1;i>=0;i--){const t=TEXT_ANNOTATIONS[i];const fs=t.fontSize||12;const tw=this.ctx.measureText(t.text).width/VIEW.zoom;if(w.x>=t.x&&w.x<=t.x+tw+20&&w.y>=t.y&&w.y<=t.y+fs+10){SELECTED={type:'textAnnotation',idx:i};if(!t.locked){DRAG={active:true,type:'textMove',idx:i,ox:w.x-t.x,oy:w.y-t.y}}this.updateInfo();this.draw();return}}
+for(let i=TEXT_ANNOTATIONS.length-1;i>=0;i--){
+const t=TEXT_ANNOTATIONS[i];
+if(t.hidden)continue;
+// Calculate correct font size based on text style
+let fs=t.fontSize||12;
+if(t.textStyle==='header'){fs=24}
+else if(t.textStyle==='subheader'){fs=18}
+// Set the correct font for measuring
+const fontWeight=(t.bold||t.textStyle==='header'||t.textStyle==='subheader')?'bold ':'';
+const fontStyle=(t.italic?'italic ':'');
+this.ctx.font=`${fontStyle}${fontWeight}${fs/VIEW.zoom}px "Segoe UI", sans-serif`;
+// Measure text with list prefix if present
+let textToShow=t.text||'';
+if(t.listType&&t.listType!=='none'){
+const listIdx=t.listIndex||1;
+let prefix='';
+if(t.listType==='bullet'){prefix='• '}
+else if(t.listType==='numbered'){prefix=`${listIdx}. `}
+else if(t.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
+textToShow=prefix+textToShow;
+}
+const tw=this.ctx.measureText(textToShow).width*VIEW.zoom;
+const fh=fs+10;
+if(w.x>=t.x&&w.x<=t.x+tw+20&&w.y>=t.y&&w.y<=t.y+fh){
+SELECTED={type:'textAnnotation',idx:i};
+if(!t.locked){DRAG={active:true,type:'textMove',idx:i,ox:w.x-t.x,oy:w.y-t.y}}
+this.updateInfo();this.draw();return
+}
+}
 if(!HOLSTER.locked){for(let i=0;i<NODES.length;i++){const n=NODES[i],nw=M.holsterToWorld(n),h1w=M.holsterToWorld({x:n.x+n.h1.x,y:n.y+n.h1.y}),h2w=M.holsterToWorld({x:n.x+n.h2.x,y:n.y+n.h2.y});if(M.dist(w,nw)<12/VIEW.zoom){DRAG={active:true,type:'node',idx:i};SELECTED={type:'node',idx:i};this.canvas.style.cursor='grabbing';this.updateInfo();this.draw();return}if(M.dist(w,h1w)<10/VIEW.zoom){DRAG={active:true,type:'h1',idx:i};SELECTED=null;this.canvas.style.cursor='grabbing';this.updateInfo();this.draw();return}if(M.dist(w,h2w)<10/VIEW.zoom){DRAG={active:true,type:'h2',idx:i};SELECTED=null;this.canvas.style.cursor='grabbing';this.updateInfo();this.draw();return}}}
 const pat=this.getPatternPath();
 if(M.insidePoly(w,pat)){SELECTED={type:'holster'};this.updateInfo();this.draw();return}
