@@ -1098,92 +1098,66 @@ changeStitchSpacing(v){const h=this.getSelectedObj();if(h){if(SELECTED?.type==='
 startTextEdit(idx){
 const t=TEXT_ANNOTATIONS[idx];
 const ed=document.getElementById('text-editor');
-const inp=document.getElementById('text-input');
-const styleSelect=document.getElementById('text-line-style');
-const listSelect=document.getElementById('text-line-list');
+const container=document.getElementById('quill-editor-container');
 // Position editor at text location
 const sx=VIEW.x+t.x*VIEW.zoom,sy=VIEW.y+t.y*VIEW.zoom;
 ed.style.left=sx+'px';ed.style.top=sy+'px';
-// Set current text (join all lines with newlines)
-const lines=t.lines||[{text:'',style:'normal',listType:'none'}];
-inp.value=lines.map(l=>l.text).join('\n');
-ed.classList.add('active');
-inp.focus();
-inp.select();
-this.editingTextIdx=idx;
-this.editingLineIdx=0; // Track current line being edited
-// Update controls for first line
-styleSelect.value=lines[0]?.style||'normal';
-listSelect.value=lines[0]?.listType||'none';
-// Set up control handlers
-document.getElementById('text-apply-btn').onclick=()=>this.stopTextEdit();
-// Style change handler
-styleSelect.onchange=()=>{
-const cursorPos=inp.selectionStart;
-const textBefore=inp.value.substring(0,cursorPos);
-const lineIdx=textBefore.split('\n').length-1;
-if(t.lines&&t.lines[lineIdx]){
-t.lines[lineIdx].style=styleSelect.value;
-this.draw();
+// Initialize Quill editor if not already initialized
+if(!this.quillEditor){
+this.quillEditor=new Quill('#quill-editor-container',{
+theme:'snow',
+placeholder:'Type your text here...',
+modules:{
+toolbar:[
+[{header:[1,2,false]}],
+['bold','italic'],
+[{list:'ordered'},{list:'bullet'}]
+]
 }
-};
-// List type change handler
-listSelect.onchange=()=>{
-const cursorPos=inp.selectionStart;
-const textBefore=inp.value.substring(0,cursorPos);
-const lineIdx=textBefore.split('\n').length-1;
-if(t.lines&&t.lines[lineIdx]){
-t.lines[lineIdx].listType=listSelect.value;
-if(listSelect.value!=='none'&&!t.lines[lineIdx].listIndex){
-t.lines[lineIdx].listIndex=lineIdx+1;
-}
-this.draw();
-}
-};
-// Update controls when cursor moves between lines
-const updateControlsForCursorLine=()=>{
-const cursorPos=inp.selectionStart;
-const textBefore=inp.value.substring(0,cursorPos);
-const lineIdx=textBefore.split('\n').length-1;
-if(t.lines&&t.lines[lineIdx]){
-styleSelect.value=t.lines[lineIdx].style||'normal';
-listSelect.value=t.lines[lineIdx].listType||'none';
-}
-};
-inp.onclick=updateControlsForCursorLine;
-inp.onkeyup=updateControlsForCursorLine;
-// Auto-resize textarea
-inp.style.height='auto';
-inp.style.height=inp.scrollHeight+'px';
-inp.oninput=(e)=>{
-e.target.style.height='auto';
-e.target.style.height=e.target.scrollHeight+'px';
-this.onTextInput(e);
-updateControlsForCursorLine();
-};
-inp.onkeydown=(e)=>this.onTextKey(e);
-this.draw();
-}
-stopTextEdit(){
-const ed=document.getElementById('text-editor');
-const inp=document.getElementById('text-input');
-ed.classList.remove('active');
-if(this.editingTextIdx!==undefined){
-const t=TEXT_ANNOTATIONS[this.editingTextIdx];
-// Parse lines from textarea
-const textLines=inp.value.split('\n');
-t.lines=textLines.map((text,idx)=>{
-// Preserve existing line properties if available
-const existingLine=t.lines&&t.lines[idx];
-return{
-text:text,
-style:existingLine?.style||'normal',
-listType:existingLine?.listType||'none',
-listIndex:existingLine?.listIndex||(idx+1)
-};
 });
-// Remove empty text if all lines are empty
-if(t.lines.every(l=>!l.text.trim())){
+}
+// Load existing content (HTML or Delta format)
+if(t.htmlContent){
+this.quillEditor.root.innerHTML=t.htmlContent;
+}else if(t.lines){
+// Convert old format to HTML for initial migration
+const html=t.lines.map(line=>{
+let tag='p';
+if(line.style==='header')tag='h1';
+else if(line.style==='subheader')tag='h2';
+let content=line.text||'';
+// Handle list types
+if(line.listType==='bullet'){
+return`<li>${content}</li>`;
+}else if(line.listType==='numbered'){
+return`<li>${content}</li>`;
+}
+return`<${tag}>${content}</${tag}>`;
+}).join('');
+this.quillEditor.root.innerHTML=html;
+}else{
+this.quillEditor.setText('');
+}
+ed.classList.add('active');
+this.quillEditor.focus();
+this.editingTextIdx=idx;
+// Set up control handlers
+document.getElementById('text-apply-btn').onclick=()=>this.stopTextEdit(true);
+document.getElementById('text-cancel-btn').onclick=()=>this.stopTextEdit(false);
+this.draw();
+}
+stopTextEdit(apply=true){
+const ed=document.getElementById('text-editor');
+ed.classList.remove('active');
+if(this.editingTextIdx!==undefined&&apply){
+const t=TEXT_ANNOTATIONS[this.editingTextIdx];
+// Store the HTML content from Quill
+t.htmlContent=this.quillEditor.root.innerHTML;
+// Also parse and store as plain text for backward compatibility
+const textContent=this.quillEditor.getText().trim();
+t.text=textContent;
+// Remove empty text annotations
+if(!textContent){
 TEXT_ANNOTATIONS.splice(this.editingTextIdx,1);
 SELECTED=null;
 }
@@ -2342,7 +2316,49 @@ if(TEMP_CUSTOMHOLE&&TEMP_CUSTOMHOLE.points.length){ctx.beginPath();ctx.moveTo(TE
 if(CFG.showText)TEXT_ANNOTATIONS.forEach((t,idx)=>{
 if(t.hidden)return;
 const sel=SELECTED?.type==='textAnnotation'&&SELECTED?.idx===idx;
-// Handle both old and new format
+// Render text from HTML content if available
+if(t.htmlContent){
+// Parse HTML and render with basic formatting
+const parser=new DOMParser();
+const doc=parser.parseFromString(`<div>${t.htmlContent}</div>`,'text/html');
+let yOffset=0;
+const lineHeight=1.4;
+// Process each element in the HTML
+const processElement=(el,indent=0)=>{
+Array.from(el.children).forEach(child=>{
+let fs=12/VIEW.zoom;
+let fontWeight='';
+let textContent=child.textContent.trim();
+if(!textContent)return;
+// Handle different element types
+if(child.tagName==='H1'){fs=24/VIEW.zoom;fontWeight='bold '}
+else if(child.tagName==='H2'){fs=18/VIEW.zoom;fontWeight='bold '}
+else if(child.tagName==='P'){fs=12/VIEW.zoom}
+else if(child.tagName==='LI'){fs=12/VIEW.zoom}
+// Check for bold/italic in inline elements
+if(child.querySelector('strong')||child.style.fontWeight==='bold'){fontWeight='bold '}
+const isItalic=child.querySelector('em')||child.style.fontStyle==='italic';
+ctx.font=`${isItalic?'italic ':''}${fontWeight}${fs}px "Segoe UI", sans-serif`;
+ctx.fillStyle=sel?'#007AFF':'#333';
+ctx.textAlign='left';ctx.textBaseline='top';
+// Add list prefix if it's a list item
+let prefix='';
+if(child.tagName==='LI'){
+const parent=child.parentElement;
+if(parent.tagName==='UL'){prefix='• '}
+else if(parent.tagName==='OL'){
+const liIndex=Array.from(parent.children).indexOf(child)+1;
+prefix=`${liIndex}. `;
+}
+}
+const displayText=prefix+textContent;
+ctx.fillText(displayText,t.x+indent,t.y+yOffset);
+yOffset+=fs*lineHeight;
+});
+};
+processElement(doc.body.firstChild);
+}else{
+// Handle both old and new format (backward compatibility)
 const lines=t.lines||[{text:t.text||'',style:t.textStyle||'normal',listType:t.listType||'none',listIndex:t.listIndex}];
 let yOffset=0;
 const lineHeight=1.3; // Line height multiplier
@@ -2368,6 +2384,7 @@ textToShow=prefix+textToShow;
 if(textToShow)ctx.fillText(textToShow,t.x,t.y+yOffset);
 yOffset+=fs*lineHeight;
 });
+}
 // Draw arrow if present
 if(t.arrowTo){
 ctx.strokeStyle=sel?'#007AFF':'#333';ctx.lineWidth=1.5/VIEW.zoom;
@@ -2383,7 +2400,7 @@ ctx.lineTo(t.arrowTo.x-al*Math.cos(ang+0.4),t.arrowTo.y-al*Math.sin(ang+0.4));
 ctx.stroke();
 }
 // Selection indicator
-if(sel){const tw=ctx.measureText(t.text||'').width||20;ctx.strokeStyle='#007AFF';ctx.lineWidth=1/VIEW.zoom;ctx.setLineDash([3/VIEW.zoom,3/VIEW.zoom]);ctx.strokeRect(t.x-3/VIEW.zoom,t.y-3/VIEW.zoom,tw+6/VIEW.zoom,fs+6/VIEW.zoom);ctx.setLineDash([])}
+if(sel){const tw=ctx.measureText(t.text||'').width||20;ctx.strokeStyle='#007AFF';ctx.lineWidth=1/VIEW.zoom;ctx.setLineDash([3/VIEW.zoom,3/VIEW.zoom]);ctx.strokeRect(t.x-3/VIEW.zoom,t.y-3/VIEW.zoom,tw+6/VIEW.zoom,12/VIEW.zoom+6/VIEW.zoom);ctx.setLineDash([])}
 });
 // Draw ghost layer in two-layer mode
 if(CFG.projectType==='two-layer'&&CFG.showGhostLayer){
