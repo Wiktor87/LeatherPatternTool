@@ -359,6 +359,7 @@ export class OutlinerManager {
     if (type === 'textAnnotation') return state.TEXT_ANNOTATIONS[idx];
     if (type === 'edgeRange') return state.EDGE_RANGES[idx];
     if (type === 'edgeStitch') return state.EDGE_STITCHES[idx];
+    if (type === 'mergedEdgeRange') return state.MERGED_EDGE_RANGES[idx];
     return null;
   }
 }
