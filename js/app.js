@@ -1080,6 +1080,16 @@ addEdgeRange(){EDGE_RANGES.push({start:0.1,end:0.9});SELECTED={type:'edgeRange',
 addMergedEdgeRange(){MERGED_EDGE_RANGES.push({start:0.1,end:0.9});SELECTED={type:'mergedEdgeRange',idx:MERGED_EDGE_RANGES.length-1};this.updateInfo();this.draw();this.saveState()}
 generateMatchingCircle(){
 try{
+// Check if EDGE_RANGES exists and is not empty
+if(!EDGE_RANGES||EDGE_RANGES.length===0){
+console.warn('No edge ranges defined');
+if(window.ErrorHandler){
+window.ErrorHandler.handle(new Error('No edge ranges'), 'generateMatchingCircle', 'Could not create circle from edge. Please add an edge range first.');
+}else{
+this.showToast('Could not create circle from edge. Please add an edge range first.', 'error');
+}
+return;
+}
 // Get the selected edge range index (default to 0)
 let sourceRangeIdx=0;
 if(SELECTED?.type==='edgeRange'){
@@ -1097,10 +1107,21 @@ stitchMargin:CFG.stitchMargin
 SELECTED={type:'asymShape',idx:ASYM_SHAPES.length-1};
 this.updateInfo();
 this.draw();
-}catch(e){console.error('generateMatchingCircle error:',e);}
+this.saveState();
+}catch(e){
+console.error('generateMatchingCircle error:',e);
+if(window.ErrorHandler){
+window.ErrorHandler.handle(e,'generateMatchingCircle');
+}
+}
 }
 getLinkedCircleData(shape){
 try{
+// Check if EDGE_RANGES exists and is not empty
+if(!EDGE_RANGES||EDGE_RANGES.length===0){
+console.warn('No edge ranges defined');
+return null;
+}
 const rightHalf=this.getRightHalfPath();
 const rightWorld=rightHalf.map(p=>M.holsterToWorld(p));
 if(rightWorld.length<3)return null;
@@ -1108,8 +1129,12 @@ if(rightWorld.length<3)return null;
 const baseArc=M.buildArc(rightWorld);
 const baseTot=baseArc[baseArc.length-1].d;
 if(baseTot<=0)return null;
-const rng=EDGE_RANGES[shape.sourceRangeIdx]||EDGE_RANGES[0];
-if(!rng)return null;
+// Safely get edge range with bounds checking
+const rng=EDGE_RANGES[shape.sourceRangeIdx];
+if(!rng){
+console.warn(`Edge range ${shape.sourceRangeIdx} not found`);
+return null;
+}
 // Calculate length along the base path
 const baseLen=baseTot*(rng.end-rng.start);
 if(baseLen<=0)return null;
