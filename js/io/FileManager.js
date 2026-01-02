@@ -8,12 +8,19 @@ export class FileManager {
    * @param {Function} options.setState - Function to set application state
    * @param {Function} options.onLoad - Callback after successful load
    * @param {Function} options.onSave - Callback after successful save
+   * @param {string} options.defaultFilename - Default filename for projects (default: 'pattern')
+   * @param {Function} options.validateProject - Function to validate loaded project data
    */
   constructor(options = {}) {
     this.getState = options.getState || (() => ({}));
     this.setState = options.setState || (() => {});
     this.onLoad = options.onLoad || (() => {});
     this.onSave = options.onSave || (() => {});
+    this.defaultFilename = options.defaultFilename || 'pattern';
+    this.validateProject = options.validateProject || ((project) => {
+      // Default validation - check for basic structure
+      return project && typeof project === 'object';
+    });
   }
 
   /**
@@ -35,7 +42,7 @@ export class FileManager {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      const filename = (project.name.replace(/[^a-z0-9]/gi, '_') || 'holster-pattern') + '.json';
+      const filename = (project.name.replace(/[^a-z0-9]/gi, '_') || this.defaultFilename) + '.json';
       a.download = filename;
       document.body.appendChild(a);
       a.click();
@@ -67,9 +74,9 @@ export class FileManager {
         try {
           const project = JSON.parse(evt.target.result);
           
-          // Validate basic structure
-          if (!project.NODES || !project.HOLSTER) {
-            reject(new Error('Invalid project file - missing required data'));
+          // Validate project structure using configurable validator
+          if (!this.validateProject(project)) {
+            reject(new Error('Invalid project file - validation failed'));
             return;
           }
 

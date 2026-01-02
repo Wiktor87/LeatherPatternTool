@@ -75,19 +75,19 @@ if(Math.abs(x)<snapDist)x=0;
 return{x,y};
 }
 class App{
-constructor(){
-  this.canvas=document.getElementById('c');
-  this.ctx=this.canvas.getContext('2d');
-  this.dpr=devicePixelRatio||1;
-  this.off=document.createElement('canvas');
-  this.offCtx=this.off.getContext('2d');
-  // Initialize history manager
-  this.historyManager = new HistoryManager({
-    maxHistory: MAX_HISTORY,
-    onUpdate: () => this.updateUndoRedoButtons()
-  });
-  this.init();
-}
+  constructor(){
+    this.canvas = document.getElementById('c');
+    this.ctx = this.canvas.getContext('2d');
+    this.dpr = devicePixelRatio || 1;
+    this.off = document.createElement('canvas');
+    this.offCtx = this.off.getContext('2d');
+    // Initialize history manager
+    this.historyManager = new HistoryManager({
+      maxHistory: MAX_HISTORY,
+      onUpdate: () => this.updateUndoRedoButtons()
+    });
+    this.init();
+  }
 init(){
 this.setupEvents();
 this.resize();
