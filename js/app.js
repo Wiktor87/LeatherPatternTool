@@ -85,6 +85,10 @@ this.initAccordion();
 // Initialize UI based on default project type
 this.onProjectTypeChange(CFG.projectType);
 this.saveState();
+// Show onboarding for first-time users
+if(window.OnboardingUI){
+setTimeout(()=>window.OnboardingUI.show(),500);
+}
 }
 showToast(message, type = 'info') {
   const container = document.getElementById('toast-container');
@@ -763,6 +767,27 @@ this.onProjectTypeChange(val);
 if(key==='asymmetricOutline'){
 this.onAsymmetricOutlineChange(val);
 }
+this.draw();
+}
+applyPreset(presetName){
+const presets={
+holster:{thickness:3,stitchMargin:5,stitchSpacing:4,holeSize:1.5,projectType:'fold-over'},
+wallet:{thickness:1.5,stitchMargin:3,stitchSpacing:3,holeSize:1.2,projectType:'two-layer'},
+belt:{thickness:4,stitchMargin:6,stitchSpacing:5,holeSize:2,projectType:'fold-over'}
+};
+const preset=presets[presetName];
+if(!preset){console.warn('Unknown preset:',presetName);return}
+// Apply preset values
+Object.entries(preset).forEach(([key,val])=>{
+this.updateCfg(key,val);
+// Update UI elements
+const el=document.getElementById('cfg-'+key);
+if(el){
+if(el.type==='checkbox')el.checked=val;
+else el.value=val;
+}
+});
+this.showToast(`Applied ${presetName} preset`,'success');
 this.draw();
 }
 setupEvents(){

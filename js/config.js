@@ -43,11 +43,13 @@ export const CFG = {
   asymmetricOutline: false // When true, nodes define full perimeter instead of right half only
 };
 
+// Touch-aware hover tolerances
+const isTouch = window.matchMedia('(pointer: coarse)').matches;
 export const HOVER_TOLERANCE = {
-  node: 12,
-  handle: 10,
-  range: 10,
-  gizmo: 15
+  node: isTouch ? 24 : 12,
+  handle: isTouch ? 20 : 10,
+  range: isTouch ? 20 : 10,
+  gizmo: isTouch ? 28 : 15
 };
 
 export const HOVER_SCALE = 1.4;

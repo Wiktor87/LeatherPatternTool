@@ -386,3 +386,260 @@ input[type="checkbox"]:focus-visible {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+
+/* Z-Index Hierarchy
+ * 50   - Stats bar, zoom indicator
+ * 100  - Toolbar, header, settings button, outliner button, floating layer toggle
+ * 150  - Properties bar
+ * 200  - File menu dropdown
+ * 300  - Text editor overlay
+ * 500  - Outliner panel, settings panel (when open)
+ * 1000 - Modals (calibration, rename)
+ * 2000 - Publish bar, toast container
+ * 9999 - Critical alerts (ClipperLib warning, loading overlay), onboarding modal
+ */
+
+/* Help Icon */
+.help-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  background: #555;
+  border-radius: 50%;
+  font-size: 10px;
+  color: #aaa;
+  cursor: help;
+  margin-left: 4px;
+  font-weight: bold;
+}
+.help-icon:hover {
+  background: var(--accent);
+  color: #fff;
+}
+
+/* Loading Spinner */
+.loading-spinner {
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  border-top: 4px solid var(--accent);
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Onboarding Modal */
+#onboarding-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.onboarding-content {
+  background: var(--panel);
+  border-radius: 12px;
+  max-width: 800px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 30px;
+  box-shadow: 0 10px 50px rgba(0, 0, 0, 0.5);
+}
+
+.onboarding-content h2 {
+  margin: 0 0 20px;
+  color: var(--text);
+  text-align: center;
+  font-size: 24px;
+}
+
+.onboarding-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.step {
+  background: var(--bg);
+  padding: 15px;
+  border-radius: 8px;
+  text-align: center;
+  border: 1px solid var(--border);
+}
+
+.step-icon {
+  font-size: 24px;
+  display: block;
+  margin-bottom: 8px;
+}
+
+.step h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.step p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--dim);
+  line-height: 1.4;
+}
+
+.onboarding-tips {
+  background: var(--bg);
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  border: 1px solid var(--border);
+}
+
+.onboarding-tips h3 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.onboarding-tips ul {
+  margin: 0;
+  padding-left: 20px;
+  list-style: none;
+}
+
+.onboarding-tips li {
+  font-size: 12px;
+  color: var(--dim);
+  margin-bottom: 6px;
+  position: relative;
+  padding-left: 0;
+}
+
+.onboarding-tips li::before {
+  content: "•";
+  position: absolute;
+  left: -15px;
+  color: var(--accent);
+}
+
+.onboarding-tips strong {
+  color: var(--text);
+}
+
+.onboarding-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.onboarding-actions button {
+  padding: 12px 30px;
+  font-size: 14px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.onboarding-actions button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(10, 132, 255, 0.3);
+}
+
+.onboarding-actions label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.onboarding-actions input[type="checkbox"] {
+  cursor: pointer;
+}
+
+/* Mobile/Responsive Improvements */
+@media (max-width: 768px) {
+  #toolbar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    height: 56px;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    border-right: none;
+    border-top: 1px solid var(--border);
+    padding: 0 4px;
+  }
+  
+  #toolbar .tool-btn {
+    min-width: 56px;
+    min-height: 48px;
+  }
+  
+  #header {
+    left: 0;
+  }
+  
+  #stats {
+    left: 0;
+    bottom: 56px;
+  }
+  
+  #props-bar {
+    left: 0;
+    bottom: 56px;
+  }
+  
+  #floating-layer-toggle {
+    left: 10px;
+    bottom: 66px;
+  }
+  
+  .onboarding-content {
+    padding: 20px;
+  }
+  
+  .onboarding-steps {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+}
+
+/* Larger Touch Targets */
+@media (pointer: coarse) {
+  .tool-btn {
+    min-height: 56px;
+    min-width: 56px;
+  }
+  
+  button {
+    min-height: 44px;
+  }
+  
+  input[type="range"] {
+    height: 36px;
+  }
+}
