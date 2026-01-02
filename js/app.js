@@ -80,6 +80,8 @@ this.setupEvents();
 this.resize();
 this.settingsOpen=false;
 this.outlinerOpen=false;
+// Initialize accordion UI
+this.initAccordion();
 // Initialize UI based on default project type
 this.onProjectTypeChange(CFG.projectType);
 this.saveState();
@@ -343,7 +345,45 @@ reader.readAsText(file);
 // Reset input so same file can be loaded again
 e.target.value='';
 }
-toggleSettings(){this.settingsOpen=!this.settingsOpen;document.getElementById('settings-panel').classList.toggle('open',this.settingsOpen);document.getElementById('settings-overlay').classList.toggle('open',this.settingsOpen);document.getElementById('settings-btn').style.display=this.settingsOpen?'none':'flex';if(this.settingsOpen&&this.outlinerOpen)this.toggleOutliner()}
+toggleSettings(){
+this.settingsOpen=!this.settingsOpen;
+document.getElementById('settings-panel').classList.toggle('open',this.settingsOpen);
+document.getElementById('settings-btn').style.display=this.settingsOpen?'none':'flex';
+if(this.settingsOpen&&this.outlinerOpen)this.toggleOutliner();
+}
+saveAccordionState(section,expanded){
+// Save accordion state to localStorage
+try{
+const state=JSON.parse(localStorage.getItem('accordionState')||'{}');
+state[section]=expanded;
+localStorage.setItem('accordionState',JSON.stringify(state));
+}catch(e){console.warn('Could not save accordion state',e)}
+}
+loadAccordionState(){
+// Load saved accordion state from localStorage
+try{
+return JSON.parse(localStorage.getItem('accordionState')||'{}');
+}catch(e){console.warn('Could not load accordion state',e);return{}}
+}
+toggleAccordion(section){
+// Toggle accordion section
+const sectionEl=document.querySelector(`.accordion-section[data-section="${section}"]`);
+if(!sectionEl)return;
+const wasExpanded=sectionEl.classList.contains('expanded');
+sectionEl.classList.toggle('expanded');
+// Save state
+this.saveAccordionState(section,!wasExpanded);
+}
+initAccordion(){
+// Load saved accordion state and apply to sections
+const state=this.loadAccordionState();
+document.querySelectorAll('.accordion-section').forEach(section=>{
+const sectionName=section.getAttribute('data-section');
+if(state[sectionName]!==undefined){
+section.classList.toggle('expanded',state[sectionName]);
+}
+});
+}
 loadRefImage(e){
 const file=e.target.files[0];
 if(!file)return;
@@ -1225,12 +1265,22 @@ const basePoly=basePath.map(p=>({X:Math.round(p.x*SCALE),Y:Math.round(p.y*SCALE)
 cl.AddPath(basePoly,ClipperLib.PolyType.ptSubject,true);
 // Add each extension shape
 extensions.forEach(s=>{
-const pts=s.points.map(p=>{
+// Transform shape points to world coordinates with bezier handles
+const ptsWithHandles=s.points.map(p=>{
 const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};
 const r=M.rotate(sc,s.rotation||0);
-return{X:Math.round((r.x+s.x)*SCALE),Y:Math.round((r.y+s.y)*SCALE)};
+// Transform bezier handles
+const sh1={x:(p.h1?.x||0)*(s.scaleX||1),y:(p.h1?.y||0)*(s.scaleY||1)};
+const sh2={x:(p.h2?.x||0)*(s.scaleX||1),y:(p.h2?.y||0)*(s.scaleY||1)};
+const rh1=M.rotate(sh1,s.rotation||0);
+const rh2=M.rotate(sh2,s.rotation||0);
+return{x:r.x+s.x,y:r.y+s.y,h1:rh1,h2:rh2};
 });
-cl.AddPath(pts,ClipperLib.PolyType.ptClip,true);
+// Sample the bezier curve to get linear segments
+const sampledPts=M.sampleBezierClosed(ptsWithHandles,20);
+// Convert to Clipper format
+const clipperPts=sampledPts.map(p=>({X:Math.round(p.x*SCALE),Y:Math.round(p.y*SCALE)}));
+cl.AddPath(clipperPts,ClipperLib.PolyType.ptClip,true);
 });
 // Union all shapes
 const solution=[];
