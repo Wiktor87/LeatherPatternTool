@@ -1,8 +1,31 @@
 # Leather Pattern Tool
 
-**Version 0.2**
+**Version 0.3 (Pre-Alpha)**
 
 A web-based design tool for creating leather patterns, specifically designed for holster and leathercraft projects. This tool provides an intuitive interface for designing patterns with precise measurements, stitch lines, holes, and annotations.
+
+## What's New in v0.3
+
+### UI/UX Improvements
+- ✨ **First-Time User Onboarding** - Welcome modal with tool guide for new users
+- 🎨 **Quick Presets** - Holster, Wallet, and Belt presets for common projects
+- 📝 **Better Tool Labels** - Clearer names (Edge → Edge Stitch, Perim → Full Border)
+- 📝 **Improved Layer Labels** - More descriptive (Mirrored → Symmetric, Single → Asymmetric)
+- ❓ **Help Icons** - Contextual help for complex settings
+- 📱 **Mobile Optimizations** - Better touch targets and responsive toolbar
+
+### Bug Fixes & Stability
+- 🐛 Fixed crash when EDGE_RANGES is empty
+- 🐛 Improved ClipperLib CDN fallback with user warnings
+- 🐛 Better error handling throughout the application
+- 🐛 Fixed title typo (Pre-Apha → Pre-Alpha)
+
+### Developer Experience
+- 🔧 Build system with Vite
+- 🧪 Unit tests for math utilities (26 tests)
+- 📦 NPM package management
+- 🏗️ Modular architecture with StateManager, ErrorHandler, PathCache
+- 📚 JSDoc comments for new modules
 
 ## Features
 
@@ -106,9 +129,34 @@ For patterns with separate front and back pieces:
 ### File Structure
 ```
 LeatherPatternTool/
-├── index.html       # Main application file
-├── styles.css       # Styling and layout
-└── README.md        # This file
+├── index.html           # Main application HTML
+├── styles.css           # Application styling
+├── package.json         # NPM dependencies and scripts
+├── vite.config.js       # Vite build configuration
+├── js/
+│   ├── main.js          # Entry point
+│   ├── app.js           # Main application logic
+│   ├── config.js        # Configuration constants
+│   ├── math.js          # Mathematical utilities
+│   ├── math.test.js     # Unit tests for math utilities
+│   ├── state/
+│   │   └── StateManager.js  # Central state management
+│   ├── ui/
+│   │   ├── UIManager.js     # UI coordination helpers
+│   │   └── OnboardingUI.js  # First-time user onboarding
+│   └── utils/
+│       ├── ErrorHandler.js  # Centralized error handling
+│       ├── PathCache.js     # Performance optimization
+│       └── helpers.js       # Utility functions
+└── README.md            # This file
+```
+
+### Development
+```bash
+npm install          # Install dependencies
+npm run dev          # Start development server (http://localhost:3000)
+npm run build        # Build for production
+npm test             # Run unit tests
 ```
 
 ### Browser Compatibility
