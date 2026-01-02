@@ -3,6 +3,8 @@
 
 import { SCALE, CFG, HOVER_TOLERANCE, HOVER_SCALE, MAX_HISTORY } from './config.js';
 import { M } from './math.js';
+import { ToastManager } from './ui/ToastManager.js';
+import { HistoryManager } from './state/HistoryManager.js';
 
 // Make config available globally for backwards compatibility
 window.CFG = CFG;
@@ -25,7 +27,6 @@ M.worldToHolster = function(w) { return M.worldToLocal(w, HOLSTER); };
 
 
 let MODE='select',LAYER='symmetric',SELECTED=null,TEMP_STITCH=null,TEMP_SHAPE=null,TEMP_CUSTOMHOLE=null,SHIFT_HELD=false,isPanning=false,DRAG={active:false},HOVER=null,PUBLISH_MODE=false;
-let HISTORY=[],HISTORY_IDX=-1;
 let PUBLISH_VIEW={x:0,y:0,scale:1}; // Offset and scale for publish mode layout
 let REF_IMAGE={img:null,x:0,y:0,scale:1,width:0,height:0,calibrating:false,calPt1:null,calPt2:null}; // Reference image state
 let NODES=[{x:0,y:-180,h1:{x:0,y:0},h2:{x:45,y:0}},{x:70,y:-180,h1:{x:-20,y:0},h2:{x:20,y:20}},{x:90,y:-140,h1:{x:0,y:-20},h2:{x:0,y:30}},{x:70,y:-50,h1:{x:10,y:-25},h2:{x:-5,y:30}},{x:55,y:80,h1:{x:5,y:-30},h2:{x:-5,y:40}},{x:45,y:180,h1:{x:5,y:-35},h2:{x:-15,y:0}},{x:0,y:180,h1:{x:15,y:0},h2:{x:0,y:0}}];
@@ -74,7 +75,19 @@ if(Math.abs(x)<snapDist)x=0;
 return{x,y};
 }
 class App{
-constructor(){this.canvas=document.getElementById('c');this.ctx=this.canvas.getContext('2d');this.dpr=devicePixelRatio||1;this.off=document.createElement('canvas');this.offCtx=this.off.getContext('2d');this.init()}
+  constructor(){
+    this.canvas = document.getElementById('c');
+    this.ctx = this.canvas.getContext('2d');
+    this.dpr = devicePixelRatio || 1;
+    this.off = document.createElement('canvas');
+    this.offCtx = this.off.getContext('2d');
+    // Initialize history manager
+    this.historyManager = new HistoryManager({
+      maxHistory: MAX_HISTORY,
+      onUpdate: () => this.updateUndoRedoButtons()
+    });
+    this.init();
+  }
 init(){
 this.setupEvents();
 this.resize();
@@ -91,12 +104,7 @@ setTimeout(()=>window.OnboardingUI.show(),500);
 }
 }
 showToast(message, type = 'info') {
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = 'toast ' + type;
-  toast.textContent = message;
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
+  ToastManager.show(message, type);
 }
 updateZoomIndicator() {
   const pct = Math.round(VIEW.zoom * 100);
@@ -104,39 +112,28 @@ updateZoomIndicator() {
 }
 // History management for undo/redo
 saveState(){
-const state={
-NODES:JSON.parse(JSON.stringify(NODES)),
-HOLSTER:JSON.parse(JSON.stringify(HOLSTER)),
-EDGE_RANGES:JSON.parse(JSON.stringify(EDGE_RANGES)),
-MERGED_EDGE_RANGES:JSON.parse(JSON.stringify(MERGED_EDGE_RANGES)),
-EDGE_STITCHES:JSON.parse(JSON.stringify(EDGE_STITCHES)),
-SYM_HOLES:JSON.parse(JSON.stringify(SYM_HOLES)),
-SYM_STITCHES:JSON.parse(JSON.stringify(SYM_STITCHES)),
-SYM_SHAPES:JSON.parse(JSON.stringify(SYM_SHAPES)),
-SYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(SYM_CUSTOM_HOLES)),
-ASYM_HOLES:JSON.parse(JSON.stringify(ASYM_HOLES)),
-ASYM_STITCHES:JSON.parse(JSON.stringify(ASYM_STITCHES)),
-ASYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(ASYM_CUSTOM_HOLES)),
-ASYM_SHAPES:JSON.parse(JSON.stringify(ASYM_SHAPES)),
-TEXT_ANNOTATIONS:JSON.parse(JSON.stringify(TEXT_ANNOTATIONS))
-};
-// Remove any redo states after current position
-if(HISTORY_IDX<HISTORY.length-1){
-HISTORY=HISTORY.slice(0,HISTORY_IDX+1);
-}
-HISTORY.push(state);
-// Limit history size
-if(HISTORY.length>MAX_HISTORY){
-HISTORY.shift();
-}else{
-HISTORY_IDX++;
-}
-this.updateUndoRedoButtons();
-// Sync to back layer if in two-layer mode and on front layer
-if(CFG.projectType==='two-layer'&&CURRENT_LAYER==='front'){
-this.syncOutlineToBack();
-this.syncEdgeStitchesToBack();
-}
+  const state={
+    NODES:JSON.parse(JSON.stringify(NODES)),
+    HOLSTER:JSON.parse(JSON.stringify(HOLSTER)),
+    EDGE_RANGES:JSON.parse(JSON.stringify(EDGE_RANGES)),
+    MERGED_EDGE_RANGES:JSON.parse(JSON.stringify(MERGED_EDGE_RANGES)),
+    EDGE_STITCHES:JSON.parse(JSON.stringify(EDGE_STITCHES)),
+    SYM_HOLES:JSON.parse(JSON.stringify(SYM_HOLES)),
+    SYM_STITCHES:JSON.parse(JSON.stringify(SYM_STITCHES)),
+    SYM_SHAPES:JSON.parse(JSON.stringify(SYM_SHAPES)),
+    SYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(SYM_CUSTOM_HOLES)),
+    ASYM_HOLES:JSON.parse(JSON.stringify(ASYM_HOLES)),
+    ASYM_STITCHES:JSON.parse(JSON.stringify(ASYM_STITCHES)),
+    ASYM_CUSTOM_HOLES:JSON.parse(JSON.stringify(ASYM_CUSTOM_HOLES)),
+    ASYM_SHAPES:JSON.parse(JSON.stringify(ASYM_SHAPES)),
+    TEXT_ANNOTATIONS:JSON.parse(JSON.stringify(TEXT_ANNOTATIONS))
+  };
+  this.historyManager.saveState(state);
+  // Sync to back layer if in two-layer mode and on front layer
+  if(CFG.projectType==='two-layer'&&CURRENT_LAYER==='front'){
+    this.syncOutlineToBack();
+    this.syncEdgeStitchesToBack();
+  }
 }
 restoreState(state){
 NODES=JSON.parse(JSON.stringify(state.NODES));
@@ -159,24 +156,22 @@ this.updateOutliner();
 this.draw();
 }
 undo(){
-if(HISTORY_IDX>0){
-HISTORY_IDX--;
-this.restoreState(HISTORY[HISTORY_IDX]);
-this.updateUndoRedoButtons();
-this.showToast('Undo', 'info');
-}
+  const prevState = this.historyManager.undo();
+  if(prevState){
+    this.restoreState(prevState);
+    this.showToast('Undo', 'info');
+  }
 }
 redo(){
-if(HISTORY_IDX<HISTORY.length-1){
-HISTORY_IDX++;
-this.restoreState(HISTORY[HISTORY_IDX]);
-this.updateUndoRedoButtons();
-this.showToast('Redo', 'info');
-}
+  const nextState = this.historyManager.redo();
+  if(nextState){
+    this.restoreState(nextState);
+    this.showToast('Redo', 'info');
+  }
 }
 updateUndoRedoButtons(){
-document.getElementById('undo-btn').disabled=HISTORY_IDX<=0;
-document.getElementById('redo-btn').disabled=HISTORY_IDX>=HISTORY.length-1;
+  document.getElementById('undo-btn').disabled = !this.historyManager.canUndo();
+  document.getElementById('redo-btn').disabled = !this.historyManager.canRedo();
 }
 toggleFileMenu(){
 const menu=document.getElementById('file-menu');
