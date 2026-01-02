@@ -1115,11 +1115,13 @@ SELECTED={type:'asymHole',idx:ASYM_HOLES.length-1};
 // Convert asymmetric hole to symmetric
 const hole=ASYM_HOLES[idx];
 const localPos=M.worldToHolster({x:hole.x,y:hole.y});
+const scaleX=Math.max(0.01,HOLSTER.scaleX);
+const scaleY=Math.max(0.01,HOLSTER.scaleY);
 const newHole={
 x:Math.abs(localPos.x),
 y:localPos.y,
-width:hole.width/HOLSTER.scaleX,
-height:hole.height/HOLSTER.scaleY,
+width:hole.width/scaleX,
+height:hole.height/scaleY,
 rotation:(hole.rotation||0)-(HOLSTER.rotation||0),
 shape:hole.shape,
 stitchBorder:hole.stitchBorder,
@@ -1153,12 +1155,14 @@ SELECTED={type:'asymCustomHole',idx:ASYM_CUSTOM_HOLES.length-1};
 // Convert asymmetric custom hole to symmetric
 const hole=ASYM_CUSTOM_HOLES[idx];
 const localPos=M.worldToHolster({x:hole.x,y:hole.y});
+const scaleX=Math.max(0.01,HOLSTER.scaleX);
+const scaleY=Math.max(0.01,HOLSTER.scaleY);
 const newHole={
 x:Math.abs(localPos.x),
 y:localPos.y,
 points:JSON.parse(JSON.stringify(hole.points)),
-scaleX:(hole.scaleX||1)/HOLSTER.scaleX,
-scaleY:(hole.scaleY||1)/HOLSTER.scaleY,
+scaleX:(hole.scaleX||1)/scaleX,
+scaleY:(hole.scaleY||1)/scaleY,
 rotation:(hole.rotation||0)-(HOLSTER.rotation||0),
 stitchBorder:hole.stitchBorder,
 stitchMargin:hole.stitchMargin,
@@ -1191,13 +1195,15 @@ SELECTED={type:'asymStitch',idx:ASYM_STITCHES.length-1};
 }else if(type==='asymStitch'){
 // Convert asymmetric stitch to symmetric
 const stitch=ASYM_STITCHES[idx];
+const scaleX=Math.max(0.01,HOLSTER.scaleX);
+const scaleY=Math.max(0.01,HOLSTER.scaleY);
 const newPoints=stitch.points.map(p=>{
 const lp=M.worldToHolster({x:p.x,y:p.y});
 return{
 x:Math.abs(lp.x),
 y:lp.y,
-h1:p.h1?{x:p.h1.x/HOLSTER.scaleX,y:p.h1.y/HOLSTER.scaleY}:{x:0,y:0},
-h2:p.h2?{x:p.h2.x/HOLSTER.scaleX,y:p.h2.y/HOLSTER.scaleY}:{x:0,y:0}
+h1:p.h1?{x:p.h1.x/scaleX,y:p.h1.y/scaleY}:{x:0,y:0},
+h2:p.h2?{x:p.h2.x/scaleX,y:p.h2.y/scaleY}:{x:0,y:0}
 };
 });
 const newStitch={
@@ -2046,7 +2052,7 @@ let prefix='';
 if(t.listType==='bullet'){prefix='• '}
 else if(t.listType==='numbered'){prefix=`${listIdx}. `}
 else if(t.listType==='lettered'){
-const letter=String.fromCharCode(96+listIdx); // a, b, c...
+const letter=String.fromCharCode(97+listIdx-1); // a, b, c...
 prefix=`${letter}. `;
 }
 textToShow=prefix+textToShow;
@@ -2817,7 +2823,7 @@ const listIdx=t.listIndex||1;
 let prefix='';
 if(t.listType==='bullet'){prefix='• '}
 else if(t.listType==='numbered'){prefix=`${listIdx}. `}
-else if(t.listType==='lettered'){prefix=`${String.fromCharCode(96+listIdx)}. `}
+else if(t.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
 textToShow=prefix+textToShow;
 }
 ctx.fillText(textToShow,t.x,t.y);
@@ -3135,7 +3141,7 @@ const listIdx=t.listIndex||1;
 let prefix='';
 if(t.listType==='bullet'){prefix='• '}
 else if(t.listType==='numbered'){prefix=`${listIdx}. `}
-else if(t.listType==='lettered'){prefix=`${String.fromCharCode(96+listIdx)}. `}
+else if(t.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
 textToShow=prefix+textToShow;
 }
 ctx.fillText(textToShow,t.x,t.y);
@@ -3333,7 +3339,7 @@ const listIdx=t.listIndex||1;
 let prefix='';
 if(t.listType==='bullet'){prefix='• '}
 else if(t.listType==='numbered'){prefix=`${listIdx}. `}
-else if(t.listType==='lettered'){prefix=`${String.fromCharCode(96+listIdx)}. `}
+else if(t.listType==='lettered'){prefix=`${String.fromCharCode(97+listIdx-1)}. `}
 textToShow=prefix+textToShow;
 }
 ctx.fillText(textToShow,t.x,t.y);
