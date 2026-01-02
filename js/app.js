@@ -1243,7 +1243,6 @@ this.draw();
 this.saveState();
 }
 }
-}
 toggleMirror(checked){
 // Toggle between mirrored (symmetric) and single (asymmetric) elements
 if(!SELECTED)return;
@@ -2506,7 +2505,7 @@ for(let i=TEXT_ANNOTATIONS.length-1;i>=0;i--){
 const t=TEXT_ANNOTATIONS[i];
 if(t.hidden)continue;
 const fs=(t.fontSize||12)/VIEW.zoom;
-const tw=this.ctx.measureText(t.text||'').width;
+const tw=this.ctx.measureText(t.text||'').width/VIEW.zoom;
 const th=fs*1.2;
 if(w.x>=t.x-5/VIEW.zoom&&w.x<=t.x+tw+5/VIEW.zoom&&w.y>=t.y-5/VIEW.zoom&&w.y<=t.y+th+5/VIEW.zoom){
 SELECTED={type:'textAnnotation',idx:i};
