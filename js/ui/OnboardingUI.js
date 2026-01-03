@@ -16,42 +16,42 @@ export class OnboardingUI {
         <h2>Welcome to Leather Pattern Tool</h2>
         <div class="onboarding-steps">
           <div class="step">
-            <span class="step-icon">↖</span>
+            <span class="step-icon">↖️</span>
             <h3>Select</h3>
             <p>Click to select and move pattern elements</p>
           </div>
           <div class="step">
-            <span class="step-icon">○</span>
+            <span class="step-icon">⭕</span>
             <h3>Hole</h3>
             <p>Add holes for rivets, snaps, or decorative elements</p>
           </div>
           <div class="step">
-            <span class="step-icon">✎</span>
+            <span class="step-icon">✏️</span>
             <h3>Custom Hole</h3>
             <p>Draw custom hole shapes by clicking points</p>
           </div>
           <div class="step">
-            <span class="step-icon">┅</span>
+            <span class="step-icon">🧵</span>
             <h3>Stitch Line</h3>
             <p>Draw stitch lines for sewing guides</p>
           </div>
           <div class="step">
-            <span class="step-icon">⊢</span>
+            <span class="step-icon">📍</span>
             <h3>Edge Stitch</h3>
             <p>Add stitches along the pattern edge automatically</p>
           </div>
           <div class="step">
-            <span class="step-icon">⊡</span>
+            <span class="step-icon">🔳</span>
             <h3>Full Border</h3>
             <p>Add stitches around the entire pattern perimeter</p>
           </div>
           <div class="step">
-            <span class="step-icon">◇</span>
+            <span class="step-icon">🔷</span>
             <h3>Shape</h3>
             <p>Add geometric shapes like circles and rectangles</p>
           </div>
           <div class="step">
-            <span class="step-icon">T</span>
+            <span class="step-icon">📝</span>
             <h3>Text</h3>
             <p>Add text annotations to your pattern</p>
           </div>
@@ -60,7 +60,7 @@ export class OnboardingUI {
           <h3>Quick Tips</h3>
           <ul>
             <li><strong>Grid Snap:</strong> Enable in settings (⚙) for precise alignment</li>
-            <li><strong>Layers:</strong> Toggle between Symmetric and Asymmetric layers</li>
+            <li><strong>Layers:</strong> Toggle between Mirrored and Single layers</li>
             <li><strong>Undo/Redo:</strong> Use Ctrl+Z and Ctrl+Y</li>
             <li><strong>Publish:</strong> Click 📐 Publish when ready to print</li>
           </ul>

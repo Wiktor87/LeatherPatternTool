@@ -11,6 +11,7 @@ import { OutlinerManager } from './ui/OutlinerManager.js';
 import { ToolManager } from './tools/ToolManager.js';
 import { LayerManager } from './layers/LayerManager.js';
 import { PropertiesPanel } from './ui/PropertiesPanel.js';
+import { InspectorPanel } from './ui/InspectorPanel.js';
 import { PublishManager } from './publish/PublishManager.js';
 import { InputHandler } from './core/InputHandler.js';
 
@@ -212,6 +213,12 @@ class App{
       draw: () => this.draw(),
       saveState: () => this.saveState(),
       updateOutliner: () => this.updateOutliner()
+    });
+    // Initialize inspector panel
+    this.inspectorPanel = new InspectorPanel({
+      getSelected: () => SELECTED,
+      propertiesPanel: this.propertiesPanel,
+      deleteSelected: () => this.deleteSelected()
     });
     // Initialize publish manager
     this.publishManager = new PublishManager({
@@ -844,6 +851,7 @@ syncOutlineToBack() { this.layerManager.syncOutlineToBack(); }
 syncEdgeStitchesToBack() { this.layerManager.syncEdgeStitchesToBack(); }
 
 selectHolster() {SELECTED={type:'holster'};this.updateInfo();this.draw()}
+clearSelection() {SELECTED=null;this.updateInfo();this.draw()}
 setMode(m) {
   this.toolManager.setMode(m);
 }
@@ -1443,6 +1451,10 @@ getSelectedObj() {
 }
 updateInfo(){
 if(this.outlinerOpen)this.updateOutliner();
+// Update inspector panel
+if(this.inspectorPanel){
+  this.inspectorPanel.update();
+}
 const bar=document.getElementById('props-bar'),stats=document.getElementById('stats');
 if(!SELECTED){bar.classList.remove('active');stats.classList.remove('hidden');return}
 bar.classList.add('active');stats.classList.add('hidden');

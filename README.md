@@ -10,7 +10,7 @@ A web-based design tool for creating leather patterns, specifically designed for
 - ✨ **First-Time User Onboarding** - Welcome modal with tool guide for new users
 - 🎨 **Quick Presets** - Holster, Wallet, and Belt presets for common projects
 - 📝 **Better Tool Labels** - Clearer names (Edge → Edge Stitch, Perim → Full Border)
-- 📝 **Improved Layer Labels** - More descriptive (Mirrored → Symmetric, Single → Asymmetric)
+- 📝 **Improved Layer Labels** - More descriptive (Symmetric → Mirrored, Asymmetric → Single)
 - ❓ **Help Icons** - Contextual help for complex settings
 - 📱 **Mobile Optimizations** - Better touch targets and responsive toolbar
 
@@ -39,7 +39,7 @@ A web-based design tool for creating leather patterns, specifically designed for
 
 ### Pattern Design
 - **Two-Layer Mode** - NEW! Design separate front and back pieces with master/inheritance system (see [TWO_LAYER_MODE.md](TWO_LAYER_MODE.md))
-- **Symmetric & Asymmetric Layers** - Design on two separate layers for precise pattern creation
+- **Mirrored & Single Layers** - Design on two separate layers for precise pattern creation
 - **Bezier Curve Editing** - Smooth, customizable pattern outlines
 - **Edge Range Management** - Define and manage edge stitch ranges
 - **Fold Line Support** - Visual fold line with locking capability (Fold-Over mode)
@@ -89,7 +89,7 @@ A web-based design tool for creating leather patterns, specifically designed for
 1. **Select a Pattern** - Click "Select Pattern" to choose a template
 2. **Add Elements** - Use the tools to add holes, stitches, shapes, or text
 3. **Customize** - Adjust properties in the settings panel (gear icon)
-4. **Switch Layers** - Toggle between Symmetric and Asymmetric layers (Fold-Over mode) or Front/Back (Two-Layer mode)
+4. **Switch Layers** - Toggle between Mirrored and Single layers (Fold-Over mode) or Front/Back (Two-Layer mode)
 5. **Save** - Use the File menu (💾) to save your project
 6. **Publish** - Click "📐 Publish" to prepare for printing or export
 
