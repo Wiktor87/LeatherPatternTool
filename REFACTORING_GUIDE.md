@@ -69,14 +69,16 @@ This document provides a comprehensive guide for continuing the refactoring of `
 - **Replaced**: ~860 lines of publish code
 - **Methods extracted**: 11 (getStitchCount, centerPublishView, togglePublish, downloadPattern, downloadFullPattern, downloadA4Pages, drawPublish, drawPublishA4Pages, drawPublishFullPattern, drawPatternLayerFullPattern, drawPatternLayer)
 
-### 10. InputHandler (`js/core/InputHandler.js`) ⭐ NEW - Phase 5B Complete!
-- **Lines**: 451
+### 10. InputHandler (`js/core/InputHandler.js`) ⭐ FIXED - Phase 5B Complete!
+- **Lines**: 580
 - **Purpose**: Mouse, touch, and keyboard input handling
-- **Status**: ✅ Integrated into app.js
+- **Status**: ✅ Integrated into app.js with proper dependency injection
 - **Replaced**: ~428 lines of input handling code
 - **Methods extracted**: 5 (getWorld, onDown, onMove, onUp, onDblClick)
 - **Impact**: Handles all user interactions - clicking, dragging, hover effects, double-click, tool mode input
 - **Achievement**: Reduced app.js from 2,806 to 2,378 lines
+- **Architecture**: Uses getter/setter callbacks for all state access (VIEW, MODE, DRAG, HOVER, SELECTED, NODES, etc.) - no direct variable access
+- **Critical Fix**: Issue #51 - Resolved module variable access bug where InputHandler referenced undefined module-scoped variables
 
 ## Refactoring Pattern
 
