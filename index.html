@@ -54,19 +54,19 @@ if (typeof ClipperLib === 'undefined') {
 <body>
 <!-- Left Toolbar -->
 <div id="toolbar">
-<button class="tool-btn active" id="tool-select" onclick="app.setMode('select')" title="Select (V)"><span class="icon">↖</span><span>Select</span></button>
+<button class="tool-btn active" id="tool-select" onclick="app.setMode('select')" title="Select (V)"><span class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3 L3 14 L7 10 L10 13 L16 7 Z"/></svg></span><span>Select</span></button>
 <div class="tool-sep"></div>
-<button class="tool-btn" id="tool-hole" onclick="app.setMode('hole')" title="Add Hole (H)"><span class="icon">○</span><span>Hole</span></button>
-<button class="tool-btn" id="tool-customhole" onclick="app.setMode('customhole')" title="Custom Hole"><span class="icon">✎</span><span>Custom</span></button>
-<button class="tool-btn" id="tool-stitch" onclick="app.setMode('stitch')" title="Stitch Line (S)"><span class="icon">┅</span><span>Stitch</span></button>
-<button class="tool-btn" id="tool-shape" onclick="app.setMode('shape')" title="Shape"><span class="icon">◇</span><span>Shape</span></button>
-<button class="tool-btn" id="tool-text" onclick="app.setMode('text')" title="Add Text (T)"><span class="icon">T</span><span>Text</span></button>
+<button class="tool-btn" id="tool-hole" onclick="app.setMode('hole')" title="Add Hole (H)"><span class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/></svg></span><span>Hole</span></button>
+<button class="tool-btn" id="tool-customhole" onclick="app.setMode('customhole')" title="Custom Hole"><span class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3 L17 5 L7 15 L3 16 L4 12 Z"/><path d="M12 6 L14 8"/></svg></span><span>Custom</span></button>
+<button class="tool-btn" id="tool-stitch" onclick="app.setMode('stitch')" title="Stitch Line (S)"><span class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 L17 10" stroke-dasharray="2 2"/><path d="M16 7 L18 10 L16 13"/></svg></span><span>Stitch</span></button>
+<button class="tool-btn" id="tool-shape" onclick="app.setMode('shape')" title="Shape"><span class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 3 L17 8 L14 17 L6 17 L3 8 Z"/></svg></span><span>Shape</span></button>
+<button class="tool-btn" id="tool-text" onclick="app.setMode('text')" title="Add Text (T)"><span class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 5 L15 5 M10 5 L10 17 M7 17 L13 17"/></svg></span><span>Text</span></button>
 <div class="tool-sep"></div>
-<button class="tool-btn" onclick="app.generateMatchingCircle()" title="Circle from Edge"><span class="icon">◎</span><span>Circle</span></button>
-<button class="tool-btn" onclick="app.addEdgeRange()" title="Add Edge Stitch Range - Places stitches along a section of the pattern edge"><span class="icon">⊢</span><span>Edge Stitch</span></button>
-<button class="tool-btn" onclick="app.addMergedEdgeRange()" title="Add Full Border Stitch - Places stitches around the entire pattern perimeter"><span class="icon">⊡</span><span>Full Border</span></button>
+<button class="tool-btn" onclick="app.generateMatchingCircle()" title="Circle from Edge"><span class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6"/><path d="M16 4 L13 7 M16 4 L16 7 M16 4 L13 4"/></svg></span><span>Circle</span></button>
+<button class="tool-btn" onclick="app.addEdgeRange()" title="Add Edge Stitch Range - Places stitches along a section of the pattern edge"><span class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10 L17 10"/><circle cx="5" cy="10" r="1.5" fill="currentColor"/><circle cx="10" cy="10" r="1.5" fill="currentColor"/><circle cx="15" cy="10" r="1.5" fill="currentColor"/></svg></span><span>Edge Stitch</span></button>
+<button class="tool-btn" onclick="app.addMergedEdgeRange()" title="Add Full Border Stitch - Places stitches around the entire pattern perimeter"><span class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="14" height="14"/><circle cx="3" cy="3" r="1.5" fill="currentColor"/><circle cx="17" cy="3" r="1.5" fill="currentColor"/><circle cx="17" cy="17" r="1.5" fill="currentColor"/><circle cx="3" cy="17" r="1.5" fill="currentColor"/><circle cx="10" cy="3" r="1.5" fill="currentColor"/><circle cx="17" cy="10" r="1.5" fill="currentColor"/><circle cx="10" cy="17" r="1.5" fill="currentColor"/><circle cx="3" cy="10" r="1.5" fill="currentColor"/></svg></span><span>Full Border</span></button>
 <div style="flex:1"></div>
-<button class="tool-btn" onclick="app.resetView()" title="Reset View"><span class="icon">⊙</span><span>Reset</span></button>
+<button class="tool-btn" onclick="app.resetView()" title="Reset View"><span class="icon"><svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="7"/><circle cx="10" cy="10" r="3"/><path d="M10 3 L10 5 M10 15 L10 17 M3 10 L5 10 M15 10 L17 10"/></svg></span><span>Reset</span></button>
 </div>
 
 <!-- Top Header -->
@@ -85,8 +85,8 @@ if (typeof ClipperLib === 'undefined') {
 <!-- Floating Layer Toggle Buttons -->
 <div id="floating-layer-toggle" style="display:flex;">
 <div id="layer-toggle" style="display:flex;">
-<button class="layer-btn sym active" onclick="app.setLayer('symmetric')" title="Elements are mirrored across the fold line">Symmetric</button>
-<button class="layer-btn asym" onclick="app.setLayer('asymmetric')" title="Elements appear only where placed">Asymmetric</button>
+<button class="layer-btn sym active" onclick="app.setLayer('symmetric')" title="Elements are mirrored across the fold line">Mirrored</button>
+<button class="layer-btn asym" onclick="app.setLayer('asymmetric')" title="Elements appear only where placed">Single</button>
 </div>
 <div id="two-layer-toggle" style="display:none;">
 <button class="layer-btn front active" onclick="app.switchLayer('front')">Front</button>
@@ -224,8 +224,8 @@ if (typeof ClipperLib === 'undefined') {
 <div class="accordion-content">
 <div class="setting-row"><label>Outline</label><input type="checkbox" id="cfg-showOutline" checked onchange="app.updateCfg('showOutline',this.checked)"></div>
 <div class="setting-row"><label>Edge Stitches</label><input type="checkbox" id="cfg-showEdgeStitches" checked onchange="app.updateCfg('showEdgeStitches',this.checked)"></div>
-<div class="setting-row"><label>Sym. Holes</label><input type="checkbox" id="cfg-showSymHoles" checked onchange="app.updateCfg('showSymmetric',this.checked)"></div>
-<div class="setting-row"><label>Asym. Holes</label><input type="checkbox" id="cfg-showAsymHoles" checked onchange="app.updateCfg('showAsymmetric',this.checked)"></div>
+<div class="setting-row"><label>Mirrored Holes</label><input type="checkbox" id="cfg-showSymHoles" checked onchange="app.updateCfg('showSymmetric',this.checked)"></div>
+<div class="setting-row"><label>Single Holes</label><input type="checkbox" id="cfg-showAsymHoles" checked onchange="app.updateCfg('showAsymmetric',this.checked)"></div>
 <div class="setting-row"><label>Stitches</label><input type="checkbox" id="cfg-showStitchLines" checked onchange="app.updateCfg('showStitchLines',this.checked)"></div>
 <div class="setting-row"><label>Text</label><input type="checkbox" id="cfg-showText" checked onchange="app.updateCfg('showText',this.checked)"></div>
 </div>
