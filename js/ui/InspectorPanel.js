@@ -207,6 +207,9 @@ export class InspectorPanel {
    * Generate content for shape properties
    */
   generateShapeContent(shape) {
+    const SELECTED = this.getSelected();
+    const isAsymmetric = SELECTED?.type === 'asymShape';
+    
     return `
       <div class="inspector-section expanded">
         <div class="section-header" onclick="this.parentElement.classList.toggle('expanded')">
@@ -232,6 +235,7 @@ export class InspectorPanel {
           </div>
         </div>
       </div>
+      ${isAsymmetric ? `
       <div class="inspector-section">
         <div class="section-header" onclick="this.parentElement.classList.toggle('expanded')">
           <span class="section-title">Options</span>
@@ -245,6 +249,7 @@ export class InspectorPanel {
           </div>
         </div>
       </div>
+      ` : ''}
     `;
   }
 
