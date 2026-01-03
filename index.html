@@ -71,15 +71,18 @@ if (typeof ClipperLib === 'undefined') {
 
 <!-- Top Header -->
 <div id="header">
-<span class="title" id="project-title" onclick="app.renameProject()" title="Click to rename">Leather Pattern</span>
+<div class="app-title">
+  <span class="logo-icon">◆</span>
+  <span class="logo-text">LeatherCraft Pro</span>
+</div>
 <span class="spacer"></span>
 <div id="two-layer-actions" style="display:none;gap:8px;">
 <button class="hdr-btn secondary" onclick="app.duplicateLayer('toBack')" title="Duplicate Front to Back">Copy to Back</button>
 <button class="hdr-btn secondary" onclick="app.duplicateLayer('toFront')" title="Duplicate Back to Front">Copy to Front</button>
 </div>
-<button class="hdr-btn secondary" onclick="app.selectHolster()">Select Pattern</button>
-<button class="hdr-btn secondary" onclick="app.toggleFileMenu()">💾 File</button>
-<button class="hdr-btn primary" onclick="app.togglePublish()">📐 Publish</button>
+<button class="header-btn" onclick="app.selectHolster()">Select Pattern</button>
+<button class="header-btn" onclick="app.toggleFileMenu()">💾 File</button>
+<button class="header-btn" onclick="app.togglePublish()">📐 Publish</button>
 </div>
 
 <!-- Floating Layer Toggle Buttons -->
@@ -175,6 +178,7 @@ if (typeof ClipperLib === 'undefined') {
 <span class="accordion-chevron">›</span>
 </div>
 <div class="accordion-content">
+<div class="setting-row"><label>Realistic Rendering</label><input type="checkbox" id="cfg-realisticRendering" checked onchange="app.updateCfg('realisticRendering',this.checked)"></div>
 <div class="setting-row"><label>Cavity</label><input type="checkbox" id="cfg-cavity" checked onchange="app.updateCfg('showCavity',this.checked)"></div>
 <div class="setting-row"><label>Fold Line</label><input type="checkbox" id="cfg-fold" checked onchange="app.updateCfg('showFoldLine',this.checked)"></div>
 <div class="setting-row"><label>Lock Fold</label><input type="checkbox" id="cfg-lockFold" onchange="app.updateCfg('lockFoldLine',this.checked)"></div>

@@ -1,4 +1,4 @@
-:root{--bg:#1a1a1a;--panel:#252525;--border:#333;--text:#e0e0e0;--dim:#888;--accent:#0A84FF;--orange:#FF9500;--green:#34C759;--red:#FF3B30;--purple:#AF52DE}
+:root{--bg:#1a1a1a;--panel:#252525;--border:#333;--text:#e0e0e0;--dim:#888;--accent:#0A84FF;--orange:#FF9500;--green:#34C759;--red:#FF3B30;--purple:#AF52DE;--leather-dark:#2D1B0E;--leather-medium:#4A2F1C;--leather-light:#6B4423;--leather-highlight:#8B5A2B;--gold-accent:#C9A962;--gold-light:#DBBD7A;--gold-dark:#8B7335;--stitch-brown:#1A0F05}
 *{box-sizing:border-box;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0;overflow:hidden;background:var(--bg);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;height:100%;color:var(--text);font-size:13px;line-height:1.4}
 #c{display:block;cursor:default;touch-action:none}
@@ -45,24 +45,38 @@ html,body{margin:0;padding:0;overflow:hidden;background:var(--bg);font-family:-a
 
 
 /* Top Header */
-#header{position:fixed;top:0;left:56px;right:0;height:44px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:12px;z-index:100}
+#header{position:fixed;top:0;left:56px;right:0;height:44px;background:linear-gradient(180deg, var(--leather-light) 0%, var(--leather-medium) 50%, var(--leather-dark) 100%);border-bottom:3px solid var(--leather-dark);box-shadow:0 2px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.1);display:flex;align-items:center;padding:0 16px;gap:12px;z-index:100}
+
+/* App Title / LeatherCraft Pro Branding */
+.app-title{display:flex;align-items:center;gap:8px}
+.app-title .logo-icon{font-size:22px;color:var(--gold-accent);text-shadow:0 2px 4px rgba(0,0,0,0.5)}
+.app-title .logo-text{font-family:'Georgia','Times New Roman',serif;font-size:20px;font-weight:bold;color:var(--gold-light);text-shadow:0 1px 0 rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.5);letter-spacing:1px}
+
 #header .title{font-weight:600;font-size:14px;cursor:pointer;padding:4px 8px;border-radius:4px;transition:background .15s}
 #header .title:hover{background:rgba(255,255,255,.1)}
 #header .spacer{flex:1}
+
+/* Gold Leather Buttons */
+.header-btn{background:linear-gradient(180deg, #D4B87A 0%, #C9A962 30%, #9A7B3C 70%, #7A6130 100%);color:#1a1a1a;border:2px solid #6B5020;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;font-family:'Georgia',serif;cursor:pointer;box-shadow:0 3px 6px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -1px 0 rgba(0,0,0,0.2);text-shadow:0 1px 0 rgba(255,255,255,0.3);transition:all 0.15s ease;height:32px;display:flex;align-items:center;justify-content:center}
+.header-btn:hover{background:linear-gradient(180deg, #E0C88A 0%, #D4B87A 30%, #A8864A 70%, #8A7140 100%);transform:translateY(-1px);box-shadow:0 4px 8px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.5), inset 0 -1px 0 rgba(0,0,0,0.2)}
+.header-btn:active{transform:translateY(1px);box-shadow:0 1px 2px rgba(0,0,0,0.4), inset 0 2px 4px rgba(0,0,0,0.3)}
+
 .hdr-btn{height:32px;padding:0 14px;border:none;border-radius:6px;font-size:12px;font-weight:500;cursor:pointer;transition:transform 0.15s ease, filter 0.15s ease}
 .hdr-btn.primary{background:var(--green);color:#fff}
 .hdr-btn.secondary{background:#444;color:var(--text)}
 .hdr-btn:hover{filter:brightness(1.1);transform:scale(1.02)}
 
 /* Layer Toggle (in floating container) */
-#layer-toggle{display:flex;background:#333;border-radius:6px;overflow:hidden}
-#two-layer-toggle{display:flex;background:#333;border-radius:6px;overflow:hidden}
-.layer-btn{padding:6px 14px;border:none;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;background:transparent;color:var(--dim)}
-.layer-btn.active{color:#fff}
-.layer-btn.sym.active{background:var(--accent)}
-.layer-btn.asym.active{background:var(--orange)}
-.layer-btn.front.active{background:#007AFF}
-.layer-btn.back.active{background:#FF9500}
+#floating-layer-toggle{position:fixed;top:52px;left:50%;transform:translateX(-50%);z-index:200;display:flex;background:linear-gradient(180deg, var(--leather-light), var(--leather-dark));border:2px solid var(--leather-dark);border-radius:8px;padding:3px;box-shadow:inset 0 2px 4px rgba(0,0,0,0.3)}
+#layer-toggle{display:flex}
+#two-layer-toggle{display:flex}
+.layer-btn{padding:6px 14px;border:none;font-size:12px;font-weight:500;cursor:pointer;transition:all .15s;background:transparent;color:var(--gold-light);border-radius:5px}
+.layer-btn:hover{background:rgba(255,255,255,0.1)}
+.layer-btn.active{color:#1a1a1a;font-weight:600;box-shadow:0 2px 4px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.3)}
+.layer-btn.sym.active{background:linear-gradient(180deg, var(--gold-accent), var(--gold-dark))}
+.layer-btn.asym.active{background:linear-gradient(180deg, var(--gold-accent), var(--gold-dark))}
+.layer-btn.front.active{background:linear-gradient(180deg, var(--gold-accent), var(--gold-dark))}
+.layer-btn.back.active{background:linear-gradient(180deg, var(--gold-accent), var(--gold-dark))}
 
 /* Two-Layer Actions */
 #two-layer-actions{display:flex}
