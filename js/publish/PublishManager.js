@@ -96,6 +96,9 @@ export class PublishManager {
    * Get stitch count for a layer
    * @param {Object} layerState - Layer state object
    * @returns {number} Total stitch count
+   * @todo Layer state handling is incomplete - needs setters for NODES, EDGE_RANGES, EDGE_STITCHES
+   * to properly support two-layer mode calculations. Current implementation works for single-layer
+   * but may not accurately calculate for specific layers in two-layer mode.
    */
   getStitchCount(layerState) {
     // Count stitches in a layer (edge stitches only for now)
@@ -104,18 +107,9 @@ export class PublishManager {
     const HOLSTER = this.getHolster();
     const M = this.getMath();
     
-    const savedNODES = this.getNodes();
-    const savedEDGE_RANGES = this.getEdgeRanges();
-    const savedEDGE_STITCHES = this.getEdgeStitches();
-    
-    if (layerState) {
-      // Temporarily use layer state for calculations
-      // Note: This modifies global state temporarily - we need to pass these to getRightHalfPath
-    }
-    
-    const rightHalfP = layerState ? 
-      this.getRightHalfPath() : // This will use the temporarily set globals
-      this.getRightHalfPath();
+    // TODO: In future refactoring, pass layerState data directly to calculation methods
+    // instead of relying on global state modification
+    const rightHalfP = this.getRightHalfPath();
     const rightWorldP = rightHalfP.map(p => this.holsterToWorld(p));
     
     const EDGE_STITCHES = layerState ? layerState.EDGE_STITCHES : this.getEdgeStitches();
