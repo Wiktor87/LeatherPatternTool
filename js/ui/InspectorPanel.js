@@ -208,7 +208,8 @@ export class InspectorPanel {
    */
   generateShapeContent(shape) {
     const SELECTED = this.getSelected();
-    const isAsymmetric = SELECTED?.type === 'asymShape';
+    const isSymShape = SELECTED?.type === 'symShape';
+    const isAsymShape = SELECTED?.type === 'asymShape';
     
     return `
       <div class="inspector-section expanded">
@@ -235,7 +236,7 @@ export class InspectorPanel {
           </div>
         </div>
       </div>
-      ${isAsymmetric ? `
+      ${(isAsymShape || isSymShape) ? `
       <div class="inspector-section">
         <div class="section-header" onclick="this.parentElement.classList.toggle('expanded')">
           <span class="section-title">Options</span>
