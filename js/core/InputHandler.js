@@ -205,7 +205,7 @@ const ghostState=this.getCurrentLayer()==='front'?this.getBackLayer():this.getFr
 if(ghostState){
 // Temporarily apply ghost layer state to get its outline
 const savedNODES=this.getNodes();
-this.setNodes(ghostState.this.getNodes());
+this.setNodes(ghostState.NODES);
 const ghostPat=this.getMergedPatternPath();
 this.setNodes(savedNODES);
 // Check if click is near the ghost layer outline (with offset applied)
@@ -445,7 +445,7 @@ if(!this.getHover()&&this.getCfg().projectType==='two-layer'&&this.getCfg().show
 const ghostState=this.getCurrentLayer()==='front'?this.getBackLayer():this.getFrontLayer();
 if(ghostState){
 const savedNODES=this.getNodes();
-this.setNodes(ghostState.this.getNodes());
+this.setNodes(ghostState.NODES);
 const ghostPat=this.getMergedPatternPath();
 this.setNodes(savedNODES);
 const ghostPatOffset=ghostPat.map(p=>({x:p.x+this.getGhostOffset().x,y:p.y+this.getGhostOffset().y}));
