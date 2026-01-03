@@ -1648,8 +1648,8 @@ const lx=shape.x*side,wp=M.holsterToWorld({x:lx,y:shape.y}),rot=(HOLSTER.rotatio
 const mirroredPoints = side === -1 ? shape.points.map(p => ({
   ...p,
   x: -p.x,
-  h1: { x: -p.h1.x, y: p.h1.y },
-  h2: { x: -p.h2.x, y: p.h2.y }
+  h1: p.h1 ? { x: -p.h1.x, y: p.h1.y } : { x: 0, y: 0 },
+  h2: p.h2 ? { x: -p.h2.x, y: p.h2.y } : { x: 0, y: 0 }
 })) : shape.points;
 return{
 x:wp.x,
