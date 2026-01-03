@@ -540,79 +540,25 @@ section.classList.toggle('expanded',state[sectionName]);
 }
 });
 }
-loadRefImage(e) {
-  this.refImageManager.loadRefImage(e);
-  // Sync global state with manager
-  REF_IMAGE = this.refImageManager.getState();
-}
-updateRefScale(val) {
-  this.refImageManager.updateRefScale(val);
-  // Sync global state with manager
-  REF_IMAGE = this.refImageManager.getState();
-}
-clearRefImage() {
-  this.refImageManager.clearRefImage();
-  // Sync global state with manager
-  REF_IMAGE = this.refImageManager.getState();
-}
-startCalibration() {
-  this.refImageManager.startCalibration();
-  // Sync global state with manager
-  REF_IMAGE = this.refImageManager.getState();
-}
-handleCalibrationClick(w) {
-  this.refImageManager.handleCalibrationClick(w);
-  // Sync global state with manager
-  REF_IMAGE = this.refImageManager.getState();
-}
-cancelCalibration() {
-  this.refImageManager.cancelCalibration();
-  // Sync global state with manager
-  REF_IMAGE = this.refImageManager.getState();
-}
-applyCalibration() {
-  this.refImageManager.applyCalibration();
-  // Sync global state with manager
-  REF_IMAGE = this.refImageManager.getState();
-}
-toggleOutliner() {
-  this.outlinerManager.toggleOutliner();
-  // Sync state
-  this.outlinerOpen = this.outlinerManager.isOpen;
-}
-updateOutliner() {
-  this.outlinerManager.updateOutliner();
-}
-toggleItemVis(type, idx) {
-  this.outlinerManager.toggleItemVis(type, idx);
-}
-toggleItemLock(type, idx) {
-  this.outlinerManager.toggleItemLock(type, idx);
-}
-getItemByTypeIdx(type, idx) {
-  return this.outlinerManager.getItemByTypeIdx(type, idx);
-}
-outlinerDragStart(e) {
-  this.outlinerManager.outlinerDragStart(e);
-}
-outlinerDragOver(e) {
-  this.outlinerManager.outlinerDragOver(e);
-}
-outlinerDrop(e, targetType, targetIdx) {
-  this.outlinerManager.outlinerDrop(e, targetType, targetIdx);
-}
-isDescendantOf(checkType, checkIdx, ancestorType, ancestorIdx) {
-  return this.outlinerManager.isDescendantOf(checkType, checkIdx, ancestorType, ancestorIdx);
-}
-renameItem(type, idx) {
-  this.outlinerManager.renameItem(type, idx);
-}
-selectOutlinerItem(type, idx) {
-  this.outlinerManager.selectOutlinerItem(type, idx);
-}
-getObjByTypeIdx(type, idx) {
-  return this.outlinerManager.getObjByTypeIdx(type, idx);
-}
+loadRefImage(e) { this.refImageManager.loadRefImage(e); REF_IMAGE = this.refImageManager.getState(); }
+updateRefScale(val) { this.refImageManager.updateRefScale(val); REF_IMAGE = this.refImageManager.getState(); }
+clearRefImage() { this.refImageManager.clearRefImage(); REF_IMAGE = this.refImageManager.getState(); }
+startCalibration() { this.refImageManager.startCalibration(); REF_IMAGE = this.refImageManager.getState(); }
+handleCalibrationClick(w) { this.refImageManager.handleCalibrationClick(w); REF_IMAGE = this.refImageManager.getState(); }
+cancelCalibration() { this.refImageManager.cancelCalibration(); REF_IMAGE = this.refImageManager.getState(); }
+applyCalibration() { this.refImageManager.applyCalibration(); REF_IMAGE = this.refImageManager.getState(); }
+toggleOutliner() { this.outlinerManager.toggleOutliner(); this.outlinerOpen = this.outlinerManager.isOpen; }
+updateOutliner() { this.outlinerManager.updateOutliner(); }
+toggleItemVis(type, idx) { this.outlinerManager.toggleItemVis(type, idx); }
+toggleItemLock(type, idx) { this.outlinerManager.toggleItemLock(type, idx); }
+getItemByTypeIdx(type, idx) { return this.outlinerManager.getItemByTypeIdx(type, idx); }
+outlinerDragStart(e) { this.outlinerManager.outlinerDragStart(e); }
+outlinerDragOver(e) { this.outlinerManager.outlinerDragOver(e); }
+outlinerDrop(e, targetType, targetIdx) { this.outlinerManager.outlinerDrop(e, targetType, targetIdx); }
+isDescendantOf(checkType, checkIdx, ancestorType, ancestorIdx) { return this.outlinerManager.isDescendantOf(checkType, checkIdx, ancestorType, ancestorIdx); }
+renameItem(type, idx) { this.outlinerManager.renameItem(type, idx); }
+selectOutlinerItem(type, idx) { this.outlinerManager.selectOutlinerItem(type, idx); }
+getObjByTypeIdx(type, idx) { return this.outlinerManager.getObjByTypeIdx(type, idx); }
 propagateTransformToChildren(parentType, parentIdx, dx, dy) {
   // Move all children by the same delta as the parent
   const allArrays = [
@@ -728,10 +674,7 @@ resize(){const w=innerWidth,h=innerHeight;this.canvas.width=w*this.dpr;this.canv
 resetView(){VIEW.zoom=1;VIEW.x=innerWidth/2;VIEW.y=innerHeight/2;this.updateZoomIndicator();this.draw()}
 setLayer(l){LAYER=l;document.querySelector('.layer-btn.sym').classList.toggle('active',l==='symmetric');document.querySelector('.layer-btn.asym').classList.toggle('active',l==='asymmetric');CFG.showSymmetric=true;CFG.showAsymmetric=true;this.draw()}
 // Two-Layer Mode functions
-onProjectTypeChange(type) {
-  this.layerManager.onProjectTypeChange(type);
-}
-
+onProjectTypeChange(type) { this.layerManager.onProjectTypeChange(type); }
 onAsymmetricOutlineChange(enabled){
 // When enabling asymmetric mode, convert current mirrored outline to full perimeter
 if(enabled){
@@ -775,10 +718,7 @@ this.saveState();
 this.draw();
 }
 
-initializeLayers() {
-  this.layerManager.initializeLayers();
-}
-
+initializeLayers() { this.layerManager.initializeLayers(); }
 captureLayerState() {
   return {
     NODES: JSON.parse(JSON.stringify(NODES)),
@@ -813,34 +753,14 @@ restoreLayerState(state) {
   TEXT_ANNOTATIONS = JSON.parse(JSON.stringify(state.TEXT_ANNOTATIONS));
 }
 
-switchLayer(layer) {
-  this.layerManager.switchLayer(layer);
-}
-
-updateLayerUI() {
-  this.layerManager.updateLayerUI();
-}
-
-duplicateLayer(direction) {
-  this.layerManager.duplicateLayer(direction);
-}
-
-resetToMaster() {
-  this.layerManager.resetToMaster();
-}
-
-resetGhostPosition() {
-  this.layerManager.resetGhostPosition();
-}
-
+switchLayer(layer) { this.layerManager.switchLayer(layer); }
+updateLayerUI() { this.layerManager.updateLayerUI(); }
+duplicateLayer(direction) { this.layerManager.duplicateLayer(direction); }
+resetToMaster() { this.layerManager.resetToMaster(); }
+resetGhostPosition() { this.layerManager.resetGhostPosition(); }
 // Sync functions for two-layer mode
-syncOutlineToBack() {
-  this.layerManager.syncOutlineToBack();
-}
-
-syncEdgeStitchesToBack() {
-  this.layerManager.syncEdgeStitchesToBack();
-}
+syncOutlineToBack() { this.layerManager.syncOutlineToBack(); }
+syncEdgeStitchesToBack() { this.layerManager.syncEdgeStitchesToBack(); }
 
 selectHolster() {SELECTED={type:'holster'};this.updateInfo();this.draw()}
 setMode(m) {
@@ -1075,31 +995,12 @@ return{points:circlePoints,radius:radius,edgeLength:baseLen,stitchPositions:stit
 }catch(e){console.error('getLinkedCircleData error:',e);return null;}
 }
 deleteSelected(){if(!SELECTED)return;if(SELECTED.type==='symHole')SYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='symStitch')SYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='symCustomHole')SYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='symShape')SYM_SHAPES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymShape')ASYM_SHAPES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymHole')ASYM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymStitch')ASYM_STITCHES.splice(SELECTED.idx,1);else if(SELECTED.type==='asymCustomHole')ASYM_CUSTOM_HOLES.splice(SELECTED.idx,1);else if(SELECTED.type==='textAnnotation')TEXT_ANNOTATIONS.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeRange'&&EDGE_RANGES.length>1)EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='mergedEdgeRange')MERGED_EDGE_RANGES.splice(SELECTED.idx,1);else if(SELECTED.type==='edgeStitch')EDGE_STITCHES.splice(SELECTED.idx,1);SELECTED=null;this.updateInfo();this.updateOutliner();this.draw();this.saveState();this.showToast('Deleted', 'info')}
-changeHoleShape(s) {
-  this.propertiesPanel.changeHoleShape(s);
-  this.updateInfo();
-}
-
-changeHoleWidth(v) {
-  this.propertiesPanel.changeHoleWidth(v);
-}
-
-changeHoleHeight(v) {
-  this.propertiesPanel.changeHoleHeight(v);
-}
-
-toggleStitchBorder(v) {
-  this.propertiesPanel.toggleStitchBorder(v);
-  this.updateInfo();
-}
-
-changeStitchMargin(v) {
-  this.propertiesPanel.changeStitchMargin(v);
-}
-
-changeStitchSpacing(v) {
-  this.propertiesPanel.changeStitchSpacing(v);
-}
+changeHoleShape(s) { this.propertiesPanel.changeHoleShape(s); this.updateInfo(); }
+changeHoleWidth(v) { this.propertiesPanel.changeHoleWidth(v); }
+changeHoleHeight(v) { this.propertiesPanel.changeHoleHeight(v); }
+toggleStitchBorder(v) { this.propertiesPanel.toggleStitchBorder(v); this.updateInfo(); }
+changeStitchMargin(v) { this.propertiesPanel.changeStitchMargin(v); }
+changeStitchSpacing(v) { this.propertiesPanel.changeStitchSpacing(v); }
 // Text editing functions
 startTextEdit(idx){
 const t=TEXT_ANNOTATIONS[idx];
@@ -1167,31 +1068,12 @@ this.setMode('select');
 this.updateInfo();
 this.draw();
 }
-changeText(v) {
-  this.propertiesPanel.changeText(v);
-}
-
-changeFontSize(v) {
-  this.propertiesPanel.changeFontSize(v);
-}
-
-toggleBold() {
-  this.propertiesPanel.toggleBold();
-}
-
-toggleItalic() {
-  this.propertiesPanel.toggleItalic();
-}
-
-changeTextStyle(style) {
-  this.propertiesPanel.changeTextStyle(style);
-  this.updateInfo();
-}
-
-changeListType(listType) {
-  this.propertiesPanel.changeListType(listType);
-  this.updateInfo();
-}
+changeText(v) { this.propertiesPanel.changeText(v); }
+changeFontSize(v) { this.propertiesPanel.changeFontSize(v); }
+toggleBold() { this.propertiesPanel.toggleBold(); }
+toggleItalic() { this.propertiesPanel.toggleItalic(); }
+changeTextStyle(style) { this.propertiesPanel.changeTextStyle(style); this.updateInfo(); }
+changeListType(listType) { this.propertiesPanel.changeListType(listType); this.updateInfo(); }
 toggleMirror(checked){
 // Toggle between mirrored (symmetric) and single (asymmetric) elements
 if(!SELECTED)return;
