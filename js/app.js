@@ -593,6 +593,7 @@ toggleSettings(){
 this.settingsOpen=!this.settingsOpen;
 document.getElementById('settings-panel').classList.toggle('open',this.settingsOpen);
 document.getElementById('settings-btn').style.display=this.settingsOpen?'none':'flex';
+document.body.classList.toggle('settings-open',this.settingsOpen);
 if(this.settingsOpen&&this.outlinerOpen)this.toggleOutliner();
 }
 saveAccordionState(section,expanded){
@@ -746,7 +747,7 @@ this.canvas.addEventListener('dblclick',e=>{e.preventDefault();this.onDblClick(e
 this.canvas.addEventListener('contextmenu',e=>e.preventDefault());
 window.addEventListener('keydown',e=>{
 const ae=document.activeElement;
-const isInput=ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT');
+const isInput=ae&&(ae.tagName==='INPUT'||ae.tagName==='TEXTAREA'||ae.tagName==='SELECT'||ae.contentEditable==='true');
 if(e.code==='Space'&&!e.repeat&&!isInput){e.preventDefault();isPanning=true;this.canvas.style.cursor='grab'}
 if(e.shiftKey)SHIFT_HELD=true;
 if(e.code==='Escape'){if(this.editingTextIdx!==undefined)this.stopTextEdit();else if(MODE!=='select')this.cancelMode();else{SELECTED=null;this.updateInfo();this.draw()}}
@@ -1403,8 +1404,13 @@ this.draw();
 this.saveState();
 }
 toggleShapeExtension(val){
-if(SELECTED?.type!=='asymShape')return;
+if(SELECTED?.type==='asymShape'){
 ASYM_SHAPES[SELECTED.idx].isExtension=val;
+}else if(SELECTED?.type==='symShape'){
+SYM_SHAPES[SELECTED.idx].isExtension=val;
+}else{
+return;
+}
 this.updateInfo();
 this.draw();
 this.saveState();
@@ -1638,11 +1644,18 @@ return{x:wp.x,y:wp.y,rotation:rot,width:w,height:h,shape:hole.shape,stitchBorder
 }
 getSymShapeWorld(shape,side){
 const lx=shape.x*side,wp=M.holsterToWorld({x:lx,y:shape.y}),rot=(HOLSTER.rotation||0)+(shape.rotation||0)*side;
+// Mirror points when side === -1 (left side)
+const mirroredPoints = side === -1 ? shape.points.map(p => ({
+  ...p,
+  x: -p.x,
+  h1: { x: -p.h1.x, y: p.h1.y },
+  h2: { x: -p.h2.x, y: p.h2.y }
+})) : shape.points;
 return{
 x:wp.x,
 y:wp.y,
 rotation:rot,
-points:shape.points,
+points:mirroredPoints,
 scaleX:(shape.scaleX||1)*HOLSTER.scaleX,
 scaleY:(shape.scaleY||1)*HOLSTER.scaleY,
 stitchBorder:shape.stitchBorder,
