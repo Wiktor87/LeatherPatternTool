@@ -7,10 +7,10 @@ This document provides a comprehensive guide for continuing the refactoring of `
 ## Current Status
 
 - **Original size**: 3,928 lines
-- **Current size**: 3,923 lines  
-- **Modules created**: 3
-- **Lines extracted**: ~345 lines into modules
-- **Net reduction**: ~40 lines of complex code replaced with clean calls
+- **Current size**: 2,924 lines  
+- **Modules created**: 8
+- **Lines extracted**: ~1,900 lines into modules
+- **Net reduction**: ~1,004 lines of complex code replaced with clean modular calls
 
 ## Completed Modules
 
@@ -29,8 +29,45 @@ This document provides a comprehensive guide for continuing the refactoring of `
 ### 3. FileManager (`js/io/FileManager.js`)
 - **Lines**: 173
 - **Purpose**: Project save/load operations
-- **Status**: ⏳ Created, ready for integration
-- **Will replace**: ~180 lines of save/load code
+- **Status**: ✅ Integrated into app.js
+- **Replaced**: ~180 lines of save/load code
+
+### 4. RefImageManager (`js/io/RefImageManager.js`)
+- **Lines**: ~150
+- **Purpose**: Reference image handling
+- **Status**: ✅ Integrated into app.js
+- **Replaced**: ~150 lines of reference image code
+
+### 5. OutlinerManager (`js/ui/OutlinerManager.js`)
+- **Lines**: ~450
+- **Purpose**: Outliner panel management
+- **Status**: ✅ Integrated into app.js
+- **Replaced**: ~450 lines of outliner code
+
+### 6. ToolManager (`js/tools/ToolManager.js`)
+- **Lines**: ~150
+- **Purpose**: Tool mode management
+- **Status**: ✅ Integrated into app.js
+- **Replaced**: ~150 lines of tool management code
+
+### 7. LayerManager (`js/layers/LayerManager.js`)
+- **Lines**: ~300
+- **Purpose**: Two-layer mode management
+- **Status**: ✅ Integrated into app.js
+- **Replaced**: ~300 lines of layer code
+
+### 8. PropertiesPanel (`js/ui/PropertiesPanel.js`)
+- **Lines**: ~250
+- **Purpose**: Properties panel management
+- **Status**: ✅ Integrated into app.js
+- **Replaced**: ~250 lines of properties code
+
+### 9. PublishManager (`js/publish/PublishManager.js`)
+- **Lines**: 1,548
+- **Purpose**: Publish mode functionality (A4 pages, full pattern, export)
+- **Status**: ✅ Integrated into app.js
+- **Replaced**: ~860 lines of publish code
+- **Methods extracted**: 11 (getStitchCount, centerPublishView, togglePublish, downloadPattern, downloadFullPattern, downloadA4Pages, drawPublish, drawPublishA4Pages, drawPublishFullPattern, drawPatternLayerFullPattern, drawPatternLayer)
 
 ## Refactoring Pattern
 
@@ -444,15 +481,18 @@ Keep this checklist updated as you progress:
 ### Completed ✅
 - [x] HistoryManager - Integrated
 - [x] ToastManager - Integrated
-- [x] FileManager - Created, ready for integration
-
-### In Progress ⏳
-- [ ] FileManager - Integration
-- [ ] RefImageManager - Extraction
+- [x] FileManager - Integrated
+- [x] RefImageManager - Integrated
+- [x] OutlinerManager - Integrated
+- [x] ToolManager - Integrated
+- [x] LayerManager - Integrated
+- [x] PropertiesPanel - Integrated
+- [x] PublishManager - Integrated ⭐ (Phase 4 complete!)
 
 ### To Do 📋
-- [ ] OutlinerManager
-- [ ] ToolManager
+- [ ] InputHandler (~500 lines)
+- [ ] SelectionManager (~300 lines)
+- [ ] Renderer (~800 lines)
 - [ ] LayerManager
 - [ ] PropertiesPanel
 - [ ] PublishManager
