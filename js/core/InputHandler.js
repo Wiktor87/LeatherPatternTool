@@ -1,5 +1,16 @@
 /**
- * InputHandler - Handles all mouse, touch, and keyboard input
+ * InputHandler - Handles all mouse and touch input
+ * 
+ * Manages:
+ * - Mouse down/move/up events
+ * - Touch events (single and multi-touch)
+ * - Double-click handling
+ * - Hover state detection
+ * - Drag operations
+ * - Coordinate transformation
+ * 
+ * Note: Keyboard input remains in app.js (keydown/keyup event handlers)
+ * 
  * Extracted from app.js (lines 2334-2770) as part of Phase 5B refactoring
  */
 
