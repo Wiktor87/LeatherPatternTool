@@ -7,10 +7,10 @@ This document provides a comprehensive guide for continuing the refactoring of `
 ## Current Status
 
 - **Original size**: 3,928 lines
-- **Current size**: 2,924 lines  
-- **Modules created**: 8
-- **Lines extracted**: ~1,900 lines into modules
-- **Net reduction**: ~1,004 lines of complex code replaced with clean modular calls
+- **Current size**: 2,378 lines  
+- **Modules created**: 10
+- **Lines extracted**: ~2,300 lines into modules
+- **Net reduction**: ~1,550 lines of complex code replaced with clean modular calls
 
 ## Completed Modules
 
@@ -68,6 +68,15 @@ This document provides a comprehensive guide for continuing the refactoring of `
 - **Status**: ✅ Integrated into app.js
 - **Replaced**: ~860 lines of publish code
 - **Methods extracted**: 11 (getStitchCount, centerPublishView, togglePublish, downloadPattern, downloadFullPattern, downloadA4Pages, drawPublish, drawPublishA4Pages, drawPublishFullPattern, drawPatternLayerFullPattern, drawPatternLayer)
+
+### 10. InputHandler (`js/core/InputHandler.js`) ⭐ NEW - Phase 5B Complete!
+- **Lines**: 451
+- **Purpose**: Mouse, touch, and keyboard input handling
+- **Status**: ✅ Integrated into app.js
+- **Replaced**: ~428 lines of input handling code
+- **Methods extracted**: 5 (getWorld, onDown, onMove, onUp, onDblClick)
+- **Impact**: Handles all user interactions - clicking, dragging, hover effects, double-click, tool mode input
+- **Achievement**: Reduced app.js from 2,806 to 2,378 lines
 
 ## Refactoring Pattern
 
@@ -227,43 +236,25 @@ npm run build
 
 Extract modules in this order to minimize risk:
 
-### Priority 1: Low-Risk, Self-Contained (Do Next)
-1. **RefImageManager** (~150 lines) - Reference image handling
-   - `loadRefImage()`, `updateRefScale()`, `clearRefImage()`
-   - `startCalibration()`, `handleCalibrationClick()`, `applyCalibration()`
+### ✅ COMPLETED - Priority 1-3: Low to High Risk
+1. ✅ **HistoryManager** - Undo/redo management
+2. ✅ **ToastManager** - Notification toasts
+3. ✅ **FileManager** - Save/load operations
+4. ✅ **RefImageManager** - Reference image handling
+5. ✅ **OutlinerManager** - Outliner panel logic
+6. ✅ **ToolManager** - Tool mode management
+7. ✅ **LayerManager** - Two-layer mode
+8. ✅ **PropertiesPanel** - Properties bar
+9. ✅ **PublishManager** - Publish mode functionality
+10. ✅ **InputHandler** - Mouse/touch events ⭐ **Phase 5B Complete!**
 
-2. **OutlinerManager** (~200 lines) - Outliner panel logic
-   - `updateOutliner()`, `toggleItemVis()`, `toggleItemLock()`
-   - `renameItem()`, `outlinerDragStart()`, `outlinerDrop()`
+### Priority 4: Remaining Core Functionality (Next Up)
+11. **SelectionManager** (~300 lines) - Hit testing
+    - Selection logic, hover detection
+    - Tightly coupled with rendering
 
-3. **ToolManager** (~100 lines) - Tool mode management
-   - `setMode()`, `finishMode()`, `cancelMode()`
-   - Tool state tracking
-
-### Priority 2: Medium Risk, More Dependencies
-4. **LayerManager** (~300 lines) - Two-layer mode
-   - `switchLayer()`, `duplicateLayer()`, `syncOutlineToBack()`
-   - `captureLayerState()`, `restoreLayerState()`
-
-5. **PropertiesPanel** (~150 lines) - Properties bar
-   - `updateInfo()`, property change handlers
-   - Selection display logic
-
-6. **PublishManager** (~200 lines) - Publish mode state
-   - `togglePublish()`, `centerPublishView()`
-   - Publish mode configuration
-
-### Priority 3: High Risk, Core Functionality
-7. **InputHandler** (~500 lines) - Mouse/touch events
-   - `onDown()`, `onMove()`, `onUp()`, `onDblClick()`
-   - Requires careful testing
-
-8. **SelectionManager** (~300 lines) - Hit testing
-   - Selection logic, hover detection
-   - Tightly coupled with rendering
-
-9. **Renderer** (~800 lines) - Main drawing
-   - `draw()`, `drawNodes()`, `drawGrid()`, etc.
+12. **Renderer** (~800 lines) - Main drawing
+    - `draw()`, `drawNodes()`, `drawGrid()`, etc.
    - Most complex, extract last
 
 ### Priority 4: Tool Implementations
@@ -488,17 +479,11 @@ Keep this checklist updated as you progress:
 - [x] LayerManager - Integrated
 - [x] PropertiesPanel - Integrated
 - [x] PublishManager - Integrated ⭐ (Phase 4 complete!)
+- [x] InputHandler - Integrated ⭐ (Phase 5B complete!)
 
 ### To Do 📋
-- [ ] InputHandler (~500 lines)
 - [ ] SelectionManager (~300 lines)
 - [ ] Renderer (~800 lines)
-- [ ] LayerManager
-- [ ] PropertiesPanel
-- [ ] PublishManager
-- [ ] InputHandler
-- [ ] SelectionManager
-- [ ] Renderer
 - [ ] Tool implementations (5 tools)
 - [ ] Geometry modules (3 modules)
 - [ ] Export modules (2 modules)
