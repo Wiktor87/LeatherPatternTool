@@ -237,6 +237,7 @@ class App{
       getAsymHoles: () => ASYM_HOLES,
       getSymCustomHoles: () => SYM_CUSTOM_HOLES,
       getAsymCustomHoles: () => ASYM_CUSTOM_HOLES,
+      getSymShapes: () => SYM_SHAPES,
       getAsymShapes: () => ASYM_SHAPES,
       getTextAnnotations: () => TEXT_ANNOTATIONS,
       getMergedPatternPath: () => this.getMergedPatternPath(),
@@ -245,6 +246,7 @@ class App{
       offsetPathStableClosed: (path, delta) => this.offsetPathStableClosed(path, delta),
       holsterToWorld: (p) => M.holsterToWorld(p),
       getSymHoleWorld: (hole, side) => this.getSymHoleWorld(hole, side),
+      getSymShapeWorld: (shape, side) => this.getSymShapeWorld(shape, side),
       getCustomHoleWorld: (h, side) => this.getCustomHoleWorld(h, side),
       getCustomHoleWorldAsym: (h) => this.getCustomHoleWorldAsym(h),
       drawHole: (ctx, cx, cy, rot, w, h, shape) => this.drawHole(ctx, cx, cy, rot, w, h, shape),
@@ -1552,15 +1554,16 @@ return pts;
 // Returns the pattern path with extension shapes unioned in
 getMergedPatternPath(){
 const basePath=this.getPatternPath();
-// Find extension shapes
-const extensions=ASYM_SHAPES.filter(s=>s.isExtension&&!s.hidden);
-if(!extensions.length)return basePath;
+// Find extension shapes (both asymmetric and symmetric)
+const asymExtensions=ASYM_SHAPES.filter(s=>s.isExtension&&!s.hidden);
+const symExtensions=SYM_SHAPES.filter(s=>s.isExtension&&!s.hidden);
+if(!asymExtensions.length&&!symExtensions.length)return basePath;
 // Convert base path to Clipper format
 const cl=new ClipperLib.Clipper();
 const basePoly=basePath.map(p=>({X:Math.round(p.x*SCALE),Y:Math.round(p.y*SCALE)}));
 cl.AddPath(basePoly,ClipperLib.PolyType.ptSubject,true);
-// Add each extension shape
-extensions.forEach(s=>{
+// Add each asymmetric extension shape
+asymExtensions.forEach(s=>{
 // Transform shape points to world coordinates with bezier handles
 const ptsWithHandles=s.points.map(p=>{
 const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};
@@ -1577,6 +1580,29 @@ const sampledPts=M.sampleBezierClosed(ptsWithHandles,20);
 // Convert to Clipper format
 const clipperPts=sampledPts.map(p=>({X:Math.round(p.x*SCALE),Y:Math.round(p.y*SCALE)}));
 cl.AddPath(clipperPts,ClipperLib.PolyType.ptClip,true);
+});
+// Add each symmetric extension shape (on both sides)
+symExtensions.forEach(s=>{
+[1,-1].forEach(side=>{
+// Get world coordinates for this side
+const wShp=this.getSymShapeWorld(s,side);
+// Transform shape points to world coordinates with bezier handles
+const ptsWithHandles=wShp.points.map(p=>{
+const sc={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};
+const r=M.rotate(sc,wShp.rotation||0);
+// Transform bezier handles
+const sh1={x:(p.h1?.x||0)*(wShp.scaleX||1),y:(p.h1?.y||0)*(wShp.scaleY||1)};
+const sh2={x:(p.h2?.x||0)*(wShp.scaleX||1),y:(p.h2?.y||0)*(wShp.scaleY||1)};
+const rh1=M.rotate(sh1,wShp.rotation||0);
+const rh2=M.rotate(sh2,wShp.rotation||0);
+return{x:r.x+wShp.x,y:r.y+wShp.y,h1:rh1,h2:rh2};
+});
+// Sample the bezier curve to get linear segments
+const sampledPts=M.sampleBezierClosed(ptsWithHandles,20);
+// Convert to Clipper format
+const clipperPts=sampledPts.map(p=>({X:Math.round(p.x*SCALE),Y:Math.round(p.y*SCALE)}));
+cl.AddPath(clipperPts,ClipperLib.PolyType.ptClip,true);
+});
 });
 // Union all shapes
 const solution=[];
