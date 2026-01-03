@@ -26,6 +26,7 @@ export class PublishManager {
    * @param {Function} options.getAsymHoles - Get ASYM_HOLES array
    * @param {Function} options.getSymCustomHoles - Get SYM_CUSTOM_HOLES array
    * @param {Function} options.getAsymCustomHoles - Get ASYM_CUSTOM_HOLES array
+   * @param {Function} options.getSymShapes - Get SYM_SHAPES array
    * @param {Function} options.getAsymShapes - Get ASYM_SHAPES array
    * @param {Function} options.getTextAnnotations - Get TEXT_ANNOTATIONS array
    * @param {Function} options.getMergedPatternPath - Get merged pattern path
@@ -34,6 +35,7 @@ export class PublishManager {
    * @param {Function} options.offsetPathStableClosed - Offset closed path by distance
    * @param {Function} options.holsterToWorld - Convert holster coords to world coords
    * @param {Function} options.getSymHoleWorld - Get symmetric hole in world coords
+   * @param {Function} options.getSymShapeWorld - Get symmetric shape in world coords
    * @param {Function} options.getCustomHoleWorld - Get custom hole in world coords
    * @param {Function} options.getCustomHoleWorldAsym - Get asymmetric custom hole in world coords
    * @param {Function} options.drawHole - Draw a hole on context
@@ -59,6 +61,7 @@ export class PublishManager {
     this.getAsymHoles = options.getAsymHoles || (() => []);
     this.getSymCustomHoles = options.getSymCustomHoles || (() => []);
     this.getAsymCustomHoles = options.getAsymCustomHoles || (() => []);
+    this.getSymShapes = options.getSymShapes || (() => []);
     this.getAsymShapes = options.getAsymShapes || (() => []);
     this.getTextAnnotations = options.getTextAnnotations || (() => []);
     
@@ -69,6 +72,7 @@ export class PublishManager {
     this.offsetPathStableClosed = options.offsetPathStableClosed || ((path, delta) => path);
     this.holsterToWorld = options.holsterToWorld || ((p) => p);
     this.getSymHoleWorld = options.getSymHoleWorld || ((hole, side) => hole);
+    this.getSymShapeWorld = options.getSymShapeWorld || ((shape, side) => shape);
     this.getCustomHoleWorld = options.getCustomHoleWorld || ((h, side) => h);
     this.getCustomHoleWorldAsym = options.getCustomHoleWorldAsym || ((h) => h);
     this.drawHole = options.drawHole || (() => {});
@@ -1361,6 +1365,28 @@ export class PublishManager {
       });
     }
     
+    // Draw symmetric shapes (mirrored on both sides)
+    if (CFG.showSymmetric) {
+      const SYM_SHAPES = layerState ? layerState.SYM_SHAPES : this.getSymShapes();
+      SYM_SHAPES.filter(s => !s.isExtension).forEach(s => {
+        // Draw on both sides (1 and -1)
+        [1, -1].forEach(side => {
+          const wShp = this.getSymShapeWorld(s, side);
+          const pts = wShp.points.map(p => {
+            const sc = { x: p.x * (wShp.scaleX || 1), y: p.y * (wShp.scaleY || 1) };
+            const r = M.rotate(sc, wShp.rotation || 0);
+            return { x: r.x + wShp.x, y: r.y + wShp.y };
+          });
+          ctx.beginPath();
+          pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+          ctx.closePath();
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 1.5 / scale;
+          ctx.stroke();
+        });
+      });
+    }
+    
     // Draw shapes
     if (CFG.showAsymmetric) {
       const ASYM_SHAPES = layerState ? layerState.ASYM_SHAPES : this.getAsymShapes();
@@ -1516,6 +1542,28 @@ export class PublishManager {
         ctx.strokeStyle = strokeColor;
         ctx.lineWidth = 1 / scale;
         ctx.stroke();
+      });
+    }
+    
+    // Draw symmetric shapes (mirrored on both sides)
+    if (CFG.showSymmetric) {
+      const SYM_SHAPES = layerState ? layerState.SYM_SHAPES : this.getSymShapes();
+      SYM_SHAPES.filter(s => !s.isExtension).forEach(s => {
+        // Draw on both sides (1 and -1)
+        [1, -1].forEach(side => {
+          const wShp = this.getSymShapeWorld(s, side);
+          const pts = wShp.points.map(p => {
+            const sc = { x: p.x * (wShp.scaleX || 1), y: p.y * (wShp.scaleY || 1) };
+            const r = M.rotate(sc, wShp.rotation || 0);
+            return { x: r.x + wShp.x, y: r.y + wShp.y };
+          });
+          ctx.beginPath();
+          pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+          ctx.closePath();
+          ctx.strokeStyle = strokeColor;
+          ctx.lineWidth = 1 / scale;
+          ctx.stroke();
+        });
       });
     }
     

@@ -317,7 +317,7 @@ input[type="range"]::-moz-range-track {
 /* Zoom indicator */
 #zoom-indicator {
   position: fixed;
-  bottom: 60px;
+  bottom: 70px;
   right: 20px;
   background: rgba(30, 30, 30, 0.9);
   color: #aaa;
@@ -326,7 +326,7 @@ input[type="range"]::-moz-range-track {
   font-size: 12px;
   font-family: monospace;
   cursor: pointer;
-  z-index: 90;
+  z-index: 95;
   transition: background 0.2s, color 0.2s, right 0.3s ease;
   user-select: none;
 }
@@ -338,7 +338,7 @@ input[type="range"]::-moz-range-track {
 
 /* Move zoom indicator when settings panel is open */
 body.settings-open #zoom-indicator {
-  right: 290px;
+  right: 280px;
 }
 
 /* Accessibility: Focus states for keyboard navigation */
