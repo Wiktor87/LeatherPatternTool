@@ -349,6 +349,8 @@ this.setupEvents();
 this.resize();
 this.settingsOpen=false;
 this.outlinerOpen=false;
+// Initialize leather texture pattern for realistic rendering
+this.leatherTexturePattern = this.generateLeatherTexture(256, 256);
 // Initialize accordion UI
 this.initAccordion();
 // Initialize UI based on default project type
@@ -1698,6 +1700,224 @@ if(obj.isLinkedCircle){const cd=this.getLinkedCircleData(obj);if(cd){cx=obj.x;cy
 else{const pts=obj.points.map(p=>{const s={x:p.x*(obj.scaleX||1),y:p.y*(obj.scaleY||1)};const r=M.rotate(s,obj.rotation||0);return{x:r.x+obj.x,y:r.y+obj.y}});const b=M.getBounds(pts);cx=obj.x;cy=obj.y;hw=b.w/2+10;hh=b.h/2+10;rot=obj.rotation||0}
 }else{cx=obj.x;cy=obj.y;hw=obj.width/2+10;hh=obj.height/2+10;rot=obj.rotation||0}
 [{x:hw,y:0,t:'e'},{x:-hw,y:0,t:'w'},{x:0,y:-hh,t:'n'},{x:0,y:hh,t:'s'},{x:hw,y:-hh,t:'ne'},{x:-hw,y:-hh,t:'nw'},{x:hw,y:hh,t:'se'},{x:-hw,y:hh,t:'sw'}].forEach(s=>{const r=M.rotate(s,rot);hs.push({x:cx+r.x,y:cy+r.y,type:'scale-'+s.t})});const rp=M.rotate({x:hw+25,y:-hh-25},rot);hs.push({x:cx+rp.x,y:cy+rp.y,type:'rotate'});hs.push({x:cx,y:cy,type:'move'});return{handles:hs,cx,cy,hw,hh,rot}}
+// Realistic Rendering Functions
+generateLeatherTexture(width, height) {
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d');
+  
+  // Base leather color
+  ctx.fillStyle = '#8B5A2B';
+  ctx.fillRect(0, 0, width, height);
+  
+  // Add Perlin-like noise for grain
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+  
+  for (let i = 0; i < data.length; i += 4) {
+    const noise = (Math.random() - 0.5) * 30;
+    data[i] = Math.max(0, Math.min(255, data[i] + noise));     // R
+    data[i+1] = Math.max(0, Math.min(255, data[i+1] + noise * 0.7)); // G
+    data[i+2] = Math.max(0, Math.min(255, data[i+2] + noise * 0.5)); // B
+  }
+  
+  ctx.putImageData(imageData, 0, 0);
+  
+  // Add subtle scratches/grain lines
+  ctx.strokeStyle = 'rgba(0,0,0,0.05)';
+  ctx.lineWidth = 0.5;
+  for (let i = 0; i < 200; i++) {
+    ctx.beginPath();
+    const x = Math.random() * width;
+    const y = Math.random() * height;
+    ctx.moveTo(x, y);
+    ctx.lineTo(x + (Math.random() - 0.5) * 20, y + (Math.random() - 0.5) * 5);
+    ctx.stroke();
+  }
+  
+  return ctx.createPattern(canvas, 'repeat');
+}
+drawRealisticHole(ctx, x, y, radius) {
+  ctx.save();
+  
+  // 1. Punched indent shadow (leather pushed down around hole)
+  const indentGradient = ctx.createRadialGradient(x, y, radius, x, y, radius + 4);
+  indentGradient.addColorStop(0, 'rgba(0,0,0,0.4)');
+  indentGradient.addColorStop(0.5, 'rgba(0,0,0,0.15)');
+  indentGradient.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = indentGradient;
+  ctx.beginPath();
+  ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // 2. Hole interior (dark, showing through to backing)
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fillStyle = '#0a0a0a';
+  ctx.fill();
+  
+  // 3. Inner edge of hole (compressed leather ring)
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.strokeStyle = '#2a1a0a';
+  ctx.lineWidth = 1.5;
+  ctx.stroke();
+  
+  // 4. Highlight on upper edge of hole (light catching the rim)
+  ctx.beginPath();
+  ctx.arc(x, y, radius - 0.5, -Math.PI * 0.8, -Math.PI * 0.2);
+  ctx.strokeStyle = 'rgba(180,140,100,0.4)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  
+  ctx.restore();
+}
+// Helper to draw stitch hole - uses realistic or simple based on CFG
+drawStitchHole(ctx, x, y, radius, fillStyle) {
+  if(CFG.realisticRendering){
+    this.drawRealisticHole(ctx, x, y, radius);
+  }else{
+    ctx.fillStyle = fillStyle || '#444';
+    ctx.beginPath();
+    ctx.arc(x, y, radius, 0, Math.PI * 2);
+    ctx.fill();
+  }
+}
+drawRealisticStitchLine(ctx, holePositions, threadColor = '#1a1208') {
+  if (holePositions.length < 2) return;
+  
+  ctx.save();
+  
+  for (let i = 0; i < holePositions.length - 1; i++) {
+    const p1 = holePositions[i];
+    const p2 = holePositions[i + 1];
+    
+    // 1. Thread shadow (thread is raised above surface slightly)
+    ctx.beginPath();
+    ctx.moveTo(p1.x + 1.5, p1.y + 1.5);
+    ctx.lineTo(p2.x + 1.5, p2.y + 1.5);
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 2.5;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    
+    // 2. Main thread body
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.strokeStyle = threadColor;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    
+    // 3. Thread highlight (light catching the thread)
+    ctx.beginPath();
+    ctx.moveTo(p1.x - 0.5, p1.y - 0.5);
+    ctx.lineTo(p2.x - 0.5, p2.y - 0.5);
+    ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+    ctx.lineWidth = 0.8;
+    ctx.stroke();
+    
+    // 4. Thread texture (subtle variation)
+    ctx.beginPath();
+    ctx.moveTo(p1.x, p1.y);
+    ctx.lineTo(p2.x, p2.y);
+    ctx.strokeStyle = 'rgba(60,40,20,0.3)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([1, 2]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  
+  ctx.restore();
+}
+drawFoldCrease(ctx, x, y1, y2) {
+  ctx.save();
+  
+  // 1. Crease shadow gradient (leather bending creates shadow)
+  const creaseWidth = 16;
+  const gradient = ctx.createLinearGradient(x - creaseWidth/2, 0, x + creaseWidth/2, 0);
+  gradient.addColorStop(0, 'rgba(0,0,0,0)');
+  gradient.addColorStop(0.3, 'rgba(0,0,0,0.2)');
+  gradient.addColorStop(0.48, 'rgba(0,0,0,0.35)');
+  gradient.addColorStop(0.5, 'rgba(0,0,0,0.4)'); // Crease center - darkest
+  gradient.addColorStop(0.52, 'rgba(255,255,255,0.1)'); // Light hitting fold edge
+  gradient.addColorStop(0.7, 'rgba(0,0,0,0.05)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0)');
+  
+  ctx.fillStyle = gradient;
+  ctx.fillRect(x - creaseWidth/2, y1, creaseWidth, y2 - y1);
+  
+  // 2. Dashed fold indicator line
+  ctx.setLineDash([8, 4]);
+  ctx.strokeStyle = 'rgba(40,25,15,0.6)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(x, y1);
+  ctx.lineTo(x, y2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  
+  // 3. "FOLD" text label
+  ctx.font = '10px sans-serif';
+  ctx.fillStyle = 'rgba(40,25,15,0.5)';
+  ctx.textAlign = 'center';
+  ctx.save();
+  ctx.translate(x, (y1 + y2) / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.fillText('FOLD', 0, -8);
+  ctx.restore();
+  
+  ctx.restore();
+}
+drawLeatherEdge(ctx, path) {
+  ctx.save();
+  
+  // 1. Draw the "thickness" of the leather (side view of cut) - offset shadow
+  ctx.beginPath();
+  path.forEach((p, i) => {
+    const offsetX = p.x + 3;
+    const offsetY = p.y + 3;
+    if (i === 0) ctx.moveTo(offsetX, offsetY);
+    else ctx.lineTo(offsetX, offsetY);
+  });
+  ctx.closePath();
+  ctx.strokeStyle = '#3D2817'; // Dark leather edge
+  ctx.lineWidth = 4;
+  ctx.stroke();
+  
+  // 2. Draw drop shadow
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 12;
+  ctx.shadowOffsetX = 5;
+  ctx.shadowOffsetY = 5;
+  
+  // 3. Draw main edge highlight (top-left light source)
+  ctx.beginPath();
+  path.forEach((p, i) => {
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  });
+  ctx.closePath();
+  ctx.strokeStyle = '#5D3A1A';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  
+  // 4. Inner highlight along top-left edges
+  ctx.shadowColor = 'transparent';
+  ctx.beginPath();
+  path.forEach((p, i) => {
+    if (i === 0) ctx.moveTo(p.x, p.y);
+    else ctx.lineTo(p.x, p.y);
+  });
+  ctx.closePath();
+  ctx.strokeStyle = 'rgba(255,255,255,0.15)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+  
+  ctx.restore();
+}
 drawHole(ctx,cx,cy,rot,w,h,shape){const hw=w/2,hh=h/2;ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);ctx.beginPath();if(shape==='rectangle')ctx.rect(-hw,-hh,w,h);else if(shape==='pill'){const r=Math.min(hw,hh);if(hw>=hh){const l=hw-r;ctx.moveTo(-l,-r);ctx.lineTo(l,-r);ctx.arc(l,0,r,-Math.PI/2,Math.PI/2);ctx.lineTo(-l,r);ctx.arc(-l,0,r,Math.PI/2,-Math.PI/2)}else{const l=hh-r;ctx.moveTo(-r,-l);ctx.arc(0,-l,r,Math.PI,0);ctx.lineTo(r,l);ctx.arc(0,l,r,0,Math.PI)}ctx.closePath()}else ctx.ellipse(0,0,hw,hh,0,0,Math.PI*2);ctx.restore()}
 drawShape(ctx,shape){
 // Transform shape points to world coordinates with bezier handles
@@ -1881,7 +2101,27 @@ oc.setTransform(this.dpr,0,0,this.dpr,0,0);oc.clearRect(0,0,w,h);oc.save();oc.tr
 this._stitchBtnBounds=null;
 this._mergedStitchBtnBounds=null;
 const pat=this.getMergedPatternPath(),st=this.offsetPath(pat,-CFG.stitchMargin),cav=this.offsetPath(st,-CFG.thickness*2);
-oc.beginPath();pat.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.4;oc.fill();oc.globalAlpha=1;
+// Draw pattern fill with realistic rendering if enabled
+if(CFG.realisticRendering){
+  // Realistic leather fill with texture
+  oc.save();
+  oc.beginPath();pat.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();
+  oc.clip();
+  oc.fillStyle=this.leatherTexturePattern;
+  oc.fill();
+  // Add depth gradient overlay
+  const bounds=M.getBounds(pat);
+  const gradient=oc.createRadialGradient(bounds.cx,bounds.cy,0,bounds.cx,bounds.cy,Math.max(bounds.w,bounds.h)*0.6);
+  gradient.addColorStop(0,'rgba(255,255,255,0.12)');
+  gradient.addColorStop(0.5,'rgba(0,0,0,0)');
+  gradient.addColorStop(1,'rgba(0,0,0,0.25)');
+  oc.fillStyle=gradient;
+  oc.fill();
+  oc.restore();
+}else{
+  // Simple flat fill
+  oc.beginPath();pat.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.4;oc.fill();oc.globalAlpha=1;
+}
 // Draw non-extension shapes separately
 if(CFG.showSymmetric)SYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{[1,-1].forEach(side=>{const wShp=this.getSymShapeWorld(s,side);if(wShp.isLinkedCircle){const cd=this.getLinkedCircleData(wShp);if(cd){const pts=cd.points.map(p=>{const sc={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(sc,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y}});oc.beginPath();pts.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}else{this.drawShape(oc,wShp);oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}})});
 if(CFG.showAsymmetric)ASYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{if(s.isLinkedCircle){const cd=this.getLinkedCircleData(s);if(cd){const pts=cd.points.map(p=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sc,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y}});oc.beginPath();pts.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}else{this.drawShape(oc,s);oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}});
@@ -1907,20 +2147,31 @@ ctx.save();ctx.translate(VIEW.x,VIEW.y);ctx.scale(VIEW.zoom,VIEW.zoom);
 const b=M.getBounds(pat);document.getElementById('patternSize').textContent=b.w.toFixed(0)+'×'+b.h.toFixed(0)+'mm';document.getElementById('maxInterior').textContent=Math.max(0,b.w-(CFG.stitchMargin+CFG.thickness*2)*2).toFixed(1)+'mm';
 // Fold line - when locked, draw vertical at origin regardless of holster transforms
 if(CFG.showFoldLine&&!CFG.asymmetricOutline){
-ctx.strokeStyle='#888';ctx.lineWidth=1/VIEW.zoom;
-ctx.setLineDash([8/VIEW.zoom,4/VIEW.zoom]);
-ctx.beginPath();
-if(CFG.lockFoldLine){
-// Locked: always vertical at world origin
-ctx.moveTo(0,-300);ctx.lineTo(0,300);
-}else{
-// Normal: follows holster transform
-const top=M.holsterToWorld({x:0,y:-300}),bot=M.holsterToWorld({x:0,y:300});
-ctx.moveTo(top.x,top.y);ctx.lineTo(bot.x,bot.y);
-}
-ctx.stroke();ctx.setLineDash([]);
-ctx.fillStyle='#888';ctx.font=(10/VIEW.zoom)+'px sans-serif';ctx.textAlign='center';
-if(CFG.lockFoldLine){ctx.fillText('FOLD',0,-280)}else{const lbl=M.holsterToWorld({x:0,y:-280});ctx.fillText('FOLD',lbl.x,lbl.y)}
+  if(CFG.realisticRendering){
+    // Realistic fold crease
+    if(CFG.lockFoldLine){
+      this.drawFoldCrease(ctx,0,-300,300);
+    }else{
+      const top=M.holsterToWorld({x:0,y:-300}),bot=M.holsterToWorld({x:0,y:300});
+      this.drawFoldCrease(ctx,top.x,top.y,bot.y);
+    }
+  }else{
+    // Simple dashed line
+    ctx.strokeStyle='#888';ctx.lineWidth=1/VIEW.zoom;
+    ctx.setLineDash([8/VIEW.zoom,4/VIEW.zoom]);
+    ctx.beginPath();
+    if(CFG.lockFoldLine){
+      // Locked: always vertical at world origin
+      ctx.moveTo(0,-300);ctx.lineTo(0,300);
+    }else{
+      // Normal: follows holster transform
+      const top=M.holsterToWorld({x:0,y:-300}),bot=M.holsterToWorld({x:0,y:300});
+      ctx.moveTo(top.x,top.y);ctx.lineTo(bot.x,bot.y);
+    }
+    ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle='#888';ctx.font=(10/VIEW.zoom)+'px sans-serif';ctx.textAlign='center';
+    if(CFG.lockFoldLine){ctx.fillText('FOLD',0,-280)}else{const lbl=M.holsterToWorld({x:0,y:-280});ctx.fillText('FOLD',lbl.x,lbl.y)}
+  }
 }
 // Center reference line for asymmetric mode
 if(CFG.showFoldLine&&CFG.asymmetricOutline){
@@ -1938,7 +2189,15 @@ ctx.fillStyle='#666';ctx.font=(10/VIEW.zoom)+'px sans-serif';ctx.textAlign='cent
 if(CFG.lockFoldLine){ctx.fillText('CENTER',0,-280)}else{const lbl=M.holsterToWorld({x:0,y:-280});ctx.fillText('CENTER',lbl.x,lbl.y)}
 }
 if(CFG.showCavity&&cav.length){ctx.beginPath();cav.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.fillStyle='rgba(100,200,255,.12)';ctx.fill();ctx.strokeStyle='rgba(0,150,200,.35)';ctx.lineWidth=1.5/VIEW.zoom;ctx.setLineDash([3/VIEW.zoom,3/VIEW.zoom]);ctx.stroke();ctx.setLineDash([])}
-if(CFG.showOutline){ctx.beginPath();pat.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle='#333';ctx.lineWidth=2/VIEW.zoom;ctx.stroke()}
+if(CFG.showOutline){
+  if(CFG.realisticRendering){
+    // Draw realistic beveled leather edge
+    this.drawLeatherEdge(ctx,pat);
+  }else{
+    // Simple outline stroke
+    ctx.beginPath();pat.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle='#333';ctx.lineWidth=2/VIEW.zoom;ctx.stroke();
+  }
+}
 if(SELECTED?.type==='holster')this.drawGizmo(ctx,this.getGizmos(HOLSTER,'holster'),'#007AFF');
 let hsc=0;
 if(CFG.showSymmetric){
@@ -2220,14 +2479,23 @@ ctx.stroke();
 // Draw stitch holes
 if(es.showHoles!==false){
 const spacing=es.spacing||CFG.stitchSpacing;
+const holePositions=[]; // Collect for realistic threading
 ctx.fillStyle=sel?'#007AFF':['#222','#0066cc','#cc6600','#009944'][idx%4];
 for(let d=sd;d<=ed;d+=spacing){
 const pt=M.ptAtDist(stitchArc,d);
 if(!pt)continue;
-ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();ec++;
+holePositions.push(pt);
+this.drawStitchHole(ctx,pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,ctx.fillStyle);ec++;
 if(es.mirror!==false&&CFG.mirrorEdgeStitches&&!CFG.asymmetricOutline){
 const mx=2*HOLSTER.x-pt.x;
-ctx.beginPath();ctx.arc(mx,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();ec++;
+this.drawStitchHole(ctx,mx,pt.y,(es.holeSize||CFG.holeSize)/2,ctx.fillStyle);ec++;
+}}
+// Draw realistic thread if realistic rendering enabled
+if(CFG.realisticRendering&&holePositions.length>1){
+this.drawRealisticStitchLine(ctx,holePositions);
+if(es.mirror!==false&&CFG.mirrorEdgeStitches&&!CFG.asymmetricOutline){
+const mirroredPositions=holePositions.map(p=>({x:2*HOLSTER.x-p.x,y:p.y}));
+this.drawRealisticStitchLine(ctx,mirroredPositions);
 }}
 }
 });
@@ -2258,12 +2526,19 @@ ctx.stroke();
 // Draw stitch holes
 if(es.showHoles!==false){
 const spacing=es.spacing||CFG.stitchSpacing;
+const holePositions=[]; // Collect for realistic threading
 ctx.fillStyle=sel?'#8B5CF6':'#9370DB';
 for(let d=sd;d<=ed;d+=spacing){
 const pt=M.ptAtDist(stitchArc,d);
 if(!pt)continue;
-ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();ec++;
-}}
+holePositions.push(pt);
+this.drawStitchHole(ctx,pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,ctx.fillStyle);ec++;
+}
+// Draw realistic thread if realistic rendering enabled
+if(CFG.realisticRendering&&holePositions.length>1){
+this.drawRealisticStitchLine(ctx,holePositions);
+}
+}
 });
 document.getElementById('stitchCount').textContent=ec+hsc;
 if(CFG.showStitchLines&&CFG.showSymmetric)SYM_STITCHES.forEach((sl,idx)=>{if(sl.hidden)return;const sel=SELECTED?.type==='symStitch'&&SELECTED?.idx===idx;[1,-1].forEach(side=>{const pts=this.getSymStitchWorld(sl,side);if(pts.length>=2){ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=0;i<pts.length-1;i++){const c=pts[i],n=pts[i+1];ctx.bezierCurveTo(c.x+c.h2.x,c.y+c.h2.y,n.x+n.h1.x,n.y+n.h1.y,n.x,n.y)}ctx.strokeStyle=sel?'rgba(175,82,222,.6)':'rgba(100,100,100,.4)';ctx.lineWidth=(sel?2:1)/VIEW.zoom;ctx.stroke();const smp=M.sampleBezier(pts,30);if(smp.length){const la=M.buildArc(smp),lt=la[la.length-1].d;ctx.fillStyle=sel?'#AF52DE':'#444';for(let d=0;d<=lt;d+=sl.spacing){const pt=M.ptAtDist(la,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}}}});if(sel){const pts=this.getSymStitchWorld(sl,1);pts.forEach(pt=>{const r=4/VIEW.zoom;ctx.fillStyle='#AF52DE';ctx.strokeStyle='#fff';ctx.lineWidth=1.5/VIEW.zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,r,0,Math.PI*2);ctx.fill();ctx.stroke()})}});

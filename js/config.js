@@ -40,7 +40,8 @@ export const CFG = {
   publishViewMode: 'a4-pages', // 'full-pattern' or 'a4-pages'
   showGhostLayer: true, // Show other layer as ghost/overlay in two-layer mode
   ghostLayerOpacity: 0.25, // Opacity of ghost layer (0.1 - 0.5)
-  asymmetricOutline: false // When true, nodes define full perimeter instead of right half only
+  asymmetricOutline: false, // When true, nodes define full perimeter instead of right half only
+  realisticRendering: true // When true, renders with realistic leather texture, 3D edges, and photorealistic stitching
 };
 
 // Touch-aware hover tolerances
