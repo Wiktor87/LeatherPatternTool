@@ -1699,6 +1699,106 @@ else{const pts=obj.points.map(p=>{const s={x:p.x*(obj.scaleX||1),y:p.y*(obj.scal
 }else{cx=obj.x;cy=obj.y;hw=obj.width/2+10;hh=obj.height/2+10;rot=obj.rotation||0}
 [{x:hw,y:0,t:'e'},{x:-hw,y:0,t:'w'},{x:0,y:-hh,t:'n'},{x:0,y:hh,t:'s'},{x:hw,y:-hh,t:'ne'},{x:-hw,y:-hh,t:'nw'},{x:hw,y:hh,t:'se'},{x:-hw,y:hh,t:'sw'}].forEach(s=>{const r=M.rotate(s,rot);hs.push({x:cx+r.x,y:cy+r.y,type:'scale-'+s.t})});const rp=M.rotate({x:hw+25,y:-hh-25},rot);hs.push({x:cx+rp.x,y:cy+rp.y,type:'rotate'});hs.push({x:cx,y:cy,type:'move'});return{handles:hs,cx,cy,hw,hh,rot}}
 drawHole(ctx,cx,cy,rot,w,h,shape){const hw=w/2,hh=h/2;ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);ctx.beginPath();if(shape==='rectangle')ctx.rect(-hw,-hh,w,h);else if(shape==='pill'){const r=Math.min(hw,hh);if(hw>=hh){const l=hw-r;ctx.moveTo(-l,-r);ctx.lineTo(l,-r);ctx.arc(l,0,r,-Math.PI/2,Math.PI/2);ctx.lineTo(-l,r);ctx.arc(-l,0,r,Math.PI/2,-Math.PI/2)}else{const l=hh-r;ctx.moveTo(-r,-l);ctx.arc(0,-l,r,Math.PI,0);ctx.lineTo(r,l);ctx.arc(0,l,r,0,Math.PI)}ctx.closePath()}else ctx.ellipse(0,0,hw,hh,0,0,Math.PI*2);ctx.restore()}
+// Realistic rendering functions
+drawRealisticHole(ctx,x,y,radius){
+// Outer shadow (pushed down leather)
+ctx.beginPath();
+ctx.arc(x,y,radius+2/VIEW.zoom,0,Math.PI*2);
+ctx.fillStyle='rgba(0,0,0,0.3)';
+ctx.fill();
+// Hole darkness (actual hole)
+ctx.beginPath();
+ctx.arc(x,y,radius,0,Math.PI*2);
+ctx.fillStyle='#1a1a1a';
+ctx.fill();
+// Inner highlight (edge of punched hole)
+ctx.beginPath();
+ctx.arc(x,y,radius,0,Math.PI*2);
+ctx.strokeStyle='rgba(139,90,43,0.5)';
+ctx.lineWidth=1/VIEW.zoom;
+ctx.stroke();
+}
+drawRealisticStitch(ctx,p1,p2,threadColor='#3A2A1A'){
+// Thread shadow
+ctx.beginPath();
+ctx.moveTo(p1.x+1/VIEW.zoom,p1.y+1/VIEW.zoom);
+ctx.lineTo(p2.x+1/VIEW.zoom,p2.y+1/VIEW.zoom);
+ctx.strokeStyle='rgba(0,0,0,0.3)';
+ctx.lineWidth=2.5/VIEW.zoom;
+ctx.lineCap='round';
+ctx.stroke();
+// Main thread
+ctx.beginPath();
+ctx.moveTo(p1.x,p1.y);
+ctx.lineTo(p2.x,p2.y);
+ctx.strokeStyle=threadColor;
+ctx.lineWidth=2/VIEW.zoom;
+ctx.lineCap='round';
+ctx.stroke();
+// Thread highlight
+ctx.beginPath();
+ctx.moveTo(p1.x-0.5/VIEW.zoom,p1.y-0.5/VIEW.zoom);
+ctx.lineTo(p2.x-0.5/VIEW.zoom,p2.y-0.5/VIEW.zoom);
+ctx.strokeStyle='rgba(255,255,255,0.15)';
+ctx.lineWidth=1/VIEW.zoom;
+ctx.stroke();
+}
+drawLeatherFill(ctx,path){
+if(path.length<3)return;
+ctx.save();
+// Clip to pattern shape
+ctx.beginPath();
+path.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+ctx.closePath();
+ctx.clip();
+// Base leather color
+ctx.fillStyle='#A67C52';
+ctx.fill();
+// Add gradient for depth
+const b=M.getBounds(path);
+const gradient=ctx.createRadialGradient(b.cx,b.cy,0,b.cx,b.cy,Math.max(b.w,b.h)/2);
+gradient.addColorStop(0,'rgba(255,255,255,0.08)');
+gradient.addColorStop(0.7,'rgba(0,0,0,0)');
+gradient.addColorStop(1,'rgba(0,0,0,0.15)');
+ctx.fillStyle=gradient;
+ctx.fill();
+ctx.restore();
+}
+drawBeveledEdge(ctx,path){
+if(path.length<3)return;
+ctx.save();
+ctx.shadowColor='rgba(0,0,0,0.4)';
+ctx.shadowBlur=8/VIEW.zoom;
+ctx.shadowOffsetX=3/VIEW.zoom;
+ctx.shadowOffsetY=3/VIEW.zoom;
+ctx.beginPath();
+path.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));
+ctx.closePath();
+ctx.strokeStyle='#5D3A1A';
+ctx.lineWidth=2/VIEW.zoom;
+ctx.stroke();
+ctx.restore();
+}
+drawFoldCrease(ctx,x,y1,y2){
+// Gradient shadow for crease depth
+const gradient=ctx.createLinearGradient(x-8,0,x+8,0);
+gradient.addColorStop(0,'rgba(0,0,0,0)');
+gradient.addColorStop(0.35,'rgba(0,0,0,0.12)');
+gradient.addColorStop(0.5,'rgba(0,0,0,0.2)');
+gradient.addColorStop(0.65,'rgba(255,255,255,0.08)');
+gradient.addColorStop(1,'rgba(0,0,0,0)');
+ctx.fillStyle=gradient;
+ctx.fillRect(x-8,y1,16,y2-y1);
+// Dashed fold line
+ctx.setLineDash([6/VIEW.zoom,4/VIEW.zoom]);
+ctx.strokeStyle='rgba(60,40,20,0.5)';
+ctx.lineWidth=1/VIEW.zoom;
+ctx.beginPath();
+ctx.moveTo(x,y1);
+ctx.lineTo(x,y2);
+ctx.stroke();
+ctx.setLineDash([]);
+}
 drawShape(ctx,shape){
 // Transform shape points to world coordinates with bezier handles
 const pts=shape.points.map(p=>{
@@ -1881,10 +1981,15 @@ oc.setTransform(this.dpr,0,0,this.dpr,0,0);oc.clearRect(0,0,w,h);oc.save();oc.tr
 this._stitchBtnBounds=null;
 this._mergedStitchBtnBounds=null;
 const pat=this.getMergedPatternPath(),st=this.offsetPath(pat,-CFG.stitchMargin),cav=this.offsetPath(st,-CFG.thickness*2);
+// Leather fill with realistic or simple rendering
+if(CFG.realisticRendering){
+this.drawLeatherFill(oc,pat);
+}else{
 oc.beginPath();pat.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.4;oc.fill();oc.globalAlpha=1;
+}
 // Draw non-extension shapes separately
-if(CFG.showSymmetric)SYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{[1,-1].forEach(side=>{const wShp=this.getSymShapeWorld(s,side);if(wShp.isLinkedCircle){const cd=this.getLinkedCircleData(wShp);if(cd){const pts=cd.points.map(p=>{const sc={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(sc,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y}});oc.beginPath();pts.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}else{this.drawShape(oc,wShp);oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}})});
-if(CFG.showAsymmetric)ASYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{if(s.isLinkedCircle){const cd=this.getLinkedCircleData(s);if(cd){const pts=cd.points.map(p=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sc,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y}});oc.beginPath();pts.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}else{this.drawShape(oc,s);oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}});
+if(CFG.showSymmetric)SYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{[1,-1].forEach(side=>{const wShp=this.getSymShapeWorld(s,side);if(wShp.isLinkedCircle){const cd=this.getLinkedCircleData(wShp);if(cd){const pts=cd.points.map(p=>{const sc={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(sc,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y}});if(CFG.realisticRendering){this.drawLeatherFill(oc,pts)}else{oc.beginPath();pts.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}}else{this.drawShape(oc,wShp);if(CFG.realisticRendering){const pts=M.sampleBezier(wShp.points.map(p=>{const s={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(s,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y,h1:{x:(p.h1?.x||0)*(wShp.scaleX||1),y:(p.h1?.y||0)*(wShp.scaleY||1)},h2:{x:(p.h2?.x||0)*(wShp.scaleX||1),y:(p.h2?.y||0)*(wShp.scaleY||1)}}}),20);this.drawLeatherFill(oc,pts)}else{oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}})});
+if(CFG.showAsymmetric)ASYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{if(s.isLinkedCircle){const cd=this.getLinkedCircleData(s);if(cd){const pts=cd.points.map(p=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sc,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y}});if(CFG.realisticRendering){this.drawLeatherFill(oc,pts)}else{oc.beginPath();pts.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}}else{this.drawShape(oc,s);if(CFG.realisticRendering){const pts=M.sampleBezier(s.points.map(p=>{const sr={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sr,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y,h1:{x:(p.h1?.x||0)*(s.scaleX||1),y:(p.h1?.y||0)*(s.scaleY||1)},h2:{x:(p.h2?.x||0)*(s.scaleX||1),y:(p.h2?.y||0)*(s.scaleY||1)}}}),20);this.drawLeatherFill(oc,pts)}else{oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}});
 oc.globalCompositeOperation='destination-out';
 if(CFG.showSymmetric)SYM_HOLES.forEach(hole=>{[1,-1].forEach(side=>{const wh=this.getSymHoleWorld(hole,side);this.drawHole(oc,wh.x,wh.y,wh.rotation,wh.width,wh.height,wh.shape);oc.fill()})});
 if(CFG.showAsymmetric)ASYM_HOLES.forEach(hole=>{this.drawHole(oc,hole.x,hole.y,hole.rotation||0,hole.width,hole.height,hole.shape);oc.fill()});
@@ -1907,6 +2012,18 @@ ctx.save();ctx.translate(VIEW.x,VIEW.y);ctx.scale(VIEW.zoom,VIEW.zoom);
 const b=M.getBounds(pat);document.getElementById('patternSize').textContent=b.w.toFixed(0)+'×'+b.h.toFixed(0)+'mm';document.getElementById('maxInterior').textContent=Math.max(0,b.w-(CFG.stitchMargin+CFG.thickness*2)*2).toFixed(1)+'mm';
 // Fold line - when locked, draw vertical at origin regardless of holster transforms
 if(CFG.showFoldLine&&!CFG.asymmetricOutline){
+if(CFG.realisticRendering){
+// Realistic fold crease
+if(CFG.lockFoldLine){
+this.drawFoldCrease(ctx,0,-300,300);
+}else{
+const top=M.holsterToWorld({x:0,y:-300}),bot=M.holsterToWorld({x:0,y:300});
+this.drawFoldCrease(ctx,top.x,top.y,bot.y);
+}
+ctx.fillStyle='rgba(60,40,20,0.7)';ctx.font=(10/VIEW.zoom)+'px sans-serif';ctx.textAlign='center';
+if(CFG.lockFoldLine){ctx.fillText('FOLD',0,-280)}else{const lbl=M.holsterToWorld({x:0,y:-280});ctx.fillText('FOLD',lbl.x,lbl.y)}
+}else{
+// Simple dashed line
 ctx.strokeStyle='#888';ctx.lineWidth=1/VIEW.zoom;
 ctx.setLineDash([8/VIEW.zoom,4/VIEW.zoom]);
 ctx.beginPath();
@@ -1921,6 +2038,7 @@ ctx.moveTo(top.x,top.y);ctx.lineTo(bot.x,bot.y);
 ctx.stroke();ctx.setLineDash([]);
 ctx.fillStyle='#888';ctx.font=(10/VIEW.zoom)+'px sans-serif';ctx.textAlign='center';
 if(CFG.lockFoldLine){ctx.fillText('FOLD',0,-280)}else{const lbl=M.holsterToWorld({x:0,y:-280});ctx.fillText('FOLD',lbl.x,lbl.y)}
+}
 }
 // Center reference line for asymmetric mode
 if(CFG.showFoldLine&&CFG.asymmetricOutline){
@@ -1938,11 +2056,17 @@ ctx.fillStyle='#666';ctx.font=(10/VIEW.zoom)+'px sans-serif';ctx.textAlign='cent
 if(CFG.lockFoldLine){ctx.fillText('CENTER',0,-280)}else{const lbl=M.holsterToWorld({x:0,y:-280});ctx.fillText('CENTER',lbl.x,lbl.y)}
 }
 if(CFG.showCavity&&cav.length){ctx.beginPath();cav.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.fillStyle='rgba(100,200,255,.12)';ctx.fill();ctx.strokeStyle='rgba(0,150,200,.35)';ctx.lineWidth=1.5/VIEW.zoom;ctx.setLineDash([3/VIEW.zoom,3/VIEW.zoom]);ctx.stroke();ctx.setLineDash([])}
-if(CFG.showOutline){ctx.beginPath();pat.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle='#333';ctx.lineWidth=2/VIEW.zoom;ctx.stroke()}
+if(CFG.showOutline){
+if(CFG.realisticRendering){
+this.drawBeveledEdge(ctx,pat);
+}else{
+ctx.beginPath();pat.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle='#333';ctx.lineWidth=2/VIEW.zoom;ctx.stroke();
+}
+}
 if(SELECTED?.type==='holster')this.drawGizmo(ctx,this.getGizmos(HOLSTER,'holster'),'#007AFF');
 let hsc=0;
 if(CFG.showSymmetric){
-SYM_HOLES.forEach((hole,idx)=>{if(hole.hidden)return;const sel=SELECTED?.type==='symHole'&&SELECTED?.idx===idx;[1,-1].forEach(side=>{const wh=this.getSymHoleWorld(hole,side);this.drawHole(ctx,wh.x,wh.y,wh.rotation,wh.width,wh.height,wh.shape);ctx.strokeStyle=sel?'#007AFF':'#555';ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;ctx.stroke();if(hole.stitchBorder){const outline=M.getHoleOutline(wh.width,wh.height,wh.x,wh.y,wh.rotation,wh.shape);const sp=this.offsetPath(outline,hole.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=hole.stitchSpacing||3;ctx.fillStyle=sel?'#007AFF':'#444';for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill();hsc++}}}});if(sel){const wh=this.getSymHoleWorld(hole,1);this.drawGizmo(ctx,this.getGizmos(wh,'hole'),'#007AFF')}});
+SYM_HOLES.forEach((hole,idx)=>{if(hole.hidden)return;const sel=SELECTED?.type==='symHole'&&SELECTED?.idx===idx;[1,-1].forEach(side=>{const wh=this.getSymHoleWorld(hole,side);this.drawHole(ctx,wh.x,wh.y,wh.rotation,wh.width,wh.height,wh.shape);ctx.strokeStyle=sel?'#007AFF':'#555';ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;ctx.stroke();if(hole.stitchBorder){const outline=M.getHoleOutline(wh.width,wh.height,wh.x,wh.y,wh.rotation,wh.shape);const sp=this.offsetPath(outline,hole.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=hole.stitchSpacing||3;for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);if(CFG.realisticRendering){this.drawRealisticHole(ctx,pt.x,pt.y,CFG.holeSize/2)}else{ctx.fillStyle=sel?'#007AFF':'#444';ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}hsc++}}}});if(sel){const wh=this.getSymHoleWorld(hole,1);this.drawGizmo(ctx,this.getGizmos(wh,'hole'),'#007AFF')}});
 SYM_CUSTOM_HOLES.forEach((h,idx)=>{if(h.hidden)return;const sel=SELECTED?.type==='symCustomHole'&&SELECTED?.idx===idx;
 // Draw both sides
 [1,-1].forEach(side=>{
@@ -1950,7 +2074,7 @@ const pts=this.getCustomHoleWorld(h,side);
 ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();
 ctx.strokeStyle=sel?'#007AFF':'#555';ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;ctx.stroke();
 // Draw stitch border for this side
-if(h.stitchBorder){const sp=this.offsetPath(pts,h.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=h.stitchSpacing||3;ctx.fillStyle=sel?'#007AFF':'#444';for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill();hsc++}}}
+if(h.stitchBorder){const sp=this.offsetPath(pts,h.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=h.stitchSpacing||3;for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);if(CFG.realisticRendering){this.drawRealisticHole(ctx,pt.x,pt.y,CFG.holeSize/2)}else{ctx.fillStyle=sel?'#007AFF':'#444';ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}hsc++}}}
 });
 if(sel){const ptsR=this.getCustomHoleWorld(h,1);const b=M.getBounds(ptsR);this.drawGizmo(ctx,this.getGizmos({x:b.cx,y:b.cy,points:h.points,scaleX:h.scaleX||1,scaleY:h.scaleY||1,rotation:h.rotation||0},'asymShape'),'#007AFF');const cpts=this.getCustomHoleControlPts(h,1);const ns=8/VIEW.zoom,hs=5/VIEW.zoom;cpts.forEach(n=>{const h1w={x:n.x+n.h1.x,y:n.y+n.h1.y},h2w={x:n.x+n.h2.x,y:n.y+n.h2.y};ctx.strokeStyle='rgba(0,122,255,.5)';ctx.lineWidth=1/VIEW.zoom;ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(h1w.x,h1w.y);ctx.stroke();ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(h2w.x,h2w.y);ctx.stroke();ctx.fillStyle='#FF3B30';ctx.beginPath();ctx.arc(h1w.x,h1w.y,hs,0,Math.PI*2);ctx.fill();ctx.fillStyle='#00C7BE';ctx.beginPath();ctx.arc(h2w.x,h2w.y,hs,0,Math.PI*2);ctx.fill();ctx.fillStyle='#007AFF';ctx.fillRect(n.x-ns/2,n.y-ns/2,ns,ns);ctx.strokeStyle='#fff';ctx.lineWidth=1.5/VIEW.zoom;ctx.strokeRect(n.x-ns/2,n.y-ns/2,ns,ns)})}});
 }
@@ -1984,7 +2108,7 @@ ctx.strokeStyle=sel?(isExt?'#34C759':'#007AFF'):(isExt?'rgba(52,199,89,.3)':'#55
 ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;
 ctx.setLineDash(sel||isExt?[]:[5/VIEW.zoom,3/VIEW.zoom]);
 ctx.stroke();ctx.setLineDash([]);
-if(wShp.stitchBorder&&!isExt){const pts=wShp.points.map(p=>{const s={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(s,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y}});const sp=this.offsetPath(pts,wShp.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=wShp.stitchSpacing||3;ctx.fillStyle=sel?'#007AFF':'#444';for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill();hsc++}}}
+if(wShp.stitchBorder&&!isExt){const pts=wShp.points.map(p=>{const s={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(s,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y}});const sp=this.offsetPath(pts,wShp.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=wShp.stitchSpacing||3;for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);if(CFG.realisticRendering){this.drawRealisticHole(ctx,pt.x,pt.y,CFG.holeSize/2)}else{ctx.fillStyle=sel?'#007AFF':'#444';ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}hsc++}}}
 });
 // Only draw gizmo/handles on right side for sym shapes
 if(sel){
@@ -2049,7 +2173,7 @@ ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;
 ctx.setLineDash(sel||isExt?[]:[5/VIEW.zoom,3/VIEW.zoom]);
 ctx.stroke();ctx.setLineDash([]);
 // Don't draw stitch border for extensions (they're part of main outline)
-if(shape.stitchBorder&&!isExt){const pts=shape.points.map(p=>{const s={x:p.x*(shape.scaleX||1),y:p.y*(shape.scaleY||1)};const r=M.rotate(s,shape.rotation||0);return{x:r.x+shape.x,y:r.y+shape.y}});const sp=this.offsetPath(pts,shape.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=shape.stitchSpacing||3;ctx.fillStyle=sel?'#FF9500':'#444';for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill();hsc++}}}
+if(shape.stitchBorder&&!isExt){const pts=shape.points.map(p=>{const s={x:p.x*(shape.scaleX||1),y:p.y*(shape.scaleY||1)};const r=M.rotate(s,shape.rotation||0);return{x:r.x+shape.x,y:r.y+shape.y}});const sp=this.offsetPath(pts,shape.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=shape.stitchSpacing||3;for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);if(CFG.realisticRendering){this.drawRealisticHole(ctx,pt.x,pt.y,CFG.holeSize/2)}else{ctx.fillStyle=sel?'#FF9500':'#444';ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}hsc++}}}
 // Label for extension
 if(isExt&&sel){ctx.font=`${10/VIEW.zoom}px sans-serif`;ctx.fillStyle='#34C759';ctx.textAlign='center';const b=M.getBounds(shape.points.map(p=>{const s={x:p.x*(shape.scaleX||1),y:p.y*(shape.scaleY||1)};const r=M.rotate(s,shape.rotation||0);return{x:r.x+shape.x,y:r.y+shape.y}}));ctx.fillText('EXTENSION',b.cx,b.cy-b.h/2-10/VIEW.zoom)}
 if(sel){
@@ -2077,8 +2201,8 @@ ctx.lineWidth=1.5/VIEW.zoom;
 ctx.strokeRect(n.x-ns/2,n.y-ns/2,ns,ns);
 });
 }}catch(e){console.error('ASYM_SHAPES render error:',e,shape)}});
-ASYM_HOLES.forEach((hole,idx)=>{if(hole.hidden)return;const sel=SELECTED?.type==='asymHole'&&SELECTED?.idx===idx;this.drawHole(ctx,hole.x,hole.y,hole.rotation||0,hole.width,hole.height,hole.shape);ctx.strokeStyle=sel?'#FF9500':'#885500';ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;ctx.setLineDash([5/VIEW.zoom,3/VIEW.zoom]);ctx.stroke();ctx.setLineDash([]);if(hole.stitchBorder){const outline=M.getHoleOutline(hole.width,hole.height,hole.x,hole.y,hole.rotation||0,hole.shape);const sp=this.offsetPath(outline,hole.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=hole.stitchSpacing||3;ctx.fillStyle=sel?'#FF9500':'#444';for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill();hsc++}}}if(sel)this.drawGizmo(ctx,this.getGizmos(hole,'hole'),'#FF9500')});
-ASYM_CUSTOM_HOLES.forEach((h,idx)=>{if(h.hidden)return;const sel=SELECTED?.type==='asymCustomHole'&&SELECTED?.idx===idx;const pts=this.getCustomHoleWorldAsym(h);ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle=sel?'#FF9500':'#885500';ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;ctx.setLineDash([5/VIEW.zoom,3/VIEW.zoom]);ctx.stroke();ctx.setLineDash([]);if(h.stitchBorder){const sp=this.offsetPath(pts,h.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=h.stitchSpacing||3;ctx.fillStyle=sel?'#FF9500':'#444';for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill();hsc++}}}if(sel){this.drawGizmo(ctx,this.getGizmos(h,'asymShape'),'#FF9500');const cpts=this.getCustomHoleControlPtsAsym(h);const ns=8/VIEW.zoom,hs=5/VIEW.zoom;cpts.forEach(n=>{const h1w={x:n.x+n.h1.x,y:n.y+n.h1.y},h2w={x:n.x+n.h2.x,y:n.y+n.h2.y};ctx.strokeStyle='rgba(255,149,0,.5)';ctx.lineWidth=1/VIEW.zoom;ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(h1w.x,h1w.y);ctx.stroke();ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(h2w.x,h2w.y);ctx.stroke();ctx.fillStyle='#FF3B30';ctx.beginPath();ctx.arc(h1w.x,h1w.y,hs,0,Math.PI*2);ctx.fill();ctx.fillStyle='#00C7BE';ctx.beginPath();ctx.arc(h2w.x,h2w.y,hs,0,Math.PI*2);ctx.fill();ctx.fillStyle='#FF9500';ctx.fillRect(n.x-ns/2,n.y-ns/2,ns,ns);ctx.strokeStyle='#fff';ctx.lineWidth=1.5/VIEW.zoom;ctx.strokeRect(n.x-ns/2,n.y-ns/2,ns,ns)})}});
+ASYM_HOLES.forEach((hole,idx)=>{if(hole.hidden)return;const sel=SELECTED?.type==='asymHole'&&SELECTED?.idx===idx;this.drawHole(ctx,hole.x,hole.y,hole.rotation||0,hole.width,hole.height,hole.shape);ctx.strokeStyle=sel?'#FF9500':'#885500';ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;ctx.setLineDash([5/VIEW.zoom,3/VIEW.zoom]);ctx.stroke();ctx.setLineDash([]);if(hole.stitchBorder){const outline=M.getHoleOutline(hole.width,hole.height,hole.x,hole.y,hole.rotation||0,hole.shape);const sp=this.offsetPath(outline,hole.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=hole.stitchSpacing||3;for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);if(CFG.realisticRendering){this.drawRealisticHole(ctx,pt.x,pt.y,CFG.holeSize/2)}else{ctx.fillStyle=sel?'#FF9500':'#444';ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}hsc++}}}if(sel)this.drawGizmo(ctx,this.getGizmos(hole,'hole'),'#FF9500')});
+ASYM_CUSTOM_HOLES.forEach((h,idx)=>{if(h.hidden)return;const sel=SELECTED?.type==='asymCustomHole'&&SELECTED?.idx===idx;const pts=this.getCustomHoleWorldAsym(h);ctx.beginPath();pts.forEach((p,i)=>i===0?ctx.moveTo(p.x,p.y):ctx.lineTo(p.x,p.y));ctx.closePath();ctx.strokeStyle=sel?'#FF9500':'#885500';ctx.lineWidth=(sel?2:1.5)/VIEW.zoom;ctx.setLineDash([5/VIEW.zoom,3/VIEW.zoom]);ctx.stroke();ctx.setLineDash([]);if(h.stitchBorder){const sp=this.offsetPath(pts,h.stitchMargin||3);if(sp.length){const sa=M.buildArcClosed(sp),tot=sa[sa.length-1].d,spc=h.stitchSpacing||3;for(let d=0;d<tot;d+=spc){const pt=M.ptAtDist(sa,d);if(CFG.realisticRendering){this.drawRealisticHole(ctx,pt.x,pt.y,CFG.holeSize/2)}else{ctx.fillStyle=sel?'#FF9500':'#444';ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}hsc++}}}if(sel){this.drawGizmo(ctx,this.getGizmos(h,'asymShape'),'#FF9500');const cpts=this.getCustomHoleControlPtsAsym(h);const ns=8/VIEW.zoom,hs=5/VIEW.zoom;cpts.forEach(n=>{const h1w={x:n.x+n.h1.x,y:n.y+n.h1.y},h2w={x:n.x+n.h2.x,y:n.y+n.h2.y};ctx.strokeStyle='rgba(255,149,0,.5)';ctx.lineWidth=1/VIEW.zoom;ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(h1w.x,h1w.y);ctx.stroke();ctx.beginPath();ctx.moveTo(n.x,n.y);ctx.lineTo(h2w.x,h2w.y);ctx.stroke();ctx.fillStyle='#FF3B30';ctx.beginPath();ctx.arc(h1w.x,h1w.y,hs,0,Math.PI*2);ctx.fill();ctx.fillStyle='#00C7BE';ctx.beginPath();ctx.arc(h2w.x,h2w.y,hs,0,Math.PI*2);ctx.fill();ctx.fillStyle='#FF9500';ctx.fillRect(n.x-ns/2,n.y-ns/2,ns,ns);ctx.strokeStyle='#fff';ctx.lineWidth=1.5/VIEW.zoom;ctx.strokeRect(n.x-ns/2,n.y-ns/2,ns,ns)})}});
 }
 let ec=0;
 // Get the right half path for edge work
@@ -2224,10 +2348,10 @@ ctx.fillStyle=sel?'#007AFF':['#222','#0066cc','#cc6600','#009944'][idx%4];
 for(let d=sd;d<=ed;d+=spacing){
 const pt=M.ptAtDist(stitchArc,d);
 if(!pt)continue;
-ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();ec++;
+if(CFG.realisticRendering){this.drawRealisticHole(ctx,pt.x,pt.y,(es.holeSize||CFG.holeSize)/2)}else{ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill()}ec++;
 if(es.mirror!==false&&CFG.mirrorEdgeStitches&&!CFG.asymmetricOutline){
 const mx=2*HOLSTER.x-pt.x;
-ctx.beginPath();ctx.arc(mx,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();ec++;
+if(CFG.realisticRendering){this.drawRealisticHole(ctx,mx,pt.y,(es.holeSize||CFG.holeSize)/2)}else{ctx.beginPath();ctx.arc(mx,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill()}ec++;
 }}
 }
 });
@@ -2262,12 +2386,28 @@ ctx.fillStyle=sel?'#8B5CF6':'#9370DB';
 for(let d=sd;d<=ed;d+=spacing){
 const pt=M.ptAtDist(stitchArc,d);
 if(!pt)continue;
-ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill();ec++;
+if(CFG.realisticRendering){this.drawRealisticHole(ctx,pt.x,pt.y,(es.holeSize||CFG.holeSize)/2)}else{ctx.beginPath();ctx.arc(pt.x,pt.y,(es.holeSize||CFG.holeSize)/2,0,Math.PI*2);ctx.fill()}ec++;
 }}
 });
 document.getElementById('stitchCount').textContent=ec+hsc;
-if(CFG.showStitchLines&&CFG.showSymmetric)SYM_STITCHES.forEach((sl,idx)=>{if(sl.hidden)return;const sel=SELECTED?.type==='symStitch'&&SELECTED?.idx===idx;[1,-1].forEach(side=>{const pts=this.getSymStitchWorld(sl,side);if(pts.length>=2){ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=0;i<pts.length-1;i++){const c=pts[i],n=pts[i+1];ctx.bezierCurveTo(c.x+c.h2.x,c.y+c.h2.y,n.x+n.h1.x,n.y+n.h1.y,n.x,n.y)}ctx.strokeStyle=sel?'rgba(175,82,222,.6)':'rgba(100,100,100,.4)';ctx.lineWidth=(sel?2:1)/VIEW.zoom;ctx.stroke();const smp=M.sampleBezier(pts,30);if(smp.length){const la=M.buildArc(smp),lt=la[la.length-1].d;ctx.fillStyle=sel?'#AF52DE':'#444';for(let d=0;d<=lt;d+=sl.spacing){const pt=M.ptAtDist(la,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}}}});if(sel){const pts=this.getSymStitchWorld(sl,1);pts.forEach(pt=>{const r=4/VIEW.zoom;ctx.fillStyle='#AF52DE';ctx.strokeStyle='#fff';ctx.lineWidth=1.5/VIEW.zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,r,0,Math.PI*2);ctx.fill();ctx.stroke()})}});
-if(CFG.showStitchLines&&CFG.showAsymmetric)ASYM_STITCHES.forEach((sl,idx)=>{if(sl.hidden)return;const sel=SELECTED?.type==='asymStitch'&&SELECTED?.idx===idx;const pts=sl.points;if(pts.length>=2){ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=0;i<pts.length-1;i++){const c=pts[i],n=pts[i+1];ctx.bezierCurveTo(c.x+(c.h2?.x||0),c.y+(c.h2?.y||0),n.x+(n.h1?.x||0),n.y+(n.h1?.y||0),n.x,n.y)}ctx.strokeStyle=sel?'rgba(255,149,0,.6)':'rgba(136,85,0,.4)';ctx.lineWidth=(sel?2:1)/VIEW.zoom;ctx.setLineDash([5/VIEW.zoom,3/VIEW.zoom]);ctx.stroke();ctx.setLineDash([]);const smp=M.sampleBezier(pts,30);if(smp.length){const la=M.buildArc(smp),lt=la[la.length-1].d;ctx.fillStyle=sel?'#FF9500':'#444';for(let d=0;d<=lt;d+=sl.spacing){const pt=M.ptAtDist(la,d);ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}}}if(sel){pts.forEach(pt=>{const r=4/VIEW.zoom;ctx.fillStyle='#FF9500';ctx.strokeStyle='#fff';ctx.lineWidth=1.5/VIEW.zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,r,0,Math.PI*2);ctx.fill();ctx.stroke()})}});
+if(CFG.showStitchLines&&CFG.showSymmetric)SYM_STITCHES.forEach((sl,idx)=>{if(sl.hidden)return;const sel=SELECTED?.type==='symStitch'&&SELECTED?.idx===idx;[1,-1].forEach(side=>{const pts=this.getSymStitchWorld(sl,side);if(pts.length>=2){const smp=M.sampleBezier(pts,30);if(CFG.realisticRendering&&smp.length>=2){
+// Draw realistic thread between holes
+for(let i=0;i<smp.length-1;i++){
+this.drawRealisticStitch(ctx,smp[i],smp[i+1],'#3A2A1A');
+}
+}else{
+ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=0;i<pts.length-1;i++){const c=pts[i],n=pts[i+1];ctx.bezierCurveTo(c.x+c.h2.x,c.y+c.h2.y,n.x+n.h1.x,n.y+n.h1.y,n.x,n.y)}ctx.strokeStyle=sel?'rgba(175,82,222,.6)':'rgba(100,100,100,.4)';ctx.lineWidth=(sel?2:1)/VIEW.zoom;ctx.stroke();
+}
+if(smp.length){const la=M.buildArc(smp),lt=la[la.length-1].d;for(let d=0;d<=lt;d+=sl.spacing){const pt=M.ptAtDist(la,d);if(CFG.realisticRendering){this.drawRealisticHole(ctx,pt.x,pt.y,CFG.holeSize/2)}else{ctx.fillStyle=sel?'#AF52DE':'#444';ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}}}}});if(sel){const pts=this.getSymStitchWorld(sl,1);pts.forEach(pt=>{const r=4/VIEW.zoom;ctx.fillStyle='#AF52DE';ctx.strokeStyle='#fff';ctx.lineWidth=1.5/VIEW.zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,r,0,Math.PI*2);ctx.fill();ctx.stroke()})}});
+if(CFG.showStitchLines&&CFG.showAsymmetric)ASYM_STITCHES.forEach((sl,idx)=>{if(sl.hidden)return;const sel=SELECTED?.type==='asymStitch'&&SELECTED?.idx===idx;const pts=sl.points;if(pts.length>=2){const smp=M.sampleBezier(pts,30);if(CFG.realisticRendering&&smp.length>=2){
+// Draw realistic thread between holes
+for(let i=0;i<smp.length-1;i++){
+this.drawRealisticStitch(ctx,smp[i],smp[i+1],'#8B5A2B');
+}
+}else{
+ctx.beginPath();ctx.moveTo(pts[0].x,pts[0].y);for(let i=0;i<pts.length-1;i++){const c=pts[i],n=pts[i+1];ctx.bezierCurveTo(c.x+(c.h2?.x||0),c.y+(c.h2?.y||0),n.x+(n.h1?.x||0),n.y+(n.h1?.y||0),n.x,n.y)}ctx.strokeStyle=sel?'rgba(255,149,0,.6)':'rgba(136,85,0,.4)';ctx.lineWidth=(sel?2:1)/VIEW.zoom;ctx.setLineDash([5/VIEW.zoom,3/VIEW.zoom]);ctx.stroke();ctx.setLineDash([]);
+}
+if(smp.length){const la=M.buildArc(smp),lt=la[la.length-1].d;for(let d=0;d<=lt;d+=sl.spacing){const pt=M.ptAtDist(la,d);if(CFG.realisticRendering){this.drawRealisticHole(ctx,pt.x,pt.y,CFG.holeSize/2)}else{ctx.fillStyle=sel?'#FF9500':'#444';ctx.beginPath();ctx.arc(pt.x,pt.y,CFG.holeSize/2,0,Math.PI*2);ctx.fill()}}}}if(sel){pts.forEach(pt=>{const r=4/VIEW.zoom;ctx.fillStyle='#FF9500';ctx.strokeStyle='#fff';ctx.lineWidth=1.5/VIEW.zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,r,0,Math.PI*2);ctx.fill();ctx.stroke()})}});
 if(TEMP_STITCH&&TEMP_STITCH.points.length){ctx.beginPath();ctx.moveTo(TEMP_STITCH.points[0].x,TEMP_STITCH.points[0].y);TEMP_STITCH.points.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));ctx.strokeStyle=LAYER==='asymmetric'?'rgba(255,149,0,.8)':'rgba(175,82,222,.8)';ctx.lineWidth=2/VIEW.zoom;ctx.setLineDash([4/VIEW.zoom,4/VIEW.zoom]);ctx.stroke();ctx.setLineDash([]);TEMP_STITCH.points.forEach(pt=>{ctx.fillStyle=LAYER==='asymmetric'?'#FF9500':'#AF52DE';ctx.strokeStyle='#fff';ctx.lineWidth=2/VIEW.zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,5/VIEW.zoom,0,Math.PI*2);ctx.fill();ctx.stroke()})}
 if(TEMP_SHAPE&&TEMP_SHAPE.points.length){ctx.beginPath();ctx.moveTo(TEMP_SHAPE.points[0].x,TEMP_SHAPE.points[0].y);TEMP_SHAPE.points.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));if(TEMP_SHAPE.points.length>2)ctx.closePath();ctx.strokeStyle='rgba(255,149,0,.8)';ctx.fillStyle='rgba(255,149,0,.2)';ctx.lineWidth=2/VIEW.zoom;ctx.stroke();if(TEMP_SHAPE.points.length>2)ctx.fill();TEMP_SHAPE.points.forEach(pt=>{ctx.fillStyle='#FF9500';ctx.strokeStyle='#fff';ctx.lineWidth=2/VIEW.zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,5/VIEW.zoom,0,Math.PI*2);ctx.fill();ctx.stroke()})}
 if(TEMP_CUSTOMHOLE&&TEMP_CUSTOMHOLE.points.length){ctx.beginPath();ctx.moveTo(TEMP_CUSTOMHOLE.points[0].x,TEMP_CUSTOMHOLE.points[0].y);TEMP_CUSTOMHOLE.points.slice(1).forEach(p=>ctx.lineTo(p.x,p.y));if(TEMP_CUSTOMHOLE.points.length>2)ctx.closePath();ctx.strokeStyle=LAYER==='asymmetric'?'rgba(255,149,0,.8)':'rgba(0,122,255,.8)';ctx.fillStyle=LAYER==='asymmetric'?'rgba(255,149,0,.2)':'rgba(0,122,255,.2)';ctx.lineWidth=2/VIEW.zoom;ctx.stroke();if(TEMP_CUSTOMHOLE.points.length>2)ctx.fill();TEMP_CUSTOMHOLE.points.forEach(pt=>{ctx.fillStyle=LAYER==='asymmetric'?'#FF9500':'#007AFF';ctx.strokeStyle='#fff';ctx.lineWidth=2/VIEW.zoom;ctx.beginPath();ctx.arc(pt.x,pt.y,5/VIEW.zoom,0,Math.PI*2);ctx.fill();ctx.stroke()})}
