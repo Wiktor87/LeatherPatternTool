@@ -898,3 +898,363 @@ input[type="checkbox"]:focus-visible {
     margin: 10px 0;
   }
 }
+
+/* ============================================
+   LEATHERCRAFT PRO - TOP BAR BUTTONS ONLY
+   ============================================ */
+
+/* Base leather button - ONLY for header */
+#header .leather-btn {
+    position: relative;
+    border: none;
+    border-radius: 12px;
+    padding: 12px 28px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #fff8f0;
+    cursor: pointer;
+    background: #b87840;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+    transition: transform 0.1s ease;
+    overflow: hidden;
+}
+
+/* Outer pillowed border */
+#header .leather-btn::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 12px;
+    
+    background:
+        linear-gradient(180deg, 
+            rgba(255, 215, 170, 0.5) 0%,
+            rgba(255, 200, 150, 0.25) 4%,
+            transparent 12%
+        ),
+        linear-gradient(90deg,
+            rgba(255, 210, 165, 0.3) 0%,
+            rgba(255, 195, 145, 0.12) 3%,
+            transparent 10%
+        ),
+        linear-gradient(180deg,
+            #ca8548 0%,
+            #c47c40 30%,
+            #bb7238 60%,
+            #b06830 100%
+        );
+    
+    box-shadow:
+        inset 0 10px 8px -8px rgba(70, 35, 15, 0.5),
+        inset 0 -10px 8px -8px rgba(70, 35, 15, 0.4),
+        inset 10px 0 8px -8px rgba(70, 35, 15, 0.35),
+        inset -10px 0 8px -8px rgba(70, 35, 15, 0.35),
+        inset 0 1px 0 rgba(255, 220, 180, 0.5),
+        inset 1px 0 0 rgba(255, 215, 170, 0.3);
+}
+
+/* Stitch groove */
+#header .leather-btn .stitch-groove {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+    border-radius: 7px;
+    pointer-events: none;
+    z-index: 1;
+    border: 2px solid rgba(60, 30, 12, 0.6);
+    box-shadow:
+        inset 0 1px 2px rgba(50, 25, 10, 0.5),
+        inset 0 -1px 0 rgba(255, 210, 165, 0.15);
+}
+
+/* Inner panel */
+#header .leather-btn .inner-panel {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    border-radius: 5px;
+    pointer-events: none;
+    z-index: 2;
+    
+    background:
+        linear-gradient(180deg,
+            rgba(255, 210, 165, 0.3) 0%,
+            rgba(255, 195, 145, 0.1) 15%,
+            transparent 35%
+        ),
+        linear-gradient(180deg,
+            #c68045 0%,
+            #c07838 40%,
+            #b87035 70%,
+            #ae6830 100%
+        );
+    
+    box-shadow:
+        inset 0 1px 1px rgba(255, 220, 175, 0.4),
+        inset 0 -2px 3px rgba(80, 40, 15, 0.2);
+}
+
+/* Leather texture overlay */
+#header .leather-btn .leather-texture {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 12px;
+    opacity: 0.04;
+    pointer-events: none;
+    z-index: 3;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.7' numOctaves='4'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Button text */
+#header .leather-btn .btn-text {
+    position: relative;
+    z-index: 10;
+}
+
+/* Stitch SVG container */
+#header .leather-btn .stitch-svg {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* Hover state */
+#header .leather-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+}
+
+#header .leather-btn:active {
+    transform: translateY(1px);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+
+/* Dropdown variant */
+#header .leather-btn.has-dropdown {
+    padding-right: 38px;
+}
+
+#header .leather-btn .dropdown-arrow {
+    position: absolute;
+    right: 14px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid currentColor;
+    opacity: 0.85;
+    z-index: 10;
+}
+
+/* ============================================
+   GOLDEN VARIANT - PUBLISH BUTTON (HIGHEST PRIORITY)
+   ============================================ */
+
+#header .leather-btn.golden {
+    color: #3d3020;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+
+#header .leather-btn.golden::before {
+    background:
+        linear-gradient(180deg, 
+            rgba(255, 250, 225, 0.55) 0%,
+            rgba(255, 245, 210, 0.28) 4%,
+            transparent 12%
+        ),
+        linear-gradient(90deg,
+            rgba(255, 248, 220, 0.35) 0%,
+            rgba(255, 245, 208, 0.14) 3%,
+            transparent 10%
+        ),
+        linear-gradient(180deg,
+            #d5c488 0%,
+            #cdb87a 30%,
+            #c5ae6e 60%,
+            #bca462 100%
+        );
+    
+    box-shadow:
+        inset 0 10px 8px -8px rgba(90, 72, 30, 0.4),
+        inset 0 -10px 8px -8px rgba(90, 72, 30, 0.35),
+        inset 10px 0 8px -8px rgba(90, 72, 30, 0.3),
+        inset -10px 0 8px -8px rgba(90, 72, 30, 0.3),
+        inset 0 1px 0 rgba(255, 252, 235, 0.55),
+        inset 1px 0 0 rgba(255, 250, 230, 0.35);
+}
+
+#header .leather-btn.golden .stitch-groove {
+    border-color: rgba(100, 80, 35, 0.5);
+    box-shadow:
+        inset 0 1px 2px rgba(90, 70, 30, 0.4),
+        inset 0 -1px 0 rgba(255, 250, 230, 0.18);
+}
+
+#header .leather-btn.golden .inner-panel {
+    background:
+        linear-gradient(180deg,
+            rgba(255, 250, 225, 0.35) 0%,
+            rgba(255, 245, 210, 0.12) 15%,
+            transparent 35%
+        ),
+        linear-gradient(180deg,
+            #d0c080 0%,
+            #c8b572 40%,
+            #c0ac68 70%,
+            #b8a460 100%
+        );
+    
+    box-shadow:
+        inset 0 1px 1px rgba(255, 252, 240, 0.45),
+        inset 0 -2px 3px rgba(100, 80, 35, 0.18);
+}
+
+/* ============================================
+   LEATHER TOGGLE SWITCH
+   ============================================ */
+
+#header .leather-toggle {
+    position: relative;
+    border: none;
+    border-radius: 12px;
+    padding: 8px 14px;
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    background: #b87840;
+    box-shadow: 0 3px 6px rgba(0, 0, 0, 0.35);
+    overflow: hidden;
+}
+
+#header .leather-toggle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: 12px;
+    
+    background:
+        linear-gradient(180deg, 
+            rgba(255, 215, 170, 0.5) 0%,
+            rgba(255, 200, 150, 0.25) 4%,
+            transparent 12%
+        ),
+        linear-gradient(90deg,
+            rgba(255, 210, 165, 0.3) 0%,
+            rgba(255, 195, 145, 0.12) 3%,
+            transparent 10%
+        ),
+        linear-gradient(180deg,
+            #ca8548 0%,
+            #c47c40 30%,
+            #bb7238 60%,
+            #b06830 100%
+        );
+    
+    box-shadow:
+        inset 0 10px 8px -8px rgba(70, 35, 15, 0.5),
+        inset 0 -10px 8px -8px rgba(70, 35, 15, 0.4),
+        inset 10px 0 8px -8px rgba(70, 35, 15, 0.35),
+        inset -10px 0 8px -8px rgba(70, 35, 15, 0.35),
+        inset 0 1px 0 rgba(255, 220, 180, 0.5),
+        inset 1px 0 0 rgba(255, 215, 170, 0.3);
+}
+
+#header .leather-toggle .stitch-groove {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    right: 6px;
+    bottom: 6px;
+    border-radius: 7px;
+    pointer-events: none;
+    z-index: 1;
+    border: 2px solid rgba(60, 30, 12, 0.6);
+    box-shadow:
+        inset 0 1px 2px rgba(50, 25, 10, 0.5),
+        inset 0 -1px 0 rgba(255, 210, 165, 0.15);
+}
+
+#header .leather-toggle .toggle-label {
+    font-size: 14px;
+    color: #fff8f0;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    padding: 0 10px;
+    z-index: 10;
+    transition: opacity 0.25s;
+}
+
+#header .leather-toggle .toggle-label.inactive {
+    opacity: 0.4;
+}
+
+#header .leather-toggle .toggle-track {
+    position: relative;
+    width: 50px;
+    height: 28px;
+    background: linear-gradient(180deg, #4d2815 0%, #603520 50%, #502a18 100%);
+    border-radius: 14px;
+    z-index: 10;
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.7);
+}
+
+#header .leather-toggle .toggle-knob {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    transition: left 0.25s ease;
+    
+    background: 
+        radial-gradient(circle at 50% 25%, 
+            rgba(255, 255, 250, 0.95) 0%, 
+            rgba(255, 245, 220, 0.5) 20%,
+            transparent 50%
+        ),
+        conic-gradient(from 0deg,
+            #d8c890, #c0a868, #e0d0a0, #b8a058,
+            #d4c488, #c4a870, #dcd098, #b49c50,
+            #d8c890
+        );
+    
+    box-shadow:
+        0 2px 4px rgba(0, 0, 0, 0.45),
+        inset 0 1px 2px rgba(255, 255, 245, 0.7),
+        inset 0 -1px 2px rgba(120, 90, 40, 0.4);
+}
+
+#header .leather-toggle .toggle-knob::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: #786048;
+    box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+#header .leather-toggle.active .toggle-knob {
+    left: calc(100% - 26px);
+}

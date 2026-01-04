@@ -2895,6 +2895,90 @@ drawPatternLayerFullPattern(ctx, layerState, scale, strokeColor = '#000', labelT
 drawPatternLayer(ctx, layerState, scale, strokeColor = '#000', labelText = '') {
   return this.publishManager.drawPatternLayer(ctx, layerState, scale, strokeColor, labelText);
 }
+
+// Initialize leather button stitches
+initLeatherButtonStitches() {
+    document.querySelectorAll('#header .leather-btn, #header .leather-toggle').forEach(el => {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.classList.add('stitch-svg');
+        
+        requestAnimationFrame(() => {
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+            
+            const m = 7; // margin
+            const r = 5; // corner radius
+            const len = 6;
+            const gap = 4;
+            let html = '';
+            
+            // Top edge
+            for (let x = m + r + 2; x < w - m - r - len; x += len + gap) {
+                html += this.createStitchSVG(x, m, x + len, m);
+            }
+            // Right edge
+            for (let y = m + r + 2; y < h - m - r - len; y += len + gap) {
+                html += this.createStitchSVG(w - m, y, w - m, y + len);
+            }
+            // Bottom edge
+            for (let x = w - m - r - 2; x > m + r + len; x -= len + gap) {
+                html += this.createStitchSVG(x, h - m, x - len, h - m);
+            }
+            // Left edge
+            for (let y = h - m - r - 2; y > m + r + len; y -= len + gap) {
+                html += this.createStitchSVG(m, y, m, y - len);
+            }
+            
+            // Corner stitches
+            const c = 2;
+            html += this.createStitchSVG(m + c, m + r - c, m + r - c, m + c);
+            html += this.createStitchSVG(w - m - r + c, m + c, w - m - c, m + r - c);
+            html += this.createStitchSVG(w - m - c, h - m - r + c, w - m - r + c, h - m - c);
+            html += this.createStitchSVG(m + r - c, h - m - c, m + c, h - m - r + c);
+            
+            svg.innerHTML = html;
+            el.appendChild(svg);
+        });
+    });
+}
+
+createStitchSVG(x1, y1, x2, y2) {
+    return `
+        <line x1="${x1}" y1="${y1+1.3}" x2="${x2}" y2="${y2+1.3}" 
+              stroke="rgba(45,22,8,0.75)" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" 
+              stroke="#d8bc88" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="${x1}" y1="${y1-0.5}" x2="${x2}" y2="${y2-0.5}" 
+              stroke="rgba(255,245,225,0.5)" stroke-width="0.6" stroke-linecap="round"/>
+    `;
+}
+
+// Setup leather toggle functionality
+setupLeatherToggle() {
+    const toggle = document.getElementById('layer-toggle-leather');
+    if (!toggle) return;
+    
+    toggle.addEventListener('click', () => {
+        toggle.classList.toggle('active');
+        const labels = toggle.querySelectorAll('.toggle-label');
+        labels.forEach(l => l.classList.toggle('inactive'));
+        
+        // Toggle between symmetric and asymmetric layers
+        if (toggle.classList.contains('active')) {
+            this.setLayer('asymmetric');
+        } else {
+            this.setLayer('symmetric');
+        }
+    });
+}
+
 }
 const app=new App();
 window.app = app;
+
+// Initialize leather button stitches and toggle when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    app.initLeatherButtonStitches();
+    app.setupLeatherToggle();
+});

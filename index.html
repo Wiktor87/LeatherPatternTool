@@ -77,12 +77,44 @@ if (typeof ClipperLib === 'undefined') {
 <button class="hdr-btn secondary" onclick="app.duplicateLayer('toBack')" title="Duplicate Front to Back">Copy to Back</button>
 <button class="hdr-btn secondary" onclick="app.duplicateLayer('toFront')" title="Duplicate Back to Front">Copy to Front</button>
 </div>
-<button class="hdr-btn secondary" onclick="app.selectHolster()">Select Pattern</button>
-<button class="hdr-btn secondary" onclick="app.toggleFileMenu()">💾 File</button>
-<button class="hdr-btn primary" onclick="app.togglePublish()">📐 Publish</button>
+
+<!-- Layer Toggle with Leather Style -->
+<div class="leather-toggle" id="layer-toggle-leather">
+    <span class="toggle-label">Mirrored</span>
+    <div class="toggle-track">
+        <div class="toggle-knob"></div>
+    </div>
+    <span class="toggle-label inactive">Single</span>
+    <div class="stitch-groove"></div>
 </div>
 
-<!-- Floating Layer Toggle Buttons -->
+<!-- Select Pattern Button -->
+<button class="leather-btn" id="pattern-btn" onclick="app.selectHolster()">
+    <span class="btn-text">Select Pattern</span>
+    <div class="stitch-groove"></div>
+    <div class="inner-panel"></div>
+    <div class="leather-texture"></div>
+</button>
+
+<!-- File Button with Dropdown -->
+<button class="leather-btn has-dropdown" id="file-btn" onclick="app.toggleFileMenu()">
+    <span class="btn-text">File</span>
+    <span class="dropdown-arrow"></span>
+    <div class="stitch-groove"></div>
+    <div class="inner-panel"></div>
+    <div class="leather-texture"></div>
+</button>
+
+<!-- Publish Button - GOLDEN (Highest Priority) -->
+<button class="leather-btn golden" id="publish-btn" onclick="app.togglePublish()">
+    <span class="btn-text">Publish</span>
+    <div class="stitch-groove"></div>
+    <div class="inner-panel"></div>
+    <div class="leather-texture"></div>
+</button>
+</div>
+
+<!-- Floating Layer Toggle Buttons (Original) -->
 <div id="floating-layer-toggle" style="display:flex;">
 <div id="layer-toggle" style="display:flex;">
 <button class="layer-btn sym active" onclick="app.setLayer('symmetric')" title="Elements are mirrored across the fold line">Mirrored</button>
