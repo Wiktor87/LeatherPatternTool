@@ -83,6 +83,238 @@ if(Math.abs(x)<snapDist)x=0;
 }
 return{x,y};
 }
+
+// ============================================
+// REALISTIC RENDERING HELPERS
+// ============================================
+
+// Convert path commands to a continuous polyline by sampling
+function pathToPolyline(pathCommands, samplesPerCurve = 20) {
+    const points = [];
+    let currentX = 0, currentY = 0;
+    
+    pathCommands.forEach(cmd => {
+        switch(cmd.type) {
+            case 'move':
+                currentX = cmd.x;
+                currentY = cmd.y;
+                points.push({ x: currentX, y: currentY });
+                break;
+                
+            case 'line':
+                currentX = cmd.x;
+                currentY = cmd.y;
+                points.push({ x: currentX, y: currentY });
+                break;
+                
+            case 'arc':
+                const arcPoints = sampleArc(cmd.cx, cmd.cy, cmd.r, cmd.start, cmd.end, samplesPerCurve);
+                arcPoints.forEach(p => points.push(p));
+                if (arcPoints.length > 0) {
+                    currentX = arcPoints[arcPoints.length - 1].x;
+                    currentY = arcPoints[arcPoints.length - 1].y;
+                }
+                break;
+                
+            case 'quadratic':
+                const lastPoint = points[points.length - 1] || { x: currentX, y: currentY };
+                const quadPoints = sampleQuadratic(lastPoint.x, lastPoint.y, cmd.cx, cmd.cy, cmd.x, cmd.y, samplesPerCurve);
+                quadPoints.forEach(p => points.push(p));
+                currentX = cmd.x;
+                currentY = cmd.y;
+                break;
+                
+            case 'cubic':
+                const lastPt = points[points.length - 1] || { x: currentX, y: currentY };
+                const cubicPoints = sampleCubic(lastPt.x, lastPt.y, cmd.cx1, cmd.cy1, cmd.cx2, cmd.cy2, cmd.x, cmd.y, samplesPerCurve);
+                cubicPoints.forEach(p => points.push(p));
+                currentX = cmd.x;
+                currentY = cmd.y;
+                break;
+        }
+    });
+    
+    return points;
+}
+
+function sampleArc(cx, cy, r, startAngle, endAngle, samples) {
+    const points = [];
+    let angleDiff = endAngle - startAngle;
+    
+    if (angleDiff < 0) angleDiff += Math.PI * 2;
+    if (angleDiff > Math.PI * 2) angleDiff -= Math.PI * 2;
+    
+    for (let i = 0; i <= samples; i++) {
+        const t = i / samples;
+        const angle = startAngle + angleDiff * t;
+        points.push({
+            x: cx + Math.cos(angle) * r,
+            y: cy + Math.sin(angle) * r
+        });
+    }
+    return points;
+}
+
+function sampleQuadratic(x0, y0, cx, cy, x1, y1, samples) {
+    const points = [];
+    for (let i = 1; i <= samples; i++) {
+        const t = i / samples;
+        const mt = 1 - t;
+        points.push({
+            x: mt * mt * x0 + 2 * mt * t * cx + t * t * x1,
+            y: mt * mt * y0 + 2 * mt * t * cy + t * t * y1
+        });
+    }
+    return points;
+}
+
+function sampleCubic(x0, y0, cx1, cy1, cx2, cy2, x1, y1, samples) {
+    const points = [];
+    for (let i = 1; i <= samples; i++) {
+        const t = i / samples;
+        const mt = 1 - t;
+        points.push({
+            x: mt*mt*mt*x0 + 3*mt*mt*t*cx1 + 3*mt*t*t*cx2 + t*t*t*x1,
+            y: mt*mt*mt*y0 + 3*mt*mt*t*cy1 + 3*mt*t*t*cy2 + t*t*t*y1
+        });
+    }
+    return points;
+}
+
+// Offset a polyline inward by a given distance
+function offsetPolyline(points, distance) {
+    if (points.length < 3) return points;
+    
+    const offsetPoints = [];
+    const n = points.length;
+    
+    for (let i = 0; i < n; i++) {
+        const prev = points[(i - 1 + n) % n];
+        const curr = points[i];
+        const next = points[(i + 1) % n];
+        
+        const dx1 = curr.x - prev.x;
+        const dy1 = curr.y - prev.y;
+        const len1 = Math.sqrt(dx1 * dx1 + dy1 * dy1) || 1;
+        const nx1 = -dy1 / len1;
+        const ny1 = dx1 / len1;
+        
+        const dx2 = next.x - curr.x;
+        const dy2 = next.y - curr.y;
+        const len2 = Math.sqrt(dx2 * dx2 + dy2 * dy2) || 1;
+        const nx2 = -dy2 / len2;
+        const ny2 = dx2 / len2;
+        
+        let nx = (nx1 + nx2) / 2;
+        let ny = (ny1 + ny2) / 2;
+        const nlen = Math.sqrt(nx * nx + ny * ny) || 1;
+        nx /= nlen;
+        ny /= nlen;
+        
+        const dot = nx1 * nx2 + ny1 * ny2;
+        const scale = Math.min(2, 1 / Math.max(0.5, (1 + dot) / 2));
+        
+        offsetPoints.push({
+            x: curr.x + nx * distance * scale,
+            y: curr.y + ny * distance * scale
+        });
+    }
+    
+    return offsetPoints;
+}
+
+// Calculate total length of polyline
+function polylineLength(points) {
+    let length = 0;
+    for (let i = 1; i < points.length; i++) {
+        const dx = points[i].x - points[i-1].x;
+        const dy = points[i].y - points[i-1].y;
+        length += Math.sqrt(dx * dx + dy * dy);
+    }
+    const dx = points[0].x - points[points.length-1].x;
+    const dy = points[0].y - points[points.length-1].y;
+    length += Math.sqrt(dx * dx + dy * dy);
+    return length;
+}
+
+// Get point at distance along polyline
+function getPointAtDistance(points, targetDist) {
+    let dist = 0;
+    const n = points.length;
+    
+    for (let i = 0; i < n; i++) {
+        const curr = points[i];
+        const next = points[(i + 1) % n];
+        const dx = next.x - curr.x;
+        const dy = next.y - curr.y;
+        const segLen = Math.sqrt(dx * dx + dy * dy);
+        
+        if (dist + segLen >= targetDist) {
+            const t = (targetDist - dist) / segLen;
+            return {
+                x: curr.x + dx * t,
+                y: curr.y + dy * t,
+                angle: Math.atan2(dy, dx)
+            };
+        }
+        dist += segLen;
+    }
+    
+    return { x: points[0].x, y: points[0].y, angle: 0 };
+}
+
+// Generate stitch positions along a polyline
+function generateStitchPositions(points, stitchLen, gapLen) {
+    const totalLen = polylineLength(points);
+    const stitches = [];
+    
+    let dist = gapLen / 2;
+    
+    while (dist < totalLen - stitchLen) {
+        const start = getPointAtDistance(points, dist);
+        const end = getPointAtDistance(points, dist + stitchLen);
+        
+        stitches.push({
+            x1: start.x,
+            y1: start.y,
+            x2: end.x,
+            y2: end.y
+        });
+        
+        dist += stitchLen + gapLen;
+    }
+    
+    return stitches;
+}
+
+// Draw a single 3-layer stitch
+function drawSingleStitch(ctx, x1, y1, x2, y2) {
+    // Shadow
+    ctx.beginPath();
+    ctx.moveTo(x1, y1 + 1.5);
+    ctx.lineTo(x2, y2 + 1.5);
+    ctx.strokeStyle = 'rgba(45, 22, 8, 0.7)';
+    ctx.lineWidth = 2.8;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    
+    // Thread
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.strokeStyle = '#d8bc88';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    
+    // Highlight
+    ctx.beginPath();
+    ctx.moveTo(x1, y1 - 0.5);
+    ctx.lineTo(x2, y2 - 0.5);
+    ctx.strokeStyle = 'rgba(255, 245, 225, 0.5)';
+    ctx.lineWidth = 0.7;
+    ctx.stroke();
+}
+
 class App{
   constructor(){
     this.canvas = document.getElementById('c');
@@ -1881,7 +2113,24 @@ oc.setTransform(this.dpr,0,0,this.dpr,0,0);oc.clearRect(0,0,w,h);oc.save();oc.tr
 this._stitchBtnBounds=null;
 this._mergedStitchBtnBounds=null;
 const pat=this.getMergedPatternPath(),st=this.offsetPath(pat,-CFG.stitchMargin),cav=this.offsetPath(st,-CFG.thickness*2);
-oc.beginPath();pat.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.4;oc.fill();oc.globalAlpha=1;
+
+// REALISTIC OR TECHNICAL RENDERING
+if (CFG.realisticRendering) {
+  // Calculate bounds for gradient placement
+  const b = M.getBounds(pat);
+  const foldX = CFG.lockFoldLine ? 0 : HOLSTER.x;
+  
+  // Draw realistic leather pattern
+  this.drawRealisticPattern(oc, pat, b, {
+    stitchInset: CFG.stitchMargin,
+    hasFoldLine: CFG.showFoldLine && !CFG.asymmetricOutline,
+    foldX: foldX
+  });
+} else {
+  // Original technical rendering
+  oc.beginPath();pat.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.4;oc.fill();oc.globalAlpha=1;
+}
+
 // Draw non-extension shapes separately
 if(CFG.showSymmetric)SYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{[1,-1].forEach(side=>{const wShp=this.getSymShapeWorld(s,side);if(wShp.isLinkedCircle){const cd=this.getLinkedCircleData(wShp);if(cd){const pts=cd.points.map(p=>{const sc={x:p.x*(wShp.scaleX||1),y:p.y*(wShp.scaleY||1)};const r=M.rotate(sc,wShp.rotation||0);return{x:r.x+wShp.x,y:r.y+wShp.y}});oc.beginPath();pts.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}else{this.drawShape(oc,wShp);oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}})});
 if(CFG.showAsymmetric)ASYM_SHAPES.filter(s=>!s.isExtension).forEach(s=>{if(s.isLinkedCircle){const cd=this.getLinkedCircleData(s);if(cd){const pts=cd.points.map(p=>{const sc={x:p.x*(s.scaleX||1),y:p.y*(s.scaleY||1)};const r=M.rotate(sc,s.rotation||0);return{x:r.x+s.x,y:r.y+s.y}});oc.beginPath();pts.forEach((p,i)=>i===0?oc.moveTo(p.x,p.y):oc.lineTo(p.x,p.y));oc.closePath();oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}}else{this.drawShape(oc,s);oc.fillStyle=CFG.leatherColor;oc.globalAlpha=.5;oc.fill();oc.globalAlpha=1}});
@@ -2330,6 +2579,163 @@ ctx.restore();
 this.updateZoomIndicator();
 }
 drawGrid(ctx,w,h){const gs=25*VIEW.zoom;ctx.strokeStyle='#ccc';ctx.lineWidth=.5;ctx.beginPath();for(let x=VIEW.x%gs;x<w;x+=gs){ctx.moveTo(x,0);ctx.lineTo(x,h)}for(let y=VIEW.y%gs;y<h;y+=gs){ctx.moveTo(0,y);ctx.lineTo(w,y)}ctx.stroke();const ms=100*VIEW.zoom;ctx.strokeStyle='#aaa';ctx.lineWidth=1;ctx.beginPath();for(let x=VIEW.x%ms;x<w;x+=ms){ctx.moveTo(x,0);ctx.lineTo(x,h)}for(let y=VIEW.y%ms;y<h;y+=ms){ctx.moveTo(0,y);ctx.lineTo(w,y)}ctx.stroke()}
+
+drawRealisticPattern(ctx, patternPath, bounds, options = {}) {
+    const stitchInset = options.stitchInset || 12;
+    const hasFoldLine = options.hasFoldLine || false;
+    const foldX = options.foldX || null;
+    
+    // Validate bounds to prevent gradient errors
+    if (!bounds || !isFinite(bounds.x) || !isFinite(bounds.y) || !isFinite(bounds.w) || !isFinite(bounds.h)) {
+        // Fall back to simple fill if bounds are invalid
+        ctx.beginPath();
+        patternPath.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fillStyle = CFG.leatherColor;
+        ctx.globalAlpha = 0.4;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        return;
+    }
+    
+    ctx.save();
+    
+    // Helper to trace pattern path
+    const tracePath = () => {
+        ctx.beginPath();
+        patternPath.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+    };
+    
+    // 1. BASE LEATHER GRADIENT
+    tracePath();
+    const baseGrad = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x, bounds.y + bounds.h);
+    baseGrad.addColorStop(0, '#c98548');
+    baseGrad.addColorStop(0.3, '#c47c40');
+    baseGrad.addColorStop(0.6, '#bb7238');
+    baseGrad.addColorStop(1, '#b06830');
+    ctx.fillStyle = baseGrad;
+    ctx.fill();
+    
+    // 2. TOP HIGHLIGHT
+    tracePath();
+    const highlightGrad = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x, bounds.y + 50);
+    highlightGrad.addColorStop(0, 'rgba(255, 215, 170, 0.5)');
+    highlightGrad.addColorStop(0.4, 'rgba(255, 200, 150, 0.2)');
+    highlightGrad.addColorStop(1, 'rgba(255, 200, 150, 0)');
+    ctx.fillStyle = highlightGrad;
+    ctx.fill();
+    
+    // 3. LEFT HIGHLIGHT
+    tracePath();
+    const leftHighlight = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x + 40, bounds.y);
+    leftHighlight.addColorStop(0, 'rgba(255, 210, 165, 0.35)');
+    leftHighlight.addColorStop(0.4, 'rgba(255, 195, 145, 0.1)');
+    leftHighlight.addColorStop(1, 'rgba(255, 195, 145, 0)');
+    ctx.fillStyle = leftHighlight;
+    ctx.fill();
+    
+    // 4. INNER SHADOWS (pillowed edge effect)
+    tracePath();
+    ctx.clip();
+    
+    const shadowSize = 20;
+    
+    // Top shadow
+    const topShadow = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x, bounds.y + shadowSize);
+    topShadow.addColorStop(0, 'rgba(70, 35, 15, 0.4)');
+    topShadow.addColorStop(1, 'rgba(70, 35, 15, 0)');
+    ctx.fillStyle = topShadow;
+    ctx.fillRect(bounds.x - 10, bounds.y - 10, bounds.w + 20, shadowSize + 10);
+    
+    // Bottom shadow
+    const bottomShadow = ctx.createLinearGradient(bounds.x, bounds.y + bounds.h - shadowSize, bounds.x, bounds.y + bounds.h);
+    bottomShadow.addColorStop(0, 'rgba(70, 35, 15, 0)');
+    bottomShadow.addColorStop(1, 'rgba(70, 35, 15, 0.35)');
+    ctx.fillStyle = bottomShadow;
+    ctx.fillRect(bounds.x - 10, bounds.y + bounds.h - shadowSize, bounds.w + 20, shadowSize + 10);
+    
+    // Left shadow
+    const leftShadow = ctx.createLinearGradient(bounds.x, bounds.y, bounds.x + shadowSize, bounds.y);
+    leftShadow.addColorStop(0, 'rgba(70, 35, 15, 0.3)');
+    leftShadow.addColorStop(1, 'rgba(70, 35, 15, 0)');
+    ctx.fillStyle = leftShadow;
+    ctx.fillRect(bounds.x - 10, bounds.y - 10, shadowSize + 10, bounds.h + 20);
+    
+    // Right shadow
+    const rightShadow = ctx.createLinearGradient(bounds.x + bounds.w - shadowSize, bounds.y, bounds.x + bounds.w, bounds.y);
+    rightShadow.addColorStop(0, 'rgba(70, 35, 15, 0)');
+    rightShadow.addColorStop(1, 'rgba(70, 35, 15, 0.3)');
+    ctx.fillStyle = rightShadow;
+    ctx.fillRect(bounds.x + bounds.w - shadowSize, bounds.y - 10, shadowSize + 10, bounds.h + 20);
+    
+    ctx.restore();
+    ctx.save();
+    
+    // 5. TEXTURE NOISE
+    tracePath();
+    ctx.clip();
+    ctx.globalAlpha = 0.035;
+    for (let i = 0; i < 2500; i++) {
+        const x = bounds.x + Math.random() * bounds.w;
+        const y = bounds.y + Math.random() * bounds.h;
+        ctx.fillStyle = Math.random() > 0.5 ? '#000' : '#fff';
+        ctx.fillRect(x, y, Math.random() * 1.5 + 0.5, Math.random() * 1.5 + 0.5);
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+    
+    // 6. STITCH GROOVE
+    const polyline = pathToPolyline(patternPath.map((p, i) => {
+        if (i === 0) return { type: 'move', x: p.x, y: p.y };
+        return { type: 'line', x: p.x, y: p.y };
+    }), 30);
+    const insetPolyline = offsetPolyline(polyline, stitchInset);
+    
+    // Draw groove line
+    ctx.beginPath();
+    ctx.moveTo(insetPolyline[0].x, insetPolyline[0].y);
+    for (let i = 1; i < insetPolyline.length; i++) {
+        ctx.lineTo(insetPolyline[i].x, insetPolyline[i].y);
+    }
+    ctx.closePath();
+    ctx.strokeStyle = 'rgba(60, 30, 12, 0.5)';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    
+    // 7. STITCHES
+    const stitches = generateStitchPositions(insetPolyline, 7, 5);
+    stitches.forEach(s => drawSingleStitch(ctx, s.x1, s.y1, s.x2, s.y2));
+    
+    // 8. FOLD LINE
+    if (hasFoldLine && foldX !== null) {
+        ctx.setLineDash([8, 6]);
+        ctx.strokeStyle = 'rgba(60, 30, 12, 0.4)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(foldX, bounds.y + 25);
+        ctx.lineTo(foldX, bounds.y + bounds.h - 25);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        ctx.save();
+        ctx.translate(foldX - 8, bounds.y + bounds.h/2 + 25);
+        ctx.rotate(-Math.PI/2);
+        ctx.fillStyle = 'rgba(60, 30, 12, 0.5)';
+        ctx.font = '11px sans-serif';
+        ctx.fillText('FOLD', 0, 0);
+        ctx.restore();
+    }
+    
+    // 9. OUTER HIGHLIGHT
+    tracePath();
+    ctx.strokeStyle = 'rgba(255, 220, 180, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    
+    ctx.restore();
+}
+
 drawNodes(ctx){
 // Don't show node handles if main shape is locked
 if(HOLSTER.locked)return;
@@ -2502,6 +2908,90 @@ drawPatternLayerFullPattern(ctx, layerState, scale, strokeColor = '#000', labelT
 drawPatternLayer(ctx, layerState, scale, strokeColor = '#000', labelText = '') {
   return this.publishManager.drawPatternLayer(ctx, layerState, scale, strokeColor, labelText);
 }
+
+// Initialize leather button stitches
+initLeatherButtonStitches() {
+    document.querySelectorAll('#header .leather-btn, #header .leather-toggle').forEach(el => {
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.classList.add('stitch-svg');
+        
+        requestAnimationFrame(() => {
+            const w = el.offsetWidth;
+            const h = el.offsetHeight;
+            svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+            
+            const m = 7; // margin
+            const r = 5; // corner radius
+            const len = 6;
+            const gap = 4;
+            let html = '';
+            
+            // Top edge
+            for (let x = m + r + 2; x < w - m - r - len; x += len + gap) {
+                html += this.createStitchSVG(x, m, x + len, m);
+            }
+            // Right edge
+            for (let y = m + r + 2; y < h - m - r - len; y += len + gap) {
+                html += this.createStitchSVG(w - m, y, w - m, y + len);
+            }
+            // Bottom edge
+            for (let x = w - m - r - 2; x > m + r + len; x -= len + gap) {
+                html += this.createStitchSVG(x, h - m, x - len, h - m);
+            }
+            // Left edge
+            for (let y = h - m - r - 2; y > m + r + len; y -= len + gap) {
+                html += this.createStitchSVG(m, y, m, y - len);
+            }
+            
+            // Corner stitches
+            const c = 2;
+            html += this.createStitchSVG(m + c, m + r - c, m + r - c, m + c);
+            html += this.createStitchSVG(w - m - r + c, m + c, w - m - c, m + r - c);
+            html += this.createStitchSVG(w - m - c, h - m - r + c, w - m - r + c, h - m - c);
+            html += this.createStitchSVG(m + r - c, h - m - c, m + c, h - m - r + c);
+            
+            svg.innerHTML = html;
+            el.appendChild(svg);
+        });
+    });
+}
+
+createStitchSVG(x1, y1, x2, y2) {
+    return `
+        <line x1="${x1}" y1="${y1+1.3}" x2="${x2}" y2="${y2+1.3}" 
+              stroke="rgba(45,22,8,0.75)" stroke-width="2.5" stroke-linecap="round"/>
+        <line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" 
+              stroke="#d8bc88" stroke-width="1.8" stroke-linecap="round"/>
+        <line x1="${x1}" y1="${y1-0.5}" x2="${x2}" y2="${y2-0.5}" 
+              stroke="rgba(255,245,225,0.5)" stroke-width="0.6" stroke-linecap="round"/>
+    `;
+}
+
+// Setup leather toggle functionality
+setupLeatherToggle() {
+    const toggle = document.getElementById('layer-toggle-leather');
+    if (!toggle) return;
+    
+    toggle.addEventListener('click', () => {
+        toggle.classList.toggle('active');
+        const labels = toggle.querySelectorAll('.toggle-label');
+        labels.forEach(l => l.classList.toggle('inactive'));
+        
+        // Toggle between symmetric and asymmetric layers
+        if (toggle.classList.contains('active')) {
+            this.setLayer('asymmetric');
+        } else {
+            this.setLayer('symmetric');
+        }
+    });
+}
+
 }
 const app=new App();
 window.app = app;
+
+// Initialize leather button stitches and toggle when DOM is ready
+document.addEventListener('DOMContentLoaded', () => {
+    app.initLeatherButtonStitches();
+    app.setupLeatherToggle();
+});
