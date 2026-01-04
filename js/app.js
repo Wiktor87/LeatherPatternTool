@@ -2585,6 +2585,19 @@ drawRealisticPattern(ctx, patternPath, bounds, options = {}) {
     const hasFoldLine = options.hasFoldLine || false;
     const foldX = options.foldX || null;
     
+    // Validate bounds to prevent gradient errors
+    if (!bounds || !isFinite(bounds.x) || !isFinite(bounds.y) || !isFinite(bounds.w) || !isFinite(bounds.h)) {
+        // Fall back to simple fill if bounds are invalid
+        ctx.beginPath();
+        patternPath.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
+        ctx.closePath();
+        ctx.fillStyle = CFG.leatherColor;
+        ctx.globalAlpha = 0.4;
+        ctx.fill();
+        ctx.globalAlpha = 1;
+        return;
+    }
+    
     ctx.save();
     
     // Helper to trace pattern path
