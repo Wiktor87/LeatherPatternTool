@@ -175,6 +175,7 @@ if (typeof ClipperLib === 'undefined') {
 <span class="accordion-chevron">›</span>
 </div>
 <div class="accordion-content">
+<div class="setting-row"><label>Realistic Rendering</label><input type="checkbox" id="cfg-realisticRendering" checked onchange="app.updateCfg('realisticRendering',this.checked)"></div>
 <div class="setting-row"><label>Cavity</label><input type="checkbox" id="cfg-cavity" checked onchange="app.updateCfg('showCavity',this.checked)"></div>
 <div class="setting-row"><label>Fold Line</label><input type="checkbox" id="cfg-fold" checked onchange="app.updateCfg('showFoldLine',this.checked)"></div>
 <div class="setting-row"><label>Lock Fold</label><input type="checkbox" id="cfg-lockFold" onchange="app.updateCfg('lockFoldLine',this.checked)"></div>
